@@ -31,8 +31,8 @@ internal fun deeplistMotionWords(entry: LyricsEntry, nextTime: Long?): List<Deep
 }
 
 internal fun deeplistArrival(elapsed: Long, index: Int, wordstorm: Boolean): Float {
-    val stagger = if (wordstorm) 42L else 24L
-    val duration = if (wordstorm) 700L else 520L
+    val stagger = if (wordstorm) 30L else 24L
+    val duration = if (wordstorm) 520L else 520L
     val p = ((elapsed - index * stagger).toFloat() / duration).coerceIn(0f, 1f)
     return 1f - (1f - p) * (1f - p) * (1f - p)
 }
