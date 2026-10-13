@@ -994,7 +994,7 @@
     <string name="stream_source_web_creator_desc">Creator web client.</string>
     <string name="top_result">Top result</string>
     <string name="other">Other</string>
-    <string name="wordstorm_settings">Wordstorm settings</string>
+    <string name="wordstorm_settings">Deeplist settings</string>
     <string name="wordstorm_original">Original lyrics</string>
     <string name="wordstorm_enable">Wordstorm</string>
     <string name="wordstorm_cinematic">Cinematic</string>
@@ -1009,4 +1009,9 @@
     <string name="wordstorm_reset">Reset appearance</string>
     <string name="wordstorm_done">Done</string>
     <string name="wordstorm_accent">Accent colour %1$d</string>
+    <string name="deeplist_inside_deep">Inside Deep</string>
+    <string name="deeplist_website_url">Website URL (https://)</string>
+    <string name="deeplist_invalid_url">Enter a valid HTTPS website URL, or check that a browser is installed.</string>
+    <string name="deeplist_open_website">Save &amp; open</string>
+    <string name="deeplist_share_song">Share song</string>
 </resources>

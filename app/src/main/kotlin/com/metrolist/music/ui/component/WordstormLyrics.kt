@@ -1,8 +1,7 @@
 package com.metrolist.music.ui.component
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -19,6 +19,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -36,7 +37,14 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material3.OutlinedTextField
+import android.content.Intent
+import android.net.Uri
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
@@ -49,6 +57,7 @@ import coil3.compose.AsyncImage
 import com.metrolist.music.LocalListenTogetherManager
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
+import com.metrolist.music.constants.DeeplistWebsiteKey
 import com.metrolist.music.constants.WordstormAccentKey
 import com.metrolist.music.constants.WordstormCoverKey
 import com.metrolist.music.constants.WordstormFontSizeKey
@@ -57,7 +66,6 @@ import com.metrolist.music.constants.WordstormPresetKey
 import com.metrolist.music.lyrics.LyricsEntry
 import com.metrolist.music.lyrics.LyricsUtils
 import com.metrolist.music.lyrics.lyricsTextLooksSynced
-import com.metrolist.music.ui.screens.settings.LyricsPosition
 import com.metrolist.music.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -89,8 +97,12 @@ internal fun WordstormLyrics(
     val validText = wordstormLyricsForTrack(metadata?.id, entity?.id, entity?.lyrics)
     val synced = remember(validText) { lyricsTextLooksSynced(validText) }
     var entries by remember(metadata?.id) { mutableStateOf<List<LyricsEntry>>(emptyList()) }
-    var position by remember(metadata?.id) { mutableLongStateOf(0L) }
-    var phase by remember(metadata?.id) { mutableFloatStateOf(0f) }
+    val position = remember(metadata?.id) { mutableLongStateOf(0L) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val context = LocalContext.current
+    var website by rememberPreference(DeeplistWebsiteKey, "")
+    var websiteDraft by remember { mutableStateOf(website) }
+    var websiteError by remember { mutableStateOf(false) }
     val offset: Long = if (song?.song?.id == metadata?.id) song?.song?.lyricsOffset?.toLong() ?: 0L else 0L
     val manager = LocalListenTogetherManager.current
     val canSeek = manager?.isInRoom != true || manager.isHost
@@ -103,44 +115,28 @@ internal fun WordstormLyrics(
             }
         }
     }
-    LaunchedEffect(metadata?.id, playing, motion, preset) {
-        while (isActive) {
-            position = latestSlider() ?: connection.player.currentPosition
-            if (playing && motion && preset != 2) {
-                val entry = entries.lastOrNull { it.time <= position + offset }
-                val wordDuration = entry?.words?.takeIf { it.isNotEmpty() }?.let { (it.last().endTime - it.first().startTime) / it.size }
-                val speed = wordDuration?.takeIf { it > 0.0 }?.let { (0.65 / it).toFloat().coerceIn(0.4f, 2.3f) } ?: 0.65f
-                phase = (phase + 0.004f * speed) % 1f
+    LaunchedEffect(metadata?.id, playing, motion, preset, lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (isActive) {
+                position.longValue = latestSlider() ?: connection.player.currentPosition
+                delay(if (playing && motion && preset != 2) 33L else 120L)
             }
-            delay(if (playing) 33L else 150L)
         }
     }
     val times = remember(entries) { entries.map { it.time } }
-    val activeIndex = wordstormLineIndex(times, position + offset)
+    val activeIndex by remember(times, position, offset) {
+        derivedStateOf { wordstormLineIndex(times, position.longValue + offset) }
+    }
     val active = entries.getOrNull(activeIndex)
-    val entrance by animateFloatAsState(
-        targetValue = if (active != null) 1f else 0f,
-        animationSpec = tween(if (motion && preset != 2) 450 else 0),
-        label = "wordstormEntrance",
-    )
+    val pace = remember(active) {
+        active?.words?.takeIf { it.isNotEmpty() }?.let {
+            val duration = (it.last().endTime - it.first().startTime) / it.size
+            if (duration > 0) (0.65 / duration).toFloat().coerceIn(0.4f, 2.3f) else 0.65f
+        } ?: 0.65f
+    }
     Box(modifier.fillMaxSize().background(Color(0xFF08070D))) {
-        Canvas(Modifier.fillMaxSize()) {
-            drawRect(Brush.radialGradient(listOf(accent.copy(alpha = 0.08f), Color.Transparent), center, size.minDimension * 0.65f))
-            drawOval(accent.copy(alpha = 0.08f), Offset(-size.width * 0.1f, size.height * 0.28f), Size(size.width * 1.2f, size.height * 0.38f), style = Stroke(1.dp.toPx()))
-            drawOval(accent.copy(alpha = 0.05f), Offset(-size.width * 0.2f, size.height * 0.22f), Size(size.width * 1.4f, size.height * 0.52f), style = Stroke(1.dp.toPx()))
-            repeat(24) { index ->
-                drawCircle(accent.copy(alpha = 0.17f), 1.dp.toPx(), Offset(((index * 37) % 100) * size.width / 100, ((index * 19) % 100) * size.height / 100))
-            }
-            if (motion && preset != 2) {
-                val x = phase * size.width
-                val y = (1f - phase) * size.height
-                val stroke = 2.dp.toPx()
-                drawLine(accent.copy(alpha = 0.6f), Offset(x, 0f), Offset((x + size.width * 0.18f).coerceAtMost(size.width), 0f), stroke)
-                drawLine(accent.copy(alpha = 0.45f), Offset(size.width - x, size.height), Offset((size.width - x - size.width * 0.18f).coerceAtLeast(0f), size.height), stroke)
-                drawLine(accent.copy(alpha = 0.45f), Offset(0f, y), Offset(0f, (y - size.height * 0.18f).coerceAtLeast(0f)), stroke)
-                drawLine(accent.copy(alpha = 0.6f), Offset(size.width, y), Offset(size.width, (y - size.height * 0.18f).coerceAtLeast(0f)), stroke)
-            }
-        }
+        DeeplistBackground(accent, playing && motion && preset != 2, pace)
+        Box(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 12.dp)) {
         Column(
             Modifier.align(Alignment.Center).fillMaxWidth().padding(vertical = 62.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -156,31 +152,12 @@ internal fun WordstormLyrics(
                     if (preset == 2 || !motion) {
                         Text(active.text, color = Color.White, fontSize = fontSize.coerceIn(26f, 48f).sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp))
                     } else {
-                        LyricsLine(
-                            index = activeIndex,
-                            item = active,
-                            isSynced = synced,
-                            isActiveLine = true,
-                            bgVisible = false,
-                            isSelected = false,
-                            isSelectionModeActive = false,
-                            currentPositionState = position,
-                            lyricsOffset = offset,
-                            playerConnection = connection,
-                            lyricsTextSize = fontSize.coerceIn(26f, 48f),
-                            lyricsLineSpacing = 1.25f,
-                            expressiveAccent = accent,
-                            lyricsTextPosition = LyricsPosition.CENTER,
-                            respectAgentPositioning = false,
-                            isAutoScrollEnabled = true,
-                            displayedCurrentLineIndex = activeIndex,
-                            romanizeAsMain = false,
-                            enabledLanguages = emptyList(),
-                            romanizeLyrics = false,
-                            onSizeChanged = {},
-                            onClick = { if (canSeek) connection.seekTo((active.time - offset).coerceAtLeast(0L)) },
-                            onLongClick = { settings = true },
-                            modifier = Modifier.graphicsLayer { translationY = (1f - entrance) * 16.dp.toPx() },
+                        DeeplistLine(
+                            entry = active, position = position, offset = offset,
+                            fontSize = fontSize.coerceIn(26f, 48f), accent = accent,
+                            modifier = Modifier.padding(horizontal = 6.dp).clickable(enabled = canSeek) {
+                                connection.seekTo((active.time - offset).coerceAtLeast(0L))
+                            },
                         )
                     }
                 }
@@ -197,14 +174,14 @@ internal fun WordstormLyrics(
                 }
             }
         }
-        Row(Modifier.align(Alignment.TopEnd), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { settings = true }) { Text(stringResource(R.string.wordstorm_settings), color = accent) }
-            TextButton(onClick = onOriginal) { Text(stringResource(R.string.wordstorm_original), color = accent) }
+        TextButton(onClick = { websiteDraft = website; websiteError = false; settings = true }, modifier = Modifier.align(Alignment.TopEnd)) {
+            Text(stringResource(R.string.wordstorm_settings), color = accent)
         }
         if (cover) {
             AsyncImage(model = metadata?.thumbnailUrl, contentDescription = stringResource(R.string.wordstorm_cover), modifier = Modifier.align(Alignment.TopStart).padding(12.dp).size(58.dp))
         }
         Text(metadata?.title.orEmpty(), color = accent.copy(alpha = 0.6f), fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(16.dp))
+        }
     }
     if (settings) {
         val modeNames = listOf(R.string.wordstorm_cinematic, R.string.wordstorm_floating, R.string.wordstorm_karaoke)
@@ -226,10 +203,73 @@ internal fun WordstormLyrics(
                     }
                     TextButton(onClick = { motion = !motion }) { Text(stringResource(if (motion) R.string.wordstorm_motion_on else R.string.wordstorm_motion_off)) }
                     TextButton(onClick = { cover = !cover }) { Text(stringResource(if (cover) R.string.wordstorm_hide_cover else R.string.wordstorm_show_cover)) }
+                    TextButton(onClick = { settings = false; onOriginal() }) { Text(stringResource(R.string.wordstorm_original)) }
+                    Text(stringResource(R.string.deeplist_inside_deep))
+                    OutlinedTextField(
+                        value = websiteDraft,
+                        onValueChange = { websiteDraft = it; websiteError = false },
+                        label = { Text(stringResource(R.string.deeplist_website_url)) },
+                        singleLine = true, isError = websiteError,
+                    )
+                    if (websiteError) Text(stringResource(R.string.deeplist_invalid_url))
+                    Row {
+                        TextButton(onClick = {
+                            val url = deeplistWebsiteUrl(websiteDraft)
+                            if (url == null) websiteError = true else {
+                                website = url
+                                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+                                    .onFailure { websiteError = true }
+                            }
+                        }) { Text(stringResource(R.string.deeplist_open_website)) }
+                        TextButton(onClick = {
+                            val track = metadata ?: return@TextButton
+                            val text = "${track.title} — ${track.artists.joinToString { it.name }}\nhttps://music.youtube.com/watch?v=${track.id}"
+                            runCatching {
+                                context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"; putExtra(Intent.EXTRA_TEXT, text)
+                                }, null))
+                            }
+                        }) { Text(stringResource(R.string.deeplist_share_song)) }
+                    }
                     TextButton(onClick = { preset = 0; fontSize = 36f; motion = true; cover = false; accentIndex = 0 }) { Text(stringResource(R.string.wordstorm_reset)) }
                 }
             },
             confirmButton = { TextButton(onClick = { settings = false }) { Text(stringResource(R.string.wordstorm_done)) } },
         )
+    }
+}
+
+
+@Composable
+private fun DeeplistBackground(accent: Color, animate: Boolean, pace: Float) {
+    val phase = remember { mutableFloatStateOf(0f) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(animate, pace, lifecycleOwner) {
+        if (animate) lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (isActive) {
+                phase.floatValue = (phase.floatValue + 0.004f * pace) % 1f
+                delay(33L)
+            }
+        }
+    }
+    Box(Modifier.fillMaxSize().drawWithCache {
+        val aura = Brush.radialGradient(listOf(accent.copy(alpha = 0.08f), Color.Transparent), center, size.minDimension * 0.65f)
+        onDrawBehind {
+            drawRect(aura)
+            drawOval(accent.copy(alpha = 0.08f), Offset(-size.width * 0.1f, size.height * 0.28f), Size(size.width * 1.2f, size.height * 0.38f), style = Stroke(1.dp.toPx()))
+            drawOval(accent.copy(alpha = 0.05f), Offset(-size.width * 0.2f, size.height * 0.22f), Size(size.width * 1.4f, size.height * 0.52f), style = Stroke(1.dp.toPx()))
+            repeat(24) { index ->
+                drawCircle(accent.copy(alpha = 0.17f), 1.dp.toPx(), Offset(((index * 37) % 100) * size.width / 100, ((index * 19) % 100) * size.height / 100))
+            }
+        }
+    })
+    if (animate) Canvas(Modifier.fillMaxSize()) {
+        val x = phase.floatValue * size.width
+        val y = (1f - phase.floatValue) * size.height
+        val stroke = 2.dp.toPx()
+        drawLine(accent.copy(alpha = 0.6f), Offset(x, 0f), Offset((x + size.width * 0.18f).coerceAtMost(size.width), 0f), stroke)
+        drawLine(accent.copy(alpha = 0.45f), Offset(size.width - x, size.height), Offset((size.width - x - size.width * 0.18f).coerceAtLeast(0f), size.height), stroke)
+        drawLine(accent.copy(alpha = 0.45f), Offset(0f, y), Offset(0f, (y - size.height * 0.18f).coerceAtLeast(0f)), stroke)
+        drawLine(accent.copy(alpha = 0.6f), Offset(size.width, y), Offset(size.width, (y - size.height * 0.18f).coerceAtLeast(0f)), stroke)
     }
 }

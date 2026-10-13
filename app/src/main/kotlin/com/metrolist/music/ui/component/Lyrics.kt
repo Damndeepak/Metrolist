@@ -6,6 +6,7 @@
 package com.metrolist.music.ui.component
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -51,7 +52,7 @@ fun Lyrics(
             )
         }
         if (showLyrics) {
-            TextButton(onClick = { wordstormEnabled = true }, modifier = Modifier.align(Alignment.TopEnd)) {
+            TextButton(onClick = { wordstormEnabled = true }, modifier = Modifier.align(Alignment.TopEnd).safeDrawingPadding()) {
                 Text(stringResource(R.string.wordstorm_enable))
             }
         }

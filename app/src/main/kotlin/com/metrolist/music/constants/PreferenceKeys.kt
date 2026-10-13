@@ -726,3 +726,5 @@ val WordstormFontSizeKey = floatPreferencesKey("wordstormFontSize")
 val WordstormMotionKey = booleanPreferencesKey("wordstormMotion")
 val WordstormCoverKey = booleanPreferencesKey("wordstormCover")
 val WordstormAccentKey = intPreferencesKey("wordstormAccent")
+
+val DeeplistWebsiteKey = stringPreferencesKey("deeplistWebsite")
