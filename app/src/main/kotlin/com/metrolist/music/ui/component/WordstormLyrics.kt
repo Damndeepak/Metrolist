@@ -253,7 +253,7 @@ private fun DeeplistBackground(accent: Color, animate: Boolean, pace: Float) {
         }
     }
     Box(Modifier.fillMaxSize().drawWithCache {
-        val aura = Brush.radialGradient(listOf(accent.copy(alpha = 0.08f), Color.Transparent), center, size.minDimension * 0.65f)
+        val aura = Brush.radialGradient(listOf(accent.copy(alpha = 0.08f), Color.Transparent), Offset(size.width / 2f, size.height / 2f), size.minDimension * 0.65f)
         onDrawBehind {
             drawRect(aura)
             drawOval(accent.copy(alpha = 0.08f), Offset(-size.width * 0.1f, size.height * 0.28f), Size(size.width * 1.2f, size.height * 0.38f), style = Stroke(1.dp.toPx()))
