@@ -59,8 +59,7 @@ jobs:
         run: |
           SDK_MANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           "$SDK_MANAGER" --licenses < <(yes) >/dev/null
-          "$SDK_MANAGER" --channel=3 --list
-          "$SDK_MANAGER" --channel=3 "platforms;android-37" "build-tools;37.0.0"
+          "$SDK_MANAGER" --channel=3 "platforms;android-37.0" "build-tools;37.0.0"
 
       - name: Build APK and run unit tests
         shell: bash
