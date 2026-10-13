@@ -30,15 +30,16 @@ import kotlinx.coroutines.isActive
 import kotlin.math.sin
 
 @Composable
-internal fun rememberDeeplistClock(playing: Boolean): LongState {
+internal fun rememberDeeplistClock(playing: Boolean, fastForMs: Long = 0L): LongState {
     val clock = remember { mutableLongStateOf(0L) }
     val owner = LocalLifecycleOwner.current
-    LaunchedEffect(playing, owner) {
+    LaunchedEffect(playing, owner, fastForMs) {
         if (playing) owner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             var last = 0L
             while (isActive) withFrameMillis { now ->
                 if (last == 0L) last = now
-                if (now - last >= 32L) { clock.longValue += (now - last).coerceAtMost(100L); last = now }
+                val interval = if (clock.longValue < fastForMs) 16L else 32L
+                if (now - last >= interval) { clock.longValue += (now - last).coerceAtMost(100L); last = now }
             }
         }
     }

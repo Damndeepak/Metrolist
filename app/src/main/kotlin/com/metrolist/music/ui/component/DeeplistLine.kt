@@ -33,7 +33,7 @@ internal fun DeeplistLine(entry: LyricsEntry, position: LongState, offset: Long,
     nextTime: Long?, modifier: Modifier = Modifier) {
     val density = LocalDensity.current
     val measurer = rememberTextMeasurer()
-    val clock = rememberDeeplistClock(playing)
+    val clock = rememberDeeplistClock(playing, fastForMs = 1500L)
     val style = remember(fontSize) { TextStyle(fontSize = fontSize.sp,
         lineHeight = (fontSize * 1.25f).sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center) }
     val samples = remember(entry) { longArrayOf(Long.MIN_VALUE, 0L) }
