@@ -1022,4 +1022,21 @@
     <string name="deeplist_sync_error">Connection failed. Check website URL, pairing code and internet.</string>
     <string name="deeplist_start_sync">Start live sharing</string>
     <string name="deeplist_stop_sync">Stop live sharing</string>
+
+    <string name="deeplist_fullscreen">Full screen</string>
+    <string name="deeplist_exit_fullscreen">Exit full screen</string>
+    <string name="deeplist_previous">Previous song</string>
+    <string name="deeplist_next">Next song</string>
+    <string name="deeplist_play_pause">Play or pause</string>
+    <string name="deeplist_lyrics_tab">Lyrics</string>
+    <string name="deeplist_appearance_tab">Style</string>
+    <string name="deeplist_connection_tab">Connect</string>
+    <string name="deeplist_speed">Word entrance speed</string>
+    <string name="deeplist_neon">Neon brightness · slide to zero to switch off</string>
+    <string name="deeplist_context_on">Previous and next lines: on</string>
+    <string name="deeplist_context_off">Previous and next lines: off</string>
+    <string name="deeplist_performance_on">Performance mode: on</string>
+    <string name="deeplist_performance_off">Performance mode: off</string>
+    <string name="deeplist_preview">Feel the music come alive</string>
+    <string name="deeplist_preview_note">Live style preview · sample word timing</string>
 </resources>

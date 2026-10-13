@@ -601,7 +601,7 @@ class MainActivity : FragmentActivity() {
         val isSystemInDarkTheme = isSystemInDarkTheme()
         val useDarkTheme =
             remember(darkTheme, isSystemInDarkTheme) {
-                if (darkTheme == DarkMode.AUTO) isSystemInDarkTheme else darkTheme == DarkMode.ON
+                if (BuildConfig.APPLICATION_ID == "com.deepu.wordstorm") true else if (darkTheme == DarkMode.AUTO) isSystemInDarkTheme else darkTheme == DarkMode.ON
             }
 
         LaunchedEffect(useDarkTheme) {

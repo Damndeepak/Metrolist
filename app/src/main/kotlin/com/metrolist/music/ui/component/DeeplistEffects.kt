@@ -22,6 +22,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
+import com.metrolist.music.constants.DeeplistNeonKey
+import com.metrolist.music.constants.DeeplistPerformanceKey
 import com.metrolist.music.constants.WordstormAccentKey
 import com.metrolist.music.constants.WordstormMotionKey
 import com.metrolist.music.constants.WordstormPresetKey
@@ -68,12 +70,15 @@ internal fun DeeplistWordRain(words: List<String>, playing: Boolean, accent: Col
 }
 
 @Composable
-internal fun DeeplistEdgeLights(playing: Boolean) {
+internal fun DeeplistEdgeLights(playing: Boolean, neonOverride: Float? = null, performanceOverride: Boolean? = null) {
     val motion by rememberPreference(WordstormMotionKey, true)
     val preset by rememberPreference(WordstormPresetKey, 0)
     val colour by rememberPreference(WordstormAccentKey, 0)
-    if (!motion || preset == 2) return
-    val clock = rememberDeeplistClock(playing)
+    val intensity by rememberPreference(DeeplistNeonKey, 0.65f)
+    val performance by rememberPreference(DeeplistPerformanceKey, false)
+    val light = (neonOverride ?: intensity).coerceIn(0f, 1f)
+    if (light == 0f) return
+    val clock = rememberDeeplistClock(playing && motion && !(performanceOverride ?: performance))
     val accent = listOf(Color(0xFFC2A1FF), Color(0xFF7EDAE3), Color(0xFFFFB296))[colour.coerceIn(0, 2)]
     Canvas(Modifier.fillMaxSize()) {
         val phase = ((clock.longValue + 1200L) % 5200L).toFloat() / 5200f
@@ -82,8 +87,8 @@ internal fun DeeplistEdgeLights(playing: Boolean) {
         val y0 = size.height - phase * 1.2f * size.height
         val y1 = size.height - (phase * 1.2f - 0.2f) * size.height
         fun edge(start: Offset, end: Offset) {
-            drawLine(accent.copy(alpha = 0.13f), start, end, 6.dp.toPx())
-            drawLine(Brush.linearGradient(listOf(Color.Transparent, accent, Color.Transparent), start, end), start, end, 1.5.dp.toPx())
+            drawLine(accent.copy(alpha = 0.13f * light), start, end, 6.dp.toPx())
+            drawLine(Brush.linearGradient(listOf(Color.Transparent, accent.copy(alpha = light), Color.Transparent), start, end), start, end, 1.5.dp.toPx())
         }
         edge(Offset(x0, 1.dp.toPx()), Offset(x1, 1.dp.toPx()))
         edge(Offset(size.width - x0, size.height - 1.dp.toPx()), Offset(size.width - x1, size.height - 1.dp.toPx()))
@@ -91,3 +96,4 @@ internal fun DeeplistEdgeLights(playing: Boolean) {
         edge(Offset(size.width - 1.dp.toPx(), y0), Offset(size.width - 1.dp.toPx(), y1))
     }
 }
+

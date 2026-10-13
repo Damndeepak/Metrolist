@@ -139,6 +139,7 @@ import com.metrolist.music.LocalDownloadUtil
 import com.metrolist.music.LocalListenTogetherManager
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
+import com.metrolist.music.ui.component.WordstormLyrics
 import com.metrolist.music.ui.component.DeeplistEdgeLights
 import com.metrolist.music.constants.WordstormEnabledKey
 import com.metrolist.music.constants.CropAlbumArtKey
@@ -241,6 +242,7 @@ fun BottomSheetPlayer(
         defaultValue = PlayerBackgroundStyle.DEFAULT,
     )
     val deeplistEnabled by rememberPreference(WordstormEnabledKey, true)
+    val immersiveLyrics = deeplistEnabled && showInlineLyrics && isFullScreen
     val playerBackground = if (deeplistEnabled) PlayerBackgroundStyle.DEFAULT else preferredPlayerBackground
     val playerButtonsStyle by rememberEnumPreference(
         key = PlayerButtonsStyleKey,
@@ -266,7 +268,7 @@ fun BottomSheetPlayer(
     val isKeepScreenOn by rememberPreference(KeepScreenOn, false)
     val keepScreenOn = isPlaying && isKeepScreenOn
 
-    DisposableEffect(playerBackground, state.isExpanded, useDarkTheme, keepScreenOn, isFullScreen, hideStatusBarOnFullscreen) {
+    DisposableEffect(playerBackground, state.isExpanded, useDarkTheme, keepScreenOn, isFullScreen, hideStatusBarOnFullscreen, immersiveLyrics) {
         val window = (context as? android.app.Activity)?.window
         if (window != null && state.isExpanded) {
             val insetsController = WindowCompat.getInsetsController(window, window.decorView)
@@ -281,11 +283,11 @@ fun BottomSheetPlayer(
                 }
             }
 
-            if (isFullScreen && hideStatusBarOnFullscreen) {
-                insetsController.hide(WindowInsetsCompat.Type.statusBars())
+            if (immersiveLyrics || (isFullScreen && hideStatusBarOnFullscreen)) {
+                insetsController.hide(if (immersiveLyrics) WindowInsetsCompat.Type.systemBars() else WindowInsetsCompat.Type.statusBars())
                 insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             } else {
-                insetsController.show(WindowInsetsCompat.Type.statusBars())
+                insetsController.show(WindowInsetsCompat.Type.systemBars())
             }
 
             if (keepScreenOn && state.isExpanded) {
@@ -299,14 +301,14 @@ fun BottomSheetPlayer(
             if (window != null) {
                 val insetsController = WindowCompat.getInsetsController(window, window.decorView)
                 insetsController.isAppearanceLightStatusBars = !useDarkTheme
-                insetsController.show(WindowInsetsCompat.Type.statusBars())
+                insetsController.show(WindowInsetsCompat.Type.systemBars())
                 window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
         }
     }
 
     BackHandler(enabled = state.isExpanded) {
-        state.collapseSoft()
+        if (immersiveLyrics) isFullScreen = false else state.collapseSoft()
     }
 
     val onBackgroundColor =
@@ -1846,7 +1848,9 @@ fun BottomSheetPlayer(
             }
         }
 
-        when (LocalConfiguration.current.orientation) {
+        if (immersiveLyrics) {
+            InlineLyricsView(mediaMetadata, true, { sliderPosition ?: effectivePosition }, immersive = true, onExitFullscreen = { isFullScreen = false })
+        } else when (LocalConfiguration.current.orientation) {
             Configuration.ORIENTATION_LANDSCAPE -> {
                 // Calculate vertical padding like OuterTune
                 val density = LocalDensity.current
@@ -1886,7 +1890,8 @@ fun BottomSheetPlayer(
                                 InlineLyricsView(
                                     mediaMetadata = mediaMetadata,
                                     showLyrics = showLyrics,
-                                    positionProvider = { effectivePosition },
+                                    positionProvider = { sliderPosition ?: effectivePosition },
+                                    onFullscreen = { isFullScreen = true },
                                 )
                             } else {
                                 Thumbnail(
@@ -1949,7 +1954,8 @@ fun BottomSheetPlayer(
                                 InlineLyricsView(
                                     mediaMetadata = mediaMetadata,
                                     showLyrics = showLyrics,
-                                    positionProvider = { effectivePosition },
+                                    positionProvider = { sliderPosition ?: effectivePosition },
+                                    onFullscreen = { isFullScreen = true },
                                 )
                             } else {
                                 Thumbnail(
@@ -2006,8 +2012,12 @@ fun InlineLyricsView(
     mediaMetadata: MediaMetadata?,
     showLyrics: Boolean,
     positionProvider: () -> Long,
+    immersive: Boolean = false,
+    onFullscreen: () -> Unit = {},
+    onExitFullscreen: () -> Unit = {},
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
+    val deeplistEnabled by rememberPreference(WordstormEnabledKey, true)
     val currentLyrics by playerConnection.currentLyrics.collectAsStateWithLifecycle(initialValue = null)
     val queueWindows by playerConnection.queueWindows.collectAsStateWithLifecycle(initialValue = emptyList())
     val currentWindowIndex by playerConnection.currentWindowIndex.collectAsStateWithLifecycle(initialValue = -1)
@@ -2108,6 +2118,7 @@ fun InlineLyricsView(
         contentAlignment = Alignment.Center,
     ) {
         when {
+            deeplistEnabled -> WordstormLyrics({ positionProvider() }, showLyrics, {}, immersive = immersive, onFullscreen = onFullscreen, onExitFullscreen = onExitFullscreen)
             lyrics == null -> {
                 ContainedLoadingIndicator()
             }

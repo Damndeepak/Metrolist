@@ -8,6 +8,8 @@ package com.metrolist.music.ui.theme
 import android.graphics.Bitmap
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.darkColorScheme
+import com.metrolist.music.BuildConfig
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -63,7 +65,17 @@ fun MetrolistTheme(
 
     // Use standard MaterialTheme instead of MaterialExpressiveTheme
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = if (BuildConfig.APPLICATION_ID == "com.deepu.wordstorm") darkColorScheme(
+            primary = Color(0xFFC2A1FF), onPrimary = Color(0xFF130B25),
+            secondary = Color(0xFF7EDAE3), onSecondary = Color(0xFF061A1C),
+            background = Color(0xFF05040C), onBackground = Color(0xFFF7F3FF),
+            surface = Color(0xFF05040C), onSurface = Color(0xFFF7F3FF),
+            surfaceVariant = Color(0xFF14111F), onSurfaceVariant = Color(0xFFB9B0CB),
+            surfaceContainerLowest = Color(0xFF05040C), surfaceContainerLow = Color(0xFF0B0913),
+            surfaceContainer = Color(0xFF0F0C19), surfaceContainerHigh = Color(0xFF171223),
+            surfaceContainerHighest = Color(0xFF211A30), primaryContainer = Color(0xFF2F204B),
+            onPrimaryContainer = Color(0xFFEEE3FF), outline = Color(0xFF50445F),
+        ) else colorScheme,
         content = content,
     )
 }

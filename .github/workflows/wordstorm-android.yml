@@ -66,7 +66,7 @@ jobs:
         shell: bash
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon --max-workers=2 :app:assembleFossRelease :app:testFossDebugUnitTest
+          ./gradlew --no-daemon --max-workers=2 :app:assembleFossDebug :app:assembleFossRelease :app:testFossDebugUnitTest
 
       - name: Upload installable APK
         uses: actions/upload-artifact@v4

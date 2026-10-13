@@ -1,6 +1,7 @@
 package com.metrolist.music.ui.component
 
 import com.metrolist.music.lyrics.LyricsEntry
+import java.text.BreakIterator
 
 internal data class DeeplistMotionWord(val startChar: Int, val endChar: Int, val start: Long, val end: Long)
 
@@ -31,8 +32,22 @@ internal fun deeplistMotionWords(entry: LyricsEntry, nextTime: Long?): List<Deep
 }
 
 internal fun deeplistArrival(elapsed: Long, index: Int, wordstorm: Boolean): Float {
-    val stagger = if (wordstorm) 30L else 24L
-    val duration = 520L
+    val stagger = if (wordstorm) 8L else 7L
+    val duration = 430L
     val p = ((elapsed - index * stagger).toFloat() / duration).coerceIn(0f, 1f)
     return 1f - (1f - p) * (1f - p) * (1f - p)
+}
+
+
+internal fun deeplistLetterRanges(text: String): List<IntRange> {
+    val iterator = BreakIterator.getCharacterInstance().apply { setText(text) }
+    val ranges = mutableListOf<IntRange>()
+    var start = iterator.first()
+    var end = iterator.next()
+    while (end != BreakIterator.DONE) {
+        ranges.add(start until end)
+        start = end
+        end = iterator.next()
+    }
+    return ranges
 }

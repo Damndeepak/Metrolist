@@ -722,7 +722,7 @@ val CountryCodeToName =
 
 val WordstormEnabledKey = booleanPreferencesKey("wordstormEnabled")
 val WordstormPresetKey = intPreferencesKey("wordstormPreset")
-val WordstormFontSizeKey = floatPreferencesKey("wordstormFontSize")
+val WordstormFontSizeKey = floatPreferencesKey("deeplistFontSizeV2")
 val WordstormMotionKey = booleanPreferencesKey("wordstormMotion")
 val WordstormCoverKey = booleanPreferencesKey("wordstormCover")
 val WordstormAccentKey = intPreferencesKey("wordstormAccent")
@@ -731,3 +731,9 @@ val DeeplistWebsiteKey = stringPreferencesKey("deeplistWebsite")
 
 val DeeplistSyncEnabledKey = booleanPreferencesKey("deeplistSyncEnabled")
 val DeeplistTokenKey = stringPreferencesKey("deeplistToken")
+
+
+val DeeplistNeonKey = floatPreferencesKey("deeplistNeon")
+val DeeplistSpeedKey = floatPreferencesKey("deeplistSpeed")
+val DeeplistContextKey = booleanPreferencesKey("deeplistContext")
+val DeeplistPerformanceKey = booleanPreferencesKey("deeplistPerformance")

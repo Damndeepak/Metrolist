@@ -1,9 +1,22 @@
 package com.metrolist.music.ui.component
 
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.res.painterResource
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.metrolist.music.constants.DeeplistNeonKey
+import com.metrolist.music.constants.DeeplistSpeedKey
+import com.metrolist.music.constants.DeeplistContextKey
+import com.metrolist.music.constants.DeeplistPerformanceKey
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -82,6 +95,9 @@ internal fun WordstormLyrics(
     showLyrics: Boolean,
     onOriginal: () -> Unit,
     modifier: Modifier = Modifier,
+    immersive: Boolean = false,
+    onFullscreen: () -> Unit = {},
+    onExitFullscreen: () -> Unit = {},
 ) {
     if (!showLyrics) return
     val connection = LocalPlayerConnection.current ?: return
@@ -91,11 +107,18 @@ internal fun WordstormLyrics(
     val playing by connection.isPlaying.collectAsStateWithLifecycle()
     val latestSlider by rememberUpdatedState(sliderPositionProvider)
     var preset by rememberPreference(WordstormPresetKey, 0)
-    var fontSize by rememberPreference(WordstormFontSizeKey, 36f)
+    var fontSize by rememberPreference(WordstormFontSizeKey, 44f)
     var motion by rememberPreference(WordstormMotionKey, true)
     var cover by rememberPreference(WordstormCoverKey, false)
     var accentIndex by rememberPreference(WordstormAccentKey, 0)
     var settings by remember { mutableStateOf(false) }
+    var controls by remember(immersive) { mutableStateOf(!immersive) }
+    var tab by rememberSaveable { mutableStateOf(0) }
+    var neon by rememberPreference(DeeplistNeonKey, 0.65f)
+    var speed by rememberPreference(DeeplistSpeedKey, 1f)
+    var showContext by rememberPreference(DeeplistContextKey, false)
+    var performance by rememberPreference(DeeplistPerformanceKey, false)
+    LaunchedEffect(controls, immersive, settings) { if (immersive && controls && !settings) { delay(4000L); controls = false } }
     val palette = listOf(Color(0xFFC2A1FF), Color(0xFF7EDAE3), Color(0xFFFFB296))
     val accent = palette[accentIndex.coerceIn(0, 2)]
     val validText = wordstormLyricsForTrack(metadata?.id, entity?.id, entity?.lyrics)
@@ -123,11 +146,11 @@ internal fun WordstormLyrics(
             }
         }
     }
-    LaunchedEffect(metadata?.id, playing, motion, preset, lifecycleOwner) {
+    LaunchedEffect(metadata?.id, playing, motion, preset, lifecycleOwner, performance) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             while (isActive) {
                 position.longValue = latestSlider() ?: connection.player.currentPosition
-                delay(if (playing && motion && preset != 2) 50L else 150L)
+                delay(if (playing && motion && preset != 2 && !performance) 32L else 100L)
             }
         }
     }
@@ -137,54 +160,64 @@ internal fun WordstormLyrics(
     }
     val active = entries.getOrNull(activeIndex)
     val rainWords = remember(entries) { entries.take(12).flatMap { it.text.split(Regex("\\s+")) } }
-    Box(modifier.fillMaxSize()) {
-        if (preset == 1 && motion) DeeplistWordRain(rainWords, playing, accent)
+    BoxWithConstraints(modifier.fillMaxSize().background(Color(0xFF05040C)).clickable(enabled = immersive, indication = null, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) { controls = !controls }) {
+        val lineHeightLimit = maxHeight * (if (showContext && (!immersive || controls)) 0.4f else 0.7f)
+        if (immersive) DeeplistEdgeLights(playing)
+        if (preset == 1 && motion && !performance) DeeplistWordRain(rainWords, playing, accent)
         Box(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 12.dp)) {
         Column(
             Modifier.align(Alignment.Center).fillMaxWidth().padding(vertical = 62.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            if (preset == 1) {
+            if (showContext && (!immersive || controls)) {
                 entries.getOrNull(activeIndex - 1)?.let {
-                    Text(it.text, color = accent.copy(alpha = 0.25f), fontSize = fontSize.coerceIn(26f, 48f).sp, lineHeight = (fontSize.coerceIn(26f, 48f) * 1.25f).sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 16.dp))
+                    Text(it.text, color = accent.copy(alpha = 0.25f), maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, fontSize = fontSize.coerceIn(30f, 64f).sp, lineHeight = (fontSize.coerceIn(30f, 64f) * 1.25f).sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 16.dp))
                 }
             }
             if (active != null) {
                 key(metadata?.id, active.time, active.text, preset) {
-                    if (preset == 2 || !motion) {
-                        Text(active.text, color = Color.White, fontSize = fontSize.coerceIn(26f, 48f).sp, lineHeight = (fontSize.coerceIn(26f, 48f) * 1.25f).sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp))
-                    } else {
-                        DeeplistLine(
-                            entry = active, position = position, offset = offset,
-                            fontSize = fontSize.coerceIn(26f, 48f), accent = accent,
-                            wordstorm = preset == 1, playing = playing, nextTime = entries.getOrNull(activeIndex + 1)?.time,
-                            modifier = Modifier.padding(horizontal = 6.dp).clickable(enabled = canSeek) {
-                                connection.seekTo((active.time - offset).coerceAtLeast(0L))
-                            },
-                        )
-                    }
+                    DeeplistLine(
+                        entry = active, position = position, offset = offset,
+                        fontSize = fontSize.coerceIn(30f, 64f), accent = accent,
+                        wordstorm = preset == 1, playing = playing && motion && preset != 2,
+                        speed = speed, performance = performance || !motion || preset == 2,
+                        heightBudget = lineHeightLimit, nextTime = entries.getOrNull(activeIndex + 1)?.time,
+                        modifier = Modifier.padding(horizontal = 6.dp).clickable(enabled = canSeek && !immersive) {
+                            connection.seekTo((active.time - offset).coerceAtLeast(0L))
+                        },
+                    )
                 }
             } else if (!synced && !validText.isNullOrBlank() && validText != "LYRICS_NOT_FOUND") {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).verticalScroll(rememberScrollState())) {
-                    Text(validText, color = Color.White, fontSize = fontSize.coerceIn(26f, 48f).sp, lineHeight = (fontSize.coerceIn(26f, 48f) * 1.25f).sp, textAlign = TextAlign.Center)
+                    Text(validText, color = Color.White, fontSize = fontSize.coerceIn(30f, 64f).sp, lineHeight = (fontSize.coerceIn(30f, 64f) * 1.25f).sp, textAlign = TextAlign.Center)
                 }
             } else {
                 Text(metadata?.title.orEmpty(), color = accent.copy(alpha = 0.55f), fontSize = 22.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 24.dp))
             }
-            if (preset == 1) {
+            if (showContext && (!immersive || controls)) {
                 entries.getOrNull(activeIndex + 1)?.let {
-                    Text(it.text, color = accent.copy(alpha = 0.35f), fontSize = fontSize.coerceIn(26f, 48f).sp, lineHeight = (fontSize.coerceIn(26f, 48f) * 1.25f).sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 16.dp))
+                    Text(it.text, color = accent.copy(alpha = 0.35f), maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, fontSize = fontSize.coerceIn(30f, 64f).sp, lineHeight = (fontSize.coerceIn(30f, 64f) * 1.25f).sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 16.dp))
                 }
             }
         }
-        TextButton(onClick = { websiteDraft = website; tokenDraft = pairingToken; websiteError = false; settings = true }, modifier = Modifier.align(Alignment.TopEnd)) {
+        if (!immersive || controls) {
+        Row(Modifier.align(Alignment.TopEnd), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        TextButton(onClick = { if (immersive) onExitFullscreen() else onFullscreen() }) { Text(stringResource(if (immersive) R.string.deeplist_exit_fullscreen else R.string.deeplist_fullscreen), color = accent) }
+        TextButton(onClick = { websiteDraft = website; tokenDraft = pairingToken; websiteError = false; settings = true }, modifier = Modifier) {
             Text(stringResource(R.string.wordstorm_settings), color = accent)
+        }
         }
         if (cover) {
             AsyncImage(model = metadata?.thumbnailUrl, contentDescription = stringResource(R.string.wordstorm_cover), modifier = Modifier.align(Alignment.TopStart).padding(12.dp).size(58.dp))
         }
-        Text(metadata?.title.orEmpty(), color = accent.copy(alpha = 0.6f), fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(16.dp))
+        if (immersive) Row(Modifier.align(Alignment.BottomCenter).padding(bottom = 32.dp).clip(RoundedCornerShape(24.dp)).background(Color(0xFF171223)), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+            IconButton(onClick = { connection.seekToPrevious() }, enabled = canSeek) { Icon(painterResource(R.drawable.skip_previous), stringResource(R.string.deeplist_previous), tint = accent) }
+            IconButton(onClick = { if (playing) connection.player.pause() else connection.player.play() }, enabled = canSeek) { Icon(painterResource(if (playing) R.drawable.pause else R.drawable.play), stringResource(R.string.deeplist_play_pause), tint = Color.White) }
+            IconButton(onClick = { connection.seekToNext() }, enabled = canSeek) { Icon(painterResource(R.drawable.skip_next), stringResource(R.string.deeplist_next), tint = accent) }
+        }
+        if (!immersive) Text(metadata?.title.orEmpty(), color = accent.copy(alpha = 0.6f), fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(16.dp))
+        }
         }
     }
     if (settings) {
@@ -194,11 +227,25 @@ internal fun WordstormLyrics(
             title = { Text(stringResource(R.string.wordstorm_settings)) },
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOf(R.string.deeplist_lyrics_tab, R.string.deeplist_appearance_tab, R.string.deeplist_connection_tab).forEachIndexed { i, title ->
+                            FilterChip(selected = tab == i, onClick = { tab = i }, label = { Text(stringResource(title)) })
+                        }
+                    }
+                    if (tab != 2) {
+                        DeeplistPreview(fontSize, accent, preset, motion, speed, performance, neon)
+                    }
+                    if (tab == 0) {
                     modeNames.forEachIndexed { index, label ->
                         FilterChip(selected = preset == index, onClick = { preset = index; if (index != 2) motion = true }, label = { Text(stringResource(label)) })
                     }
                     Text(stringResource(R.string.wordstorm_size))
-                    Slider(value = fontSize.coerceIn(26f, 48f), onValueChange = { fontSize = it }, valueRange = 26f..48f)
+                    Slider(value = fontSize.coerceIn(30f, 64f), onValueChange = { fontSize = it }, valueRange = 30f..64f)
+                    TextButton(onClick = { showContext = !showContext }) { Text(stringResource(if (showContext) R.string.deeplist_context_on else R.string.deeplist_context_off)) }
+                    Text(stringResource(R.string.deeplist_speed))
+                    Slider(value = speed.coerceIn(0.7f, 1.7f), onValueChange = { speed = it }, valueRange = 0.7f..1.7f)
+                    }
+                    if (tab == 1) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         palette.forEachIndexed { index, colour ->
                             val colourLabel = stringResource(R.string.wordstorm_accent, index + 1)
@@ -207,7 +254,11 @@ internal fun WordstormLyrics(
                     }
                     TextButton(onClick = { motion = !motion }) { Text(stringResource(if (motion) R.string.wordstorm_motion_on else R.string.wordstorm_motion_off)) }
                     TextButton(onClick = { cover = !cover }) { Text(stringResource(if (cover) R.string.wordstorm_hide_cover else R.string.wordstorm_show_cover)) }
-                    TextButton(onClick = { settings = false; onOriginal() }) { Text(stringResource(R.string.wordstorm_original)) }
+                    Text(stringResource(R.string.deeplist_neon))
+                    Slider(value = neon.coerceIn(0f, 1f), onValueChange = { neon = it }, valueRange = 0f..1f)
+                    TextButton(onClick = { performance = !performance }) { Text(stringResource(if (performance) R.string.deeplist_performance_on else R.string.deeplist_performance_off)) }
+                    }
+                    if (tab == 2) {
                     Text(stringResource(R.string.deeplist_inside_deep))
                     OutlinedTextField(
                         value = websiteDraft,
@@ -252,7 +303,8 @@ internal fun WordstormLyrics(
                             }
                         }) { Text(stringResource(R.string.deeplist_share_song)) }
                     }
-                    TextButton(onClick = { preset = 0; fontSize = 36f; motion = true; cover = false; accentIndex = 0 }) { Text(stringResource(R.string.wordstorm_reset)) }
+                    }
+                    TextButton(onClick = { preset = 0; fontSize = 44f; motion = true; cover = false; accentIndex = 0; speed = 1f; showContext = false; neon = 0.65f; performance = false }) { Text(stringResource(R.string.wordstorm_reset)) }
                 }
             },
             confirmButton = { TextButton(onClick = { settings = false }) { Text(stringResource(R.string.wordstorm_done)) } },

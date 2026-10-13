@@ -31,4 +31,11 @@ class DeeplistMotionTest {
         assertEquals(1f, deeplistArrival(2000L, 3, false), 0.001f)
         assertTrue(deeplistArrival(100L, 0, true) > deeplistArrival(100L, 2, true))
     }
+    @Test fun letterMotionKeepsCombiningMarksAndSurrogatePairsTogether() {
+        val text = "A\u0301 \uD83D\uDE00"
+        val ranges = deeplistLetterRanges(text)
+        assertEquals(listOf(0..1, 2..2, 3..4), ranges)
+        assertEquals(text, ranges.joinToString("") { text.substring(it) })
+        assertEquals(1f, deeplistArrival(1500L, 95, true), 0.001f)
+    }
 }
