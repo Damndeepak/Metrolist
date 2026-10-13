@@ -1,0 +1,107 @@
+package com.metrolist.music.deeplist
+
+import android.content.Context
+import androidx.media3.common.Player
+import com.metrolist.music.constants.DeeplistSyncEnabledKey
+import com.metrolist.music.constants.DeeplistTokenKey
+import com.metrolist.music.constants.DeeplistWebsiteKey
+import com.metrolist.music.db.MusicDatabase
+import com.metrolist.music.lyrics.lyricsTextLooksSynced
+import com.metrolist.music.lyrics.LyricsUtils
+import com.metrolist.music.models.MediaMetadata
+import com.metrolist.music.utils.dataStore
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
+import org.json.JSONObject
+import java.util.concurrent.TimeUnit
+
+object DeeplistBridgeStatus {
+    enum class State { OFF, SENDING, LIVE, ERROR }
+    val state = MutableStateFlow(State.OFF)
+}
+
+internal fun startDeeplistBridge(context: Context, scope: CoroutineScope, database: MusicDatabase,
+    playerProvider: () -> Player, metadataProvider: () -> MediaMetadata?) {
+    scope.launch {
+        context.dataStore.data.map { Triple(it[DeeplistSyncEnabledKey] ?: false,
+            it[DeeplistWebsiteKey].orEmpty(), it[DeeplistTokenKey].orEmpty()) }
+            .distinctUntilChanged().collectLatest { (enabled, website, token) ->
+                DeeplistBridgeStatus.state.value = if (enabled) DeeplistBridgeStatus.State.SENDING else DeeplistBridgeStatus.State.OFF
+                if (!enabled) return@collectLatest
+                val uri = runCatching { java.net.URI(website) }.getOrNull()
+                if (uri == null || uri.scheme != "https" || uri.host.isNullOrBlank() || uri.userInfo != null || !token.matches(Regex("[a-f0-9]{64}"))) {
+                    DeeplistBridgeStatus.state.value = DeeplistBridgeStatus.State.ERROR
+                    return@collectLatest
+                }
+                val endpoint = "https://${uri.rawAuthority}/api/deeplist/state"
+                val client = OkHttpClient.Builder().callTimeout(4, TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false).build()
+                var lastId: String? = null
+                var uploadedLyrics: String? = null
+                var cachedLyrics: String? = null
+                var failures = 0
+                while (isActive) {
+                    val metadata = metadataProvider()
+                    val player = playerProvider()
+                    if (metadata == null || player.currentMediaItem?.mediaId != metadata.id || !metadata.id.matches(Regex("[A-Za-z0-9_-]{11}"))) {
+                        delay(2000L)
+                        continue
+                    }
+                    if (lastId != metadata.id) { lastId = metadata.id; cachedLyrics = null; uploadedLyrics = null }
+                    val position = player.currentPosition.coerceAtLeast(0L)
+                    val playing = player.isPlaying
+                    val duration = player.duration.takeIf { it > 0 } ?: (metadata.duration * 1000L).coerceAtLeast(0L)
+                    val payload = JSONObject().put("id", metadata.id).put("title", metadata.title.take(300))
+                        .put("artist", metadata.artists.joinToString { it.name }.take(500))
+                        .put("position", position).put("duration", duration).put("playing", playing)
+                    var sentLyrics: String? = null
+                    val success = withContext(Dispatchers.IO) {
+                        runCatching {
+                            if (cachedLyrics == null) cachedLyrics = database.lyrics(metadata.id).first()?.lyrics
+                            val offset = database.song(metadata.id).first()?.song?.lyricsOffset ?: 0
+                            payload.put("offset", offset)
+                            if (cachedLyrics != null && cachedLyrics != uploadedLyrics) {
+                                val entries = (if (lyricsTextLooksSynced(cachedLyrics)) LyricsUtils.parseLyrics(cachedLyrics!!) else emptyList()).filter { !it.isBackground && it.text.isNotBlank() }.sortedBy { it.time }.take(800)
+                                val lines = JSONArray()
+                                var chars = 0
+                                entries.forEach { line ->
+                                    chars += line.text.length
+                                    if (chars <= 60000 && line.text.length <= 1200) {
+                                        val item = JSONObject().put("time", line.time).put("text", line.text)
+                                        val words = JSONArray()
+                                        line.words.orEmpty().take(200).forEach { word ->
+                                            words.put(JSONObject().put("text", word.text.take(200)).put("start", word.startTime * 1000).put("end", word.endTime * 1000))
+                                        }
+                                        item.put("words", words); lines.put(item)
+                                    }
+                                }
+                                payload.put("lines", lines); sentLyrics = cachedLyrics
+                            }
+                            val body = payload.toString()
+                            if (body.toByteArray().size > 180000) payload.put("lines", JSONArray())
+                            val request = Request.Builder().url(endpoint).header("Authorization", "Bearer $token")
+                                .post(payload.toString().toRequestBody("application/json".toMediaType())).build()
+                            client.newCall(request).execute().use { it.isSuccessful }
+                        }.getOrDefault(false)
+                    }
+                    if (success) { uploadedLyrics = sentLyrics ?: uploadedLyrics; failures = 0 }
+                    else failures = (failures + 1).coerceAtMost(4)
+                    DeeplistBridgeStatus.state.value = if (success) DeeplistBridgeStatus.State.LIVE else DeeplistBridgeStatus.State.ERROR
+                    delay(if (success) 2000L else (2000L shl failures).coerceAtMost(30000L))
+                }
+            }
+    }
+}

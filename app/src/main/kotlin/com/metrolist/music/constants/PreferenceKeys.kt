@@ -728,3 +728,6 @@ val WordstormCoverKey = booleanPreferencesKey("wordstormCover")
 val WordstormAccentKey = intPreferencesKey("wordstormAccent")
 
 val DeeplistWebsiteKey = stringPreferencesKey("deeplistWebsite")
+
+val DeeplistSyncEnabledKey = booleanPreferencesKey("deeplistSyncEnabled")
+val DeeplistTokenKey = stringPreferencesKey("deeplistToken")

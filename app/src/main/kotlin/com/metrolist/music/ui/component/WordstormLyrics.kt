@@ -57,6 +57,10 @@ import coil3.compose.AsyncImage
 import com.metrolist.music.LocalListenTogetherManager
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
+import com.metrolist.music.constants.DeeplistSyncEnabledKey
+import com.metrolist.music.constants.DeeplistTokenKey
+import com.metrolist.music.deeplist.DeeplistBridgeStatus
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import com.metrolist.music.constants.DeeplistWebsiteKey
 import com.metrolist.music.constants.WordstormAccentKey
 import com.metrolist.music.constants.WordstormCoverKey
@@ -103,6 +107,10 @@ internal fun WordstormLyrics(
     var website by rememberPreference(DeeplistWebsiteKey, "")
     var websiteDraft by remember { mutableStateOf(website) }
     var websiteError by remember { mutableStateOf(false) }
+    var syncEnabled by rememberPreference(DeeplistSyncEnabledKey, false)
+    var pairingToken by rememberPreference(DeeplistTokenKey, "")
+    var tokenDraft by remember { mutableStateOf(pairingToken) }
+    val syncStatus by DeeplistBridgeStatus.state.collectAsStateWithLifecycle()
     val offset: Long = if (song?.song?.id == metadata?.id) song?.song?.lyricsOffset?.toLong() ?: 0L else 0L
     val manager = LocalListenTogetherManager.current
     val canSeek = manager?.isInRoom != true || manager.isHost
@@ -119,7 +127,7 @@ internal fun WordstormLyrics(
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             while (isActive) {
                 position.longValue = latestSlider() ?: connection.player.currentPosition
-                delay(if (playing && motion && preset != 2) 33L else 120L)
+                delay(if (playing && motion && preset != 2) 50L else 150L)
             }
         }
     }
@@ -128,14 +136,7 @@ internal fun WordstormLyrics(
         derivedStateOf { wordstormLineIndex(times, position.longValue + offset) }
     }
     val active = entries.getOrNull(activeIndex)
-    val pace = remember(active) {
-        active?.words?.takeIf { it.isNotEmpty() }?.let {
-            val duration = (it.last().endTime - it.first().startTime) / it.size
-            if (duration > 0) (0.65 / duration).toFloat().coerceIn(0.4f, 2.3f) else 0.65f
-        } ?: 0.65f
-    }
-    Box(modifier.fillMaxSize().background(Color(0xFF08070D))) {
-        DeeplistBackground(accent, playing && motion && preset != 2, pace)
+    Box(modifier.fillMaxSize().background(Color(0xFF05040C))) {
         Box(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 12.dp)) {
         Column(
             Modifier.align(Alignment.Center).fillMaxWidth().padding(vertical = 62.dp),
@@ -144,13 +145,13 @@ internal fun WordstormLyrics(
         ) {
             if (preset == 1) {
                 entries.getOrNull(activeIndex - 1)?.let {
-                    Text(it.text, color = accent.copy(alpha = 0.25f), fontSize = fontSize.coerceIn(26f, 48f).sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 16.dp))
+                    Text(it.text, color = accent.copy(alpha = 0.25f), fontSize = fontSize.coerceIn(26f, 48f).sp, lineHeight = (fontSize.coerceIn(26f, 48f) * 1.25f).sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 16.dp))
                 }
             }
             if (active != null) {
                 key(metadata?.id, active.time, active.text) {
                     if (preset == 2 || !motion) {
-                        Text(active.text, color = Color.White, fontSize = fontSize.coerceIn(26f, 48f).sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp))
+                        Text(active.text, color = Color.White, fontSize = fontSize.coerceIn(26f, 48f).sp, lineHeight = (fontSize.coerceIn(26f, 48f) * 1.25f).sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp))
                     } else {
                         DeeplistLine(
                             entry = active, position = position, offset = offset,
@@ -163,18 +164,18 @@ internal fun WordstormLyrics(
                 }
             } else if (!synced && !validText.isNullOrBlank() && validText != "LYRICS_NOT_FOUND") {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).verticalScroll(rememberScrollState())) {
-                    Text(validText, color = Color.White, fontSize = fontSize.coerceIn(26f, 48f).sp, textAlign = TextAlign.Center)
+                    Text(validText, color = Color.White, fontSize = fontSize.coerceIn(26f, 48f).sp, lineHeight = (fontSize.coerceIn(26f, 48f) * 1.25f).sp, textAlign = TextAlign.Center)
                 }
             } else {
                 Text(metadata?.title.orEmpty(), color = accent.copy(alpha = 0.55f), fontSize = 22.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 24.dp))
             }
             if (preset == 1) {
                 entries.getOrNull(activeIndex + 1)?.let {
-                    Text(it.text, color = accent.copy(alpha = 0.35f), fontSize = fontSize.coerceIn(26f, 48f).sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 16.dp))
+                    Text(it.text, color = accent.copy(alpha = 0.35f), fontSize = fontSize.coerceIn(26f, 48f).sp, lineHeight = (fontSize.coerceIn(26f, 48f) * 1.25f).sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 16.dp))
                 }
             }
         }
-        TextButton(onClick = { websiteDraft = website; websiteError = false; settings = true }, modifier = Modifier.align(Alignment.TopEnd)) {
+        TextButton(onClick = { websiteDraft = website; tokenDraft = pairingToken; websiteError = false; settings = true }, modifier = Modifier.align(Alignment.TopEnd)) {
             Text(stringResource(R.string.wordstorm_settings), color = accent)
         }
         if (cover) {
@@ -211,6 +212,23 @@ internal fun WordstormLyrics(
                         label = { Text(stringResource(R.string.deeplist_website_url)) },
                         singleLine = true, isError = websiteError,
                     )
+                    OutlinedTextField(value = tokenDraft, onValueChange = { tokenDraft = it; websiteError = false },
+                        label = { Text(stringResource(R.string.deeplist_pairing_token)) }, singleLine = true,
+                        visualTransformation = PasswordVisualTransformation())
+                    Text(stringResource(R.string.deeplist_sharing_notice))
+                    Text(stringResource(when (syncStatus) {
+                        DeeplistBridgeStatus.State.OFF -> R.string.deeplist_sync_off
+                        DeeplistBridgeStatus.State.SENDING -> R.string.deeplist_sync_sending
+                        DeeplistBridgeStatus.State.LIVE -> R.string.deeplist_sync_live
+                        DeeplistBridgeStatus.State.ERROR -> R.string.deeplist_sync_error
+                    }))
+                    TextButton(onClick = {
+                        if (syncEnabled) syncEnabled = false else {
+                            val url = deeplistWebsiteUrl(websiteDraft)
+                            if (url == null || !tokenDraft.trim().matches(Regex("[a-f0-9]{64}"))) websiteError = true
+                            else { website = url; pairingToken = tokenDraft.trim(); syncEnabled = true }
+                        }
+                    }) { Text(stringResource(if (syncEnabled) R.string.deeplist_stop_sync else R.string.deeplist_start_sync)) }
                     if (websiteError) Text(stringResource(R.string.deeplist_invalid_url))
                     Row {
                         TextButton(onClick = {
@@ -236,40 +254,5 @@ internal fun WordstormLyrics(
             },
             confirmButton = { TextButton(onClick = { settings = false }) { Text(stringResource(R.string.wordstorm_done)) } },
         )
-    }
-}
-
-
-@Composable
-private fun DeeplistBackground(accent: Color, animate: Boolean, pace: Float) {
-    val phase = remember { mutableFloatStateOf(0f) }
-    val lifecycleOwner = LocalLifecycleOwner.current
-    LaunchedEffect(animate, pace, lifecycleOwner) {
-        if (animate) lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            while (isActive) {
-                phase.floatValue = (phase.floatValue + 0.004f * pace) % 1f
-                delay(33L)
-            }
-        }
-    }
-    Box(Modifier.fillMaxSize().drawWithCache {
-        val aura = Brush.radialGradient(listOf(accent.copy(alpha = 0.08f), Color.Transparent), Offset(size.width / 2f, size.height / 2f), size.minDimension * 0.65f)
-        onDrawBehind {
-            drawRect(aura)
-            drawOval(accent.copy(alpha = 0.08f), Offset(-size.width * 0.1f, size.height * 0.28f), Size(size.width * 1.2f, size.height * 0.38f), style = Stroke(1.dp.toPx()))
-            drawOval(accent.copy(alpha = 0.05f), Offset(-size.width * 0.2f, size.height * 0.22f), Size(size.width * 1.4f, size.height * 0.52f), style = Stroke(1.dp.toPx()))
-            repeat(24) { index ->
-                drawCircle(accent.copy(alpha = 0.17f), 1.dp.toPx(), Offset(((index * 37) % 100) * size.width / 100, ((index * 19) % 100) * size.height / 100))
-            }
-        }
-    })
-    if (animate) Canvas(Modifier.fillMaxSize()) {
-        val x = phase.floatValue * size.width
-        val y = (1f - phase.floatValue) * size.height
-        val stroke = 2.dp.toPx()
-        drawLine(accent.copy(alpha = 0.6f), Offset(x, 0f), Offset((x + size.width * 0.18f).coerceAtMost(size.width), 0f), stroke)
-        drawLine(accent.copy(alpha = 0.45f), Offset(size.width - x, size.height), Offset((size.width - x - size.width * 0.18f).coerceAtLeast(0f), size.height), stroke)
-        drawLine(accent.copy(alpha = 0.45f), Offset(0f, y), Offset(0f, (y - size.height * 0.18f).coerceAtLeast(0f)), stroke)
-        drawLine(accent.copy(alpha = 0.6f), Offset(size.width, y), Offset(size.width, (y - size.height * 0.18f).coerceAtLeast(0f)), stroke)
     }
 }

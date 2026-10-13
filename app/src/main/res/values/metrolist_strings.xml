@@ -1011,7 +1011,15 @@
     <string name="wordstorm_accent">Accent colour %1$d</string>
     <string name="deeplist_inside_deep">Inside Deep</string>
     <string name="deeplist_website_url">Website URL (https://)</string>
-    <string name="deeplist_invalid_url">Enter a valid HTTPS website URL, or check that a browser is installed.</string>
+    <string name="deeplist_invalid_url">Check your HTTPS website URL and pairing code.</string>
     <string name="deeplist_open_website">Save &amp; open</string>
     <string name="deeplist_share_song">Share song</string>
+    <string name="deeplist_pairing_token">Pairing code from website</string>
+    <string name="deeplist_sharing_notice">Open /deeplist.html on your website to connect. Sharing publishes your current song, position and lyrics for visitors. Stop sharing at any time.</string>
+    <string name="deeplist_sync_off">Website sharing is off</string>
+    <string name="deeplist_sync_sending">Connecting to website…</string>
+    <string name="deeplist_sync_live">Live on your website</string>
+    <string name="deeplist_sync_error">Connection failed. Check website URL, pairing code and internet.</string>
+    <string name="deeplist_start_sync">Start live sharing</string>
+    <string name="deeplist_stop_sync">Stop live sharing</string>
 </resources>

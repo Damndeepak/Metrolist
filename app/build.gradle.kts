@@ -51,7 +51,7 @@ android {
         vectorDrawables.useSupportLibrary = true
 
         ndk {
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+            abiFilters += System.getenv("METROLIST_ABI_FILTERS")?.split(",") ?: listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
         }
 
         // LastFM API keys from GitHub Secrets
@@ -118,6 +118,9 @@ android {
 
     buildTypes {
         release {
+            if (applicationIdOverride != null && workflowDebugKeystoreFile != null) {
+                signingConfig = signingConfigs.getByName("workflowDebug")
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             isCrunchPngs = false

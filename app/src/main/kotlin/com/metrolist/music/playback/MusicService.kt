@@ -25,6 +25,7 @@ import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.audiofx.AudioEffect
 import com.metrolist.music.playback.audio.VolumeNormalizationAudioProcessor
+import com.metrolist.music.deeplist.startDeeplistBridge
 import com.metrolist.music.utils.safeDataStoreEdit
 import android.net.ConnectivityManager
 import android.os.Binder
@@ -690,6 +691,7 @@ class MusicService :
             }
         player.addListener(sleepTimer!!)
 
+        startDeeplistBridge(this, scope, database, { player }, { currentMediaMetadata.value })
         playerInitialized.value = true
         Timber.tag(TAG).d("Player successfully initialized")
 

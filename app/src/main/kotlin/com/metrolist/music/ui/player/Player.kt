@@ -139,6 +139,7 @@ import com.metrolist.music.LocalDownloadUtil
 import com.metrolist.music.LocalListenTogetherManager
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
+import com.metrolist.music.constants.WordstormEnabledKey
 import com.metrolist.music.constants.CropAlbumArtKey
 import com.metrolist.music.constants.DarkModeKey
 import com.metrolist.music.constants.HidePlayerThumbnailKey
@@ -234,10 +235,12 @@ fun BottomSheetPlayer(
         mutableStateOf(false)
     }
 
-    val playerBackground by rememberEnumPreference(
+    val preferredPlayerBackground by rememberEnumPreference(
         key = PlayerBackgroundStyleKey,
         defaultValue = PlayerBackgroundStyle.DEFAULT,
     )
+    val deeplistEnabled by rememberPreference(WordstormEnabledKey, true)
+    val playerBackground = if (deeplistEnabled) PlayerBackgroundStyle.DEFAULT else preferredPlayerBackground
     val playerButtonsStyle by rememberEnumPreference(
         key = PlayerButtonsStyleKey,
         defaultValue = PlayerButtonsStyle.DEFAULT,
@@ -459,7 +462,7 @@ fun BottomSheetPlayer(
     val TextBackgroundColor by animateColorAsState(
         targetValue =
             when (playerBackground) {
-                PlayerBackgroundStyle.DEFAULT -> MaterialTheme.colorScheme.onBackground
+                PlayerBackgroundStyle.DEFAULT -> if (deeplistEnabled) Color.White else MaterialTheme.colorScheme.onBackground
                 PlayerBackgroundStyle.BLUR -> Color.White
                 PlayerBackgroundStyle.GRADIENT -> Color.White
             },
@@ -469,7 +472,7 @@ fun BottomSheetPlayer(
     val icBackgroundColor by animateColorAsState(
         targetValue =
             when (playerBackground) {
-                PlayerBackgroundStyle.DEFAULT -> MaterialTheme.colorScheme.surface
+                PlayerBackgroundStyle.DEFAULT -> if (deeplistEnabled) Color(0xFF05040C) else MaterialTheme.colorScheme.surface
                 PlayerBackgroundStyle.BLUR -> Color.Black
                 PlayerBackgroundStyle.GRADIENT -> Color.Black
             },
@@ -814,7 +817,7 @@ fun BottomSheetPlayer(
         )
 
     val bottomSheetBackgroundColor =
-        when (playerBackground) {
+        if (deeplistEnabled) Color(0xFF05040C) else when (playerBackground) {
             PlayerBackgroundStyle.BLUR, PlayerBackgroundStyle.GRADIENT -> {
                 MaterialTheme.colorScheme.surfaceContainer
             }
@@ -840,7 +843,7 @@ fun BottomSheetPlayer(
                         .fillMaxSize()
                         .background(bottomSheetBackgroundColor),
             ) {
-                when (playerBackground) {
+                if (!deeplistEnabled) when (playerBackground) {
                     PlayerBackgroundStyle.BLUR -> {
                         AnimatedContent(
                             targetState = mediaMetadata?.thumbnailUrl,

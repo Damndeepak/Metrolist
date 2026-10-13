@@ -20,6 +20,7 @@ jobs:
     env:
       METROLIST_APPLICATION_ID: com.deepu.wordstorm
       METROLIST_APP_NAME: Deeplist
+      METROLIST_ABI_FILTERS: arm64-v8a
       METROLIST_DEBUG_KEYSTORE_PATH: ${{ github.workspace }}/.wordstorm-signing/debug.keystore
     steps:
       - name: Check out custom source
@@ -65,13 +66,13 @@ jobs:
         shell: bash
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon --max-workers=2 :app:assembleFossDebug :app:testFossDebugUnitTest
+          ./gradlew --no-daemon --max-workers=2 :app:assembleFossRelease :app:testFossDebugUnitTest
 
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
         with:
           name: Deeplist-APK
-          path: app/build/outputs/apk/**/debug/*.apk
+          path: app/build/outputs/apk/**/release/*.apk
           if-no-files-found: error
           retention-days: 30
 
