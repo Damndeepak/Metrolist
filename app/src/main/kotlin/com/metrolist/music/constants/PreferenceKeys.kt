@@ -719,3 +719,10 @@ val CountryCodeToName =
         "YE" to "Yemen",
         "ZW" to "Zimbabwe",
     )
+
+val WordstormEnabledKey = booleanPreferencesKey("wordstormEnabled")
+val WordstormPresetKey = intPreferencesKey("wordstormPreset")
+val WordstormFontSizeKey = floatPreferencesKey("wordstormFontSize")
+val WordstormMotionKey = booleanPreferencesKey("wordstormMotion")
+val WordstormCoverKey = booleanPreferencesKey("wordstormCover")
+val WordstormAccentKey = intPreferencesKey("wordstormAccent")

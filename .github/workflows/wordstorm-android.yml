@@ -1,0 +1,87 @@
+name: Wordstorm Android APK
+
+on:
+  push:
+    branches: [wordstorm-build]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wordstorm-android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    name: Build Deepu Wordstorm
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      METROLIST_APPLICATION_ID: com.deepu.wordstorm
+      METROLIST_APP_NAME: Deepu Wordstorm
+      METROLIST_DEBUG_KEYSTORE_PATH: ${{ github.workspace }}/.wordstorm-signing/debug.keystore
+    steps:
+      - name: Check out custom source
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Cache Gradle downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: wordstorm-gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle.kts', 'gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: wordstorm-gradle-${{ runner.os }}-
+
+      - name: Keep test-app signing key between builds
+        uses: actions/cache@v4
+        with:
+          path: .wordstorm-signing
+          key: wordstorm-test-signing-${{ github.repository }}-v1
+
+      - name: Prepare test-app signing
+        shell: bash
+        run: |
+          mkdir -p .wordstorm-signing
+          if [ ! -f "$METROLIST_DEBUG_KEYSTORE_PATH" ]; then
+            keytool -genkeypair -noprompt -keystore "$METROLIST_DEBUG_KEYSTORE_PATH" -storepass android -keypass android -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Deepu Wordstorm Debug,O=Android,C=IN"
+          fi
+
+      - name: Install Android SDK components
+        shell: bash
+        run: |
+          SDK_MANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          "$SDK_MANAGER" --licenses < <(yes) >/dev/null
+          "$SDK_MANAGER" "platforms;android-37" "build-tools;37.0.0"
+
+      - name: Build APK and run unit tests
+        shell: bash
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon --max-workers=2 :app:assembleFossDebug :app:testFossDebugUnitTest
+
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Deepu-Wordstorm-APK
+          path: app/build/outputs/apk/**/debug/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload build reports for debugging
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Wordstorm-Build-Reports
+          path: |
+            app/build/reports
+            app/build/test-results
+          if-no-files-found: ignore
+          retention-days: 7

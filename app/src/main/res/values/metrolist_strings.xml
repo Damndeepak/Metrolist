@@ -994,4 +994,19 @@
     <string name="stream_source_web_creator_desc">Creator web client.</string>
     <string name="top_result">Top result</string>
     <string name="other">Other</string>
+    <string name="wordstorm_settings">Wordstorm settings</string>
+    <string name="wordstorm_original">Original lyrics</string>
+    <string name="wordstorm_enable">Wordstorm</string>
+    <string name="wordstorm_cinematic">Cinematic</string>
+    <string name="wordstorm_floating">Wordstorm</string>
+    <string name="wordstorm_karaoke">Clean Karaoke</string>
+    <string name="wordstorm_size">Lyric size</string>
+    <string name="wordstorm_motion_on">Motion: on</string>
+    <string name="wordstorm_motion_off">Motion: off</string>
+    <string name="wordstorm_cover">Album cover</string>
+    <string name="wordstorm_show_cover">Show cover</string>
+    <string name="wordstorm_hide_cover">Hide cover</string>
+    <string name="wordstorm_reset">Reset appearance</string>
+    <string name="wordstorm_done">Done</string>
+    <string name="wordstorm_accent">Accent colour %1$d</string>
 </resources>
