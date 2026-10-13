@@ -41,7 +41,7 @@ internal fun DeeplistPreview(fontSize: Float, accent: Color, preset: Int, motion
     }
     Column {
         Box(Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(18.dp)).background(Color(0xFF05040C)), contentAlignment = Alignment.Center) {
-            DeeplistAtmosphere(text.split(" "), true, accent, mode, density, rainSpeed, brightness, rings, glow, performance)
+            DeeplistAtmosphere(text.split(" "), motion, accent, mode, density, rainSpeed, brightness, rings, glow, performance)
             DeeplistEdgeLights(true, neonOverride = neon, performanceOverride = performance)
             key(cycle) {
             if (motion && preset != 2) DeeplistLine(entry, position, 0L, (fontSize * 0.62f).coerceIn(20f, 34f), accent,
