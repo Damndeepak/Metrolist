@@ -32,41 +32,20 @@ import kotlinx.coroutines.isActive
 import kotlin.math.sin
 
 @Composable
-internal fun rememberDeeplistClock(playing: Boolean, fastForMs: Long = 0L): LongState {
+internal fun rememberDeeplistClock(playing: Boolean, fastForMs: Long = 0L, smooth: Boolean = false): LongState {
     val clock = remember { mutableLongStateOf(0L) }
     val owner = LocalLifecycleOwner.current
-    LaunchedEffect(playing, owner, fastForMs) {
+    LaunchedEffect(playing, owner, fastForMs, smooth) {
         if (playing) owner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             var last = 0L
             while (isActive) withFrameMillis { now ->
                 if (last == 0L) last = now
-                val interval = if (clock.longValue < fastForMs) 16L else 32L
+                val interval = if (smooth || clock.longValue < fastForMs) 16L else 32L
                 if (now - last >= interval) { clock.longValue += (now - last).coerceAtMost(100L); last = now }
             }
         }
     }
     return clock
-}
-
-@Composable
-internal fun DeeplistWordRain(words: List<String>, playing: Boolean, accent: Color) {
-    val clock = rememberDeeplistClock(playing)
-    val measurer = rememberTextMeasurer()
-    val labels = remember(words) {
-        words.filter { it.isNotBlank() && it.length <= 28 }.distinct().take(14).mapIndexed { index, word ->
-            measurer.measure(word, TextStyle(fontSize = (13 + index % 5 * 2).sp, fontWeight = FontWeight.Bold))
-        }
-    }
-    Canvas(Modifier.fillMaxSize()) {
-        labels.forEachIndexed { index, label ->
-            val duration = 7500L + index % 4 * 900L
-            val p = ((clock.longValue + index * 593L) % duration).toFloat() / duration
-            val x = ((index * 43 + 7) % 100) / 100f * (size.width - label.size.width).coerceAtLeast(0f) + sin(p * 6.28f + index) * 12.dp.toPx()
-            val y = p * (size.height + 100.dp.toPx()) - 50.dp.toPx()
-            val fade = (p * 8).coerceAtMost(1f) * ((1 - p) * 8).coerceAtMost(1f)
-            drawText(label, color = accent.copy(alpha = 0.16f * fade), topLeft = Offset(x, y))
-        }
-    }
 }
 
 @Composable

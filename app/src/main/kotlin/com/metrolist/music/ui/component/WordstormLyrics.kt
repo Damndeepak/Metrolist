@@ -1,5 +1,28 @@
 package com.metrolist.music.ui.component
 
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.Switch
+import com.metrolist.music.LocalDatabase
+import com.metrolist.music.constants.DeeplistBackgroundKey
+import com.metrolist.music.constants.DeeplistDensityKey
+import com.metrolist.music.constants.DeeplistRainSpeedKey
+import com.metrolist.music.constants.DeeplistWordBrightnessKey
+import com.metrolist.music.constants.DeeplistRingsKey
+import com.metrolist.music.constants.DeeplistGlowKey
+import com.metrolist.music.constants.DeeplistSparksKey
+import com.metrolist.music.constants.DeeplistLiftKey
+import com.metrolist.music.constants.DeeplistFlightKey
+import com.metrolist.music.constants.DeeplistGesturesKey
+import com.metrolist.music.constants.DeeplistAutoPerformanceKey
+import com.metrolist.music.constants.DeeplistSavedStyleKey
+import com.metrolist.music.constants.DeeplistSavedLyricsKey
+import kotlinx.coroutines.launch
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -106,7 +129,7 @@ internal fun WordstormLyrics(
     val song by connection.currentSong.collectAsStateWithLifecycle(initialValue = null)
     val playing by connection.isPlaying.collectAsStateWithLifecycle()
     val latestSlider by rememberUpdatedState(sliderPositionProvider)
-    var preset by rememberPreference(WordstormPresetKey, 0)
+    var preset by rememberPreference(WordstormPresetKey, 1)
     var fontSize by rememberPreference(WordstormFontSizeKey, 44f)
     var motion by rememberPreference(WordstormMotionKey, true)
     var cover by rememberPreference(WordstormCoverKey, false)
@@ -118,6 +141,26 @@ internal fun WordstormLyrics(
     var speed by rememberPreference(DeeplistSpeedKey, 1f)
     var showContext by rememberPreference(DeeplistContextKey, false)
     var performance by rememberPreference(DeeplistPerformanceKey, false)
+    var backgroundMode by rememberPreference(DeeplistBackgroundKey, 1)
+    var density by rememberPreference(DeeplistDensityKey, 28)
+    var rainSpeed by rememberPreference(DeeplistRainSpeedKey, 1f)
+    var wordBrightness by rememberPreference(DeeplistWordBrightnessKey, 0.23f)
+    var rings by rememberPreference(DeeplistRingsKey, true)
+    var glow by rememberPreference(DeeplistGlowKey, 0.4f)
+    var sparks by rememberPreference(DeeplistSparksKey, 0.65f)
+    var lift by rememberPreference(DeeplistLiftKey, 7f)
+    var flight by rememberPreference(DeeplistFlightKey, 0.43f)
+    var gestures by rememberPreference(DeeplistGesturesKey, true)
+    var autoPerformance by rememberPreference(DeeplistAutoPerformanceKey, true)
+    var savedStyle by rememberPreference(DeeplistSavedStyleKey, "")
+    var savedLyrics by rememberPreference(DeeplistSavedLyricsKey, "[]")
+    var savedDialog by remember { mutableStateOf(false) }
+    var cardBusy by remember { mutableStateOf(false) }
+    var studioStatus by remember { mutableStateOf<Int?>(null) }
+    val automaticEconomy = rememberDeeplistEconomy(playing, autoPerformance, metadata?.id)
+    val effectivePerformance = performance || automaticEconomy
+    val database = LocalDatabase.current
+    val scope = rememberCoroutineScope()
     LaunchedEffect(controls, immersive, settings) { if (immersive && controls && !settings) { delay(4000L); controls = false } }
     val palette = listOf(Color(0xFFC2A1FF), Color(0xFF7EDAE3), Color(0xFFFFB296))
     val accent = palette[accentIndex.coerceIn(0, 2)]
@@ -135,6 +178,25 @@ internal fun WordstormLyrics(
     var tokenDraft by remember { mutableStateOf(pairingToken) }
     val syncStatus by DeeplistBridgeStatus.state.collectAsStateWithLifecycle()
     val offset: Long = if (song?.song?.id == metadata?.id) song?.song?.lyricsOffset?.toLong() ?: 0L else 0L
+    var offsetDraft by remember(metadata?.id) { mutableIntStateOf(offset.toInt()) }
+    LaunchedEffect(offset) { offsetDraft = offset.toInt() }
+    fun adjustOffset(delta: Int, reset: Boolean = false) {
+        val current = song?.song ?: return
+        if (current.id != metadata?.id) return
+        offsetDraft = if (reset) 0 else (offsetDraft + delta).coerceIn(-10000, 10000)
+        val changed = offsetDraft
+        database.query { upsert(current.copy(lyricsOffset = changed)) }
+    }
+    fun applyStyle(v: List<Float>) {
+        preset = v[0].toInt().coerceIn(0,2); fontSize = v[1].coerceIn(30f,64f)
+        motion = v[2] >= 0.5f; cover = v[3] >= 0.5f; accentIndex = v[4].toInt().coerceIn(0,2)
+        speed = v[5].coerceIn(0.7f,1.7f); showContext = v[6] >= 0.5f; neon = v[7].coerceIn(0f,1f)
+        performance = v[8] >= 0.5f; backgroundMode = v[9].toInt().coerceIn(0,2); density = v[10].toInt().coerceIn(6,36)
+        rainSpeed = v[11].coerceIn(0.2f,2f); wordBrightness = v[12].coerceIn(0.07f,0.32f)
+        rings = v[13] >= 0.5f; glow = v[14].coerceIn(0f,1f); sparks = v[15].coerceIn(0f,1f)
+        lift = v[16].coerceIn(0f,14f); flight = v[17].coerceIn(0.2f,0.65f)
+    }
+    fun resetStyle() = applyStyle(listOf(1f,44f,1f,0f,0f,1f,0f,0.65f,0f,1f,28f,1f,0.23f,1f,0.4f,0.65f,7f,0.43f))
     val manager = LocalListenTogetherManager.current
     val canSeek = manager?.isInRoom != true || manager.isHost
 
@@ -146,11 +208,11 @@ internal fun WordstormLyrics(
             }
         }
     }
-    LaunchedEffect(metadata?.id, playing, motion, preset, lifecycleOwner, performance) {
+    LaunchedEffect(metadata?.id, playing, motion, preset, lifecycleOwner, effectivePerformance) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             while (isActive) {
                 position.longValue = latestSlider() ?: connection.player.currentPosition
-                delay(if (playing && motion && preset != 2 && !performance) 32L else 100L)
+                delay(if (playing && motion && preset != 2 && !effectivePerformance) 32L else 100L)
             }
         }
     }
@@ -160,10 +222,25 @@ internal fun WordstormLyrics(
     }
     val active = entries.getOrNull(activeIndex)
     val rainWords = remember(entries) { entries.take(12).flatMap { it.text.split(Regex("\\s+")) } }
-    BoxWithConstraints(modifier.fillMaxSize().background(Color(0xFF05040C)).clickable(enabled = immersive, indication = null, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) { controls = !controls }) {
+    val gestureThreshold = with(LocalDensity.current) { 64.dp.toPx() }
+    val gestureModifier = if (immersive && gestures) Modifier
+        .pointerInput(playing, canSeek) {
+            detectTapGestures(onTap = { controls = !controls }, onDoubleTap = {
+                if (canSeek) { if (playing) connection.player.pause() else connection.player.play() }
+            })
+        }.pointerInput(canSeek) {
+            var drag = 0f
+            detectHorizontalDragGestures(onDragStart = { drag = 0f }, onDragCancel = { drag = 0f },
+                onHorizontalDrag = { change, amount -> change.consume();drag += amount }, onDragEnd = {
+                    if (canSeek && drag < -gestureThreshold) connection.seekToNext()
+                    else if (canSeek && drag > gestureThreshold) connection.seekToPrevious()
+                    drag = 0f
+                })
+        } else Modifier.clickable(enabled = immersive, indication = null, interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }) { controls = !controls }
+    BoxWithConstraints(modifier.fillMaxSize().background(Color(0xFF05040C)).then(gestureModifier)) {
         val lineHeightLimit = maxHeight * (if (showContext && (!immersive || controls)) 0.4f else 0.7f)
-        if (immersive) DeeplistEdgeLights(playing)
-        if (preset == 1 && motion && !performance) DeeplistWordRain(rainWords, playing, accent)
+        DeeplistAtmosphere(rainWords, playing && motion, accent, backgroundMode, density, rainSpeed, wordBrightness, rings, glow, effectivePerformance)
+        if (immersive) DeeplistEdgeLights(playing, performanceOverride = effectivePerformance)
         Box(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 12.dp)) {
         Column(
             Modifier.align(Alignment.Center).fillMaxWidth().padding(vertical = 62.dp),
@@ -181,7 +258,8 @@ internal fun WordstormLyrics(
                         entry = active, position = position, offset = offset,
                         fontSize = fontSize.coerceIn(30f, 64f), accent = accent,
                         wordstorm = preset == 1, playing = playing && motion && preset != 2,
-                        speed = speed, performance = performance || !motion || preset == 2,
+                        speed = speed, performance = effectivePerformance || !motion || preset == 2,
+                        liftAmount = lift, flight = flight, sparks = sparks,
                         heightBudget = lineHeightLimit, nextTime = entries.getOrNull(activeIndex + 1)?.time,
                         modifier = Modifier.padding(horizontal = 6.dp).clickable(enabled = canSeek && !immersive) {
                             connection.seekTo((active.time - offset).coerceAtLeast(0L))
@@ -220,6 +298,28 @@ internal fun WordstormLyrics(
         }
         }
     }
+    fun shareCard(lyric: DeeplistSavedLyric) {
+        if (cardBusy) return
+        cardBusy = true
+        scope.launch {
+            runCatching { withContext(Dispatchers.IO) { deeplistShareCard(context, lyric) } }
+                .onSuccess { intent -> runCatching { context.startActivity(Intent.createChooser(intent, null)) }.onFailure { studioStatus = R.string.deeplist_card_error } }
+                .onFailure { studioStatus = R.string.deeplist_card_error }
+            cardBusy = false
+        }
+    }
+    if (savedDialog) AlertDialog(onDismissRequest = { savedDialog = false }, title = { Text(stringResource(R.string.deeplist_saved_lyrics)) }, text = {
+        Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+            val saved = deeplistSavedLyrics(savedLyrics)
+            if (saved.isEmpty()) Text(stringResource(R.string.deeplist_no_saved))
+            saved.forEach { lyric ->
+                Text(lyric.text, fontWeight = FontWeight.Bold)
+                Text(lyric.title, fontSize = 12.sp, color = accent)
+                TextButton(onClick = { shareCard(lyric) }, enabled = !cardBusy) { Text(stringResource(R.string.deeplist_share_card)) }
+            }
+            TextButton(onClick = { savedLyrics = "[]" }) { Text(stringResource(R.string.deeplist_clear_saved)) }
+        }
+    }, confirmButton = { TextButton(onClick = { savedDialog = false }) { Text(stringResource(R.string.wordstorm_done)) } })
     if (settings) {
         val modeNames = listOf(R.string.wordstorm_cinematic, R.string.wordstorm_floating, R.string.wordstorm_karaoke)
         AlertDialog(
@@ -227,13 +327,16 @@ internal fun WordstormLyrics(
             title = { Text(stringResource(R.string.wordstorm_settings)) },
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        listOf(R.string.deeplist_lyrics_tab, R.string.deeplist_appearance_tab, R.string.deeplist_connection_tab).forEachIndexed { i, title ->
-                            FilterChip(selected = tab == i, onClick = { tab = i }, label = { Text(stringResource(title)) })
+                    listOf(R.string.deeplist_lyrics_tab, R.string.deeplist_background_tab, R.string.deeplist_controls_tab, R.string.deeplist_connection_tab).chunked(2).forEachIndexed { row, labels ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            labels.forEachIndexed { column, title ->
+                                val index = row * 2 + column
+                                FilterChip(selected = tab == index, onClick = { tab = index }, label = { Text(stringResource(title)) }, modifier = Modifier.weight(1f))
+                            }
                         }
                     }
-                    if (tab != 2) {
-                        DeeplistPreview(fontSize, accent, preset, motion, speed, performance, neon)
+                    if (tab < 2) {
+                        DeeplistPreview(fontSize, accent, preset, motion, speed, effectivePerformance, neon, backgroundMode, density, rainSpeed, wordBrightness, rings, glow, sparks, lift, flight)
                     }
                     if (tab == 0) {
                     modeNames.forEachIndexed { index, label ->
@@ -244,6 +347,16 @@ internal fun WordstormLyrics(
                     TextButton(onClick = { showContext = !showContext }) { Text(stringResource(if (showContext) R.string.deeplist_context_on else R.string.deeplist_context_off)) }
                     Text(stringResource(R.string.deeplist_speed))
                     Slider(value = speed.coerceIn(0.7f, 1.7f), onValueChange = { speed = it }, valueRange = 0.7f..1.7f)
+                    StudioSlider(R.string.deeplist_lift, lift, 0f..14f, { lift = it })
+                    StudioSlider(R.string.deeplist_flight, flight, 0.2f..0.65f, { flight = it })
+                    Text(stringResource(R.string.deeplist_word_timing_note), fontSize = 11.sp)
+                    Text(stringResource(R.string.deeplist_sync_adjust, offsetDraft))
+                    Text(stringResource(R.string.deeplist_sync_hint), fontSize = 11.sp)
+                    Row {
+                        TextButton(onClick = { adjustOffset(-100) }, enabled = song?.song?.id == metadata?.id) { Text("−100 ms") }
+                        TextButton(onClick = { adjustOffset(100) }, enabled = song?.song?.id == metadata?.id) { Text("+100 ms") }
+                        TextButton(onClick = { adjustOffset(0,true) }) { Text(stringResource(R.string.deeplist_zero)) }
+                    }
                     }
                     if (tab == 1) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -256,9 +369,41 @@ internal fun WordstormLyrics(
                     TextButton(onClick = { cover = !cover }) { Text(stringResource(if (cover) R.string.wordstorm_hide_cover else R.string.wordstorm_show_cover)) }
                     Text(stringResource(R.string.deeplist_neon))
                     Slider(value = neon.coerceIn(0f, 1f), onValueChange = { neon = it }, valueRange = 0f..1f)
-                    TextButton(onClick = { performance = !performance }) { Text(stringResource(if (performance) R.string.deeplist_performance_on else R.string.deeplist_performance_off)) }
+                    listOf(R.string.deeplist_cloud, R.string.deeplist_rain, R.string.deeplist_quiet).forEachIndexed { i, label ->
+                        FilterChip(selected = backgroundMode == i, onClick = { backgroundMode = i }, label = { Text(stringResource(label)) })
+                    }
+                    StudioSlider(R.string.deeplist_density, density.toFloat(), 6f..36f, { density = it.toInt() }, true)
+                    StudioSlider(R.string.deeplist_rain_speed, rainSpeed, 0.2f..2f, { rainSpeed = it })
+                    StudioSlider(R.string.deeplist_word_brightness, wordBrightness, 0.07f..0.32f, { wordBrightness = it })
+                    StudioSlider(R.string.deeplist_glow, glow, 0f..1f, { glow = it })
+                    StudioSlider(R.string.deeplist_sparks, sparks, 0f..1f, { sparks = it })
+                    StudioToggle(R.string.deeplist_rings, rings) { rings = it }
                     }
                     if (tab == 2) {
+                    StudioToggle(R.string.deeplist_gestures, gestures) { gestures = it }
+                    Text(stringResource(R.string.deeplist_gestures_hint), fontSize = 11.sp)
+                    StudioToggle(R.string.deeplist_auto_performance, autoPerformance) { autoPerformance = it }
+                    StudioToggle(R.string.deeplist_reduce_effects, performance) { performance = it }
+                    if (effectivePerformance) Text(stringResource(R.string.deeplist_economy_active), color = accent)
+                    Row {
+                        TextButton(onClick = { resetStyle() }) { Text(stringResource(R.string.deeplist_approved_style)) }
+                        TextButton(onClick = { preset = 2; motion = false; backgroundMode = 2; neon = 0f; sparks = 0f }) { Text(stringResource(R.string.deeplist_quiet)) }
+                    }
+                    TextButton(onClick = {
+                        savedStyle = listOf(preset.toFloat(),fontSize,if(motion)1f else 0f,if(cover)1f else 0f,accentIndex.toFloat(),speed,if(showContext)1f else 0f,neon,if(performance)1f else 0f,backgroundMode.toFloat(),density.toFloat(),rainSpeed,wordBrightness,if(rings)1f else 0f,glow,sparks,lift,flight).joinToString("|")
+                        studioStatus = R.string.deeplist_style_saved
+                    }) { Text(stringResource(R.string.deeplist_save_style)) }
+                    TextButton(onClick = { deeplistStyleValues(savedStyle)?.let { applyStyle(it) } }, enabled = deeplistStyleValues(savedStyle) != null) { Text(stringResource(R.string.deeplist_load_style)) }
+                    val track = metadata
+                    val current = active
+                    if (track != null && current != null) {
+                        val lyric = DeeplistSavedLyric(current.text, track.title, track.artists.joinToString { it.name })
+                        TextButton(onClick = { savedLyrics = deeplistSaveLyric(savedLyrics, lyric); studioStatus = R.string.deeplist_lyric_saved }) { Text(stringResource(R.string.deeplist_save_lyric)) }
+                        TextButton(onClick = { shareCard(lyric) }, enabled = !cardBusy) { Text(stringResource(R.string.deeplist_share_card)) }
+                    }
+                    TextButton(onClick = { savedDialog = true }) { Text(stringResource(R.string.deeplist_saved_lyrics)) }
+                    }
+                    if (tab == 3) {
                     Text(stringResource(R.string.deeplist_inside_deep))
                     OutlinedTextField(
                         value = websiteDraft,
@@ -304,10 +449,25 @@ internal fun WordstormLyrics(
                         }) { Text(stringResource(R.string.deeplist_share_song)) }
                     }
                     }
-                    TextButton(onClick = { preset = 0; fontSize = 44f; motion = true; cover = false; accentIndex = 0; speed = 1f; showContext = false; neon = 0.65f; performance = false }) { Text(stringResource(R.string.wordstorm_reset)) }
+                    studioStatus?.let { Text(stringResource(it), fontSize = 12.sp, color = accent) }
+                    TextButton(onClick = { resetStyle() }) { Text(stringResource(R.string.wordstorm_reset)) }
                 }
             },
             confirmButton = { TextButton(onClick = { settings = false }) { Text(stringResource(R.string.wordstorm_done)) } },
         )
+    }
+}
+
+@Composable
+private fun StudioSlider(label: Int, value: Float, range: ClosedFloatingPointRange<Float>, changed: (Float) -> Unit, integer: Boolean = false) {
+    Text(stringResource(label) + " · " + if (integer) value.toInt().toString() else String.format(java.util.Locale.ROOT,"%.2f",value), fontSize = 12.sp)
+    Slider(value = value.coerceIn(range.start,range.endInclusive), onValueChange = changed, valueRange = range)
+}
+
+@Composable
+private fun StudioToggle(label: Int, checked: Boolean, changed: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(stringResource(label), modifier = Modifier.weight(1f), fontSize = 12.sp)
+        Switch(checked = checked, onCheckedChange = changed)
     }
 }

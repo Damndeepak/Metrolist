@@ -16,7 +16,7 @@ internal fun deeplistMotionWords(entry: LyricsEntry, nextTime: Long?): List<Deep
             DeeplistMotionWord(index, cursor, (word.startTime * 1000).toLong(), (word.endTime * 1000).toLong())
         }
     }
-    val duration = ((nextTime ?: (entry.time + 4000L)) - entry.time).coerceIn(600L, 12000L)
+    val duration = ((nextTime ?: (entry.time + 4000L)) - entry.time).coerceIn(1L, 12000L)
     val total = visible.sumOf { it.value.length }.coerceAtLeast(1)
     var consumed = 0
     return visible.map { match ->
@@ -50,4 +50,22 @@ internal fun deeplistLetterRanges(text: String): List<IntRange> {
         end = iterator.next()
     }
     return ranges
+}
+
+internal fun deeplistCueArrival(now: Long, start: Long, end: Long, fraction: Float, speed: Float, animate: Boolean): Float {
+    if (now < start) return 0f
+    if (!animate || now >= end) return 1f
+    val span = (end - start).coerceAtLeast(1L).toFloat()
+    val stagger = fraction * minOf(80f, span * 0.2f)
+    val duration = minOf(430f / speed.coerceIn(0.7f, 1.7f), span * 0.7f).coerceAtLeast(1f)
+    val p = ((now - start - stagger) / duration).coerceIn(0f, 1f)
+    return 1f - (1f - p) * (1f - p) * (1f - p)
+}
+
+internal fun deeplistSlowFrames(count: Int, delta: Long): Int =
+    if (delta > 48L) (count + 1).coerceAtMost(8) else (count - 1).coerceAtLeast(0)
+
+internal fun deeplistStyleValues(value: String): List<Float>? {
+    val values = value.split('|').map { it.toFloatOrNull() ?: return null }
+    return values.takeIf { it.size == 18 && it.all { number -> number.isFinite() } }
 }

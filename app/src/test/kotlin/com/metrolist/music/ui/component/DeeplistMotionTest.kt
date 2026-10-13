@@ -38,4 +38,21 @@ class DeeplistMotionTest {
         assertEquals(text, ranges.joinToString("") { text.substring(it) })
         assertEquals(1f, deeplistArrival(1500L, 95, true), 0.001f)
     }
+    @Test fun futureWordsStayHiddenAndShortCuesFinishInTime() {
+        assertEquals(1400L, deeplistMotionWords(LyricsEntry(1000L,"Fast words"),1400L).last().end)
+        assertEquals(0f, deeplistCueArrival(999L,1000L,1200L,0f,1f,true),0.001f)
+        assertTrue(deeplistCueArrival(1100L,1000L,1200L,0f,1f,true) > 0f)
+        assertEquals(1f, deeplistCueArrival(1200L,1000L,1200L,0.9f,0.7f,true),0.001f)
+        assertEquals(1f, deeplistCueArrival(1100L,1000L,1200L,0f,1f,false),0.001f)
+        assertTrue(deeplistCueArrival(1100L,1000L,1800L,0f,1.7f,true) > deeplistCueArrival(1100L,1000L,1800L,0f,0.7f,true))
+    }
+    @Test fun economyRequiresSustainedSlowFramesAndStylesRejectBadValues() {
+        var count = 0
+        repeat(8) { count = deeplistSlowFrames(count,60L) }
+        assertEquals(8,count)
+        assertEquals(7,deeplistSlowFrames(count,16L))
+        assertEquals(null,deeplistStyleValues("broken"))
+        assertEquals(null,deeplistStyleValues(List(18){"NaN"}.joinToString("|")))
+        assertEquals(18,deeplistStyleValues(List(18){"1"}.joinToString("|"))?.size)
+    }
 }

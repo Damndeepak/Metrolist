@@ -30,7 +30,7 @@ import kotlinx.coroutines.delay
 
 @Composable
 internal fun DeeplistPreview(fontSize: Float, accent: Color, preset: Int, motion: Boolean,
-    speed: Float, performance: Boolean, neon: Float) {
+    speed: Float, performance: Boolean, neon: Float, mode: Int, density: Int, rainSpeed: Float, brightness: Float, rings: Boolean, glow: Float, sparks: Float, lift: Float, flight: Float) {
     val text = stringResource(R.string.deeplist_preview)
     val entry = remember(text) { LyricsEntry(0L, text) }
     val position = remember { mutableLongStateOf(0L) }
@@ -41,10 +41,11 @@ internal fun DeeplistPreview(fontSize: Float, accent: Color, preset: Int, motion
     }
     Column {
         Box(Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(18.dp)).background(Color(0xFF05040C)), contentAlignment = Alignment.Center) {
+            DeeplistAtmosphere(text.split(" "), true, accent, mode, density, rainSpeed, brightness, rings, glow, performance)
             DeeplistEdgeLights(true, neonOverride = neon, performanceOverride = performance)
             key(cycle) {
             if (motion && preset != 2) DeeplistLine(entry, position, 0L, (fontSize * 0.62f).coerceIn(20f, 34f), accent,
-                preset == 1, true, 4800L, Modifier.padding(14.dp), speed, performance, heightBudget = 100.dp)
+                preset == 1, true, 4800L, Modifier.padding(14.dp), speed, performance, heightBudget = 100.dp, liftAmount = lift * 0.6f, flight = flight, sparks = sparks)
             else Text(text, color = accent, fontSize = (fontSize * 0.62f).coerceIn(20f, 34f).sp, textAlign = TextAlign.Center, modifier = Modifier.padding(14.dp))
             }
         }

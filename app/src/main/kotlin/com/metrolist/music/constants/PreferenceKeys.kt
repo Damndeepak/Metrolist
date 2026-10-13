@@ -721,7 +721,7 @@ val CountryCodeToName =
     )
 
 val WordstormEnabledKey = booleanPreferencesKey("wordstormEnabled")
-val WordstormPresetKey = intPreferencesKey("wordstormPreset")
+val WordstormPresetKey = intPreferencesKey("deeplistPresetV2")
 val WordstormFontSizeKey = floatPreferencesKey("deeplistFontSizeV2")
 val WordstormMotionKey = booleanPreferencesKey("wordstormMotion")
 val WordstormCoverKey = booleanPreferencesKey("wordstormCover")
@@ -737,3 +737,29 @@ val DeeplistNeonKey = floatPreferencesKey("deeplistNeon")
 val DeeplistSpeedKey = floatPreferencesKey("deeplistSpeed")
 val DeeplistContextKey = booleanPreferencesKey("deeplistContext")
 val DeeplistPerformanceKey = booleanPreferencesKey("deeplistPerformance")
+
+val DeeplistBackgroundKey = intPreferencesKey("deeplistBackground")
+
+val DeeplistDensityKey = intPreferencesKey("deeplistDensity")
+
+val DeeplistRainSpeedKey = floatPreferencesKey("deeplistRainSpeed")
+
+val DeeplistWordBrightnessKey = floatPreferencesKey("deeplistWordBrightness")
+
+val DeeplistRingsKey = booleanPreferencesKey("deeplistRings")
+
+val DeeplistGlowKey = floatPreferencesKey("deeplistGlow")
+
+val DeeplistSparksKey = floatPreferencesKey("deeplistSparks")
+
+val DeeplistLiftKey = floatPreferencesKey("deeplistLift")
+
+val DeeplistFlightKey = floatPreferencesKey("deeplistFlight")
+
+val DeeplistGesturesKey = booleanPreferencesKey("deeplistGestures")
+
+val DeeplistAutoPerformanceKey = booleanPreferencesKey("deeplistAutoPerformance")
+
+val DeeplistSavedStyleKey = stringPreferencesKey("deeplistSavedStyle")
+
+val DeeplistSavedLyricsKey = stringPreferencesKey("deeplistSavedLyrics")
