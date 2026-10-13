@@ -75,7 +75,7 @@ internal fun DeeplistEdgeLights(playing: Boolean) {
     val clock = rememberDeeplistClock(playing)
     val accent = listOf(Color(0xFFC2A1FF), Color(0xFF7EDAE3), Color(0xFFFFB296))[colour.coerceIn(0, 2)]
     Canvas(Modifier.fillMaxSize()) {
-        val phase = (clock.longValue % 5200L).toFloat() / 5200f
+        val phase = ((clock.longValue + 1200L) % 5200L).toFloat() / 5200f
         val x0 = (phase * 1.2f - 0.2f) * size.width
         val x1 = phase * 1.2f * size.width
         val y0 = size.height - phase * 1.2f * size.height

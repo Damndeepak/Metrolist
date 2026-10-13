@@ -58,7 +58,7 @@ internal fun DeeplistLine(entry: LyricsEntry, position: LongState, offset: Long,
             val now = actual + offset + if (playing) (elapsed - samples[1]).coerceIn(0L, 100L) else 0L
             val pad = 16.dp.toPx()
             parts.forEachIndexed { index, part ->
-                val arrival = deeplistArrival(elapsed, index, wordstorm)
+                val arrival = if (playing) deeplistArrival(elapsed, index, wordstorm) else 1f
                 val remaining = 1f - arrival
                 val progress = deeplistProgress(now, part.word.start, part.word.end)
                 val hot = now in part.word.start..part.word.end
