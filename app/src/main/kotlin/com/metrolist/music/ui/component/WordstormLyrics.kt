@@ -136,7 +136,9 @@ internal fun WordstormLyrics(
         derivedStateOf { wordstormLineIndex(times, position.longValue + offset) }
     }
     val active = entries.getOrNull(activeIndex)
+    val rainWords = remember(entries) { entries.take(12).flatMap { it.text.split(Regex("\\s+")) } }
     Box(modifier.fillMaxSize().background(Color(0xFF05040C))) {
+        if (preset == 1 && motion) DeeplistWordRain(rainWords, playing, accent)
         Box(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 12.dp)) {
         Column(
             Modifier.align(Alignment.Center).fillMaxWidth().padding(vertical = 62.dp),
@@ -156,6 +158,7 @@ internal fun WordstormLyrics(
                         DeeplistLine(
                             entry = active, position = position, offset = offset,
                             fontSize = fontSize.coerceIn(26f, 48f), accent = accent,
+                            wordstorm = preset == 1, playing = playing, nextTime = entries.getOrNull(activeIndex + 1)?.time,
                             modifier = Modifier.padding(horizontal = 6.dp).clickable(enabled = canSeek) {
                                 connection.seekTo((active.time - offset).coerceAtLeast(0L))
                             },
@@ -192,7 +195,7 @@ internal fun WordstormLyrics(
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
                     modeNames.forEachIndexed { index, label ->
-                        FilterChip(selected = preset == index, onClick = { preset = index }, label = { Text(stringResource(label)) })
+                        FilterChip(selected = preset == index, onClick = { preset = index; if (index != 2) motion = true }, label = { Text(stringResource(label)) })
                     }
                     Text(stringResource(R.string.wordstorm_size))
                     Slider(value = fontSize.coerceIn(26f, 48f), onValueChange = { fontSize = it }, valueRange = 26f..48f)

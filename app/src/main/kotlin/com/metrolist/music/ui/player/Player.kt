@@ -139,6 +139,7 @@ import com.metrolist.music.LocalDownloadUtil
 import com.metrolist.music.LocalListenTogetherManager
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
+import com.metrolist.music.ui.component.DeeplistEdgeLights
 import com.metrolist.music.constants.WordstormEnabledKey
 import com.metrolist.music.constants.CropAlbumArtKey
 import com.metrolist.music.constants.DarkModeKey
@@ -843,6 +844,7 @@ fun BottomSheetPlayer(
                         .fillMaxSize()
                         .background(bottomSheetBackgroundColor),
             ) {
+                if (deeplistEnabled) DeeplistEdgeLights(effectiveIsPlaying)
                 if (!deeplistEnabled) when (playerBackground) {
                     PlayerBackgroundStyle.BLUR -> {
                         AnimatedContent(
