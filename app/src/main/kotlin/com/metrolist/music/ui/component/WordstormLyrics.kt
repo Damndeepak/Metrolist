@@ -91,7 +91,7 @@ internal fun WordstormLyrics(
     var entries by remember(metadata?.id) { mutableStateOf<List<LyricsEntry>>(emptyList()) }
     var position by remember(metadata?.id) { mutableLongStateOf(0L) }
     var phase by remember(metadata?.id) { mutableFloatStateOf(0f) }
-    val offset = if (song?.song?.id == metadata?.id) song?.song?.lyricsOffset ?: 0L else 0L
+    val offset: Long = if (song?.song?.id == metadata?.id) song?.song?.lyricsOffset?.toLong() ?: 0L else 0L
     val manager = LocalListenTogetherManager.current
     val canSeek = manager?.isInRoom != true || manager.isHost
 
