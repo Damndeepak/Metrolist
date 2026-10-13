@@ -137,7 +137,7 @@ internal fun WordstormLyrics(
     }
     val active = entries.getOrNull(activeIndex)
     val rainWords = remember(entries) { entries.take(12).flatMap { it.text.split(Regex("\\s+")) } }
-    Box(modifier.fillMaxSize().background(Color(0xFF05040C))) {
+    Box(modifier.fillMaxSize()) {
         if (preset == 1 && motion) DeeplistWordRain(rainWords, playing, accent)
         Box(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 12.dp)) {
         Column(
@@ -151,7 +151,7 @@ internal fun WordstormLyrics(
                 }
             }
             if (active != null) {
-                key(metadata?.id, active.time, active.text) {
+                key(metadata?.id, active.time, active.text, preset) {
                     if (preset == 2 || !motion) {
                         Text(active.text, color = Color.White, fontSize = fontSize.coerceIn(26f, 48f).sp, lineHeight = (fontSize.coerceIn(26f, 48f) * 1.25f).sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp))
                     } else {
