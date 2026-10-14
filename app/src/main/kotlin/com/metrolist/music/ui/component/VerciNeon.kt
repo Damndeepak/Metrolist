@@ -65,6 +65,15 @@ internal fun bezelPath(width: Float, height: Float, radius: Float, cutouts: List
     }
 }
 
+internal fun neonContours(path: Path): List<Path> {
+    val measure = PathMeasure(path, true)
+    return buildList {
+        do {
+            if (measure.length > 0) add(Path().apply { measure.getSegment(0f, measure.length, this, true); close() })
+        } while (measure.nextContour())
+    }
+}
+
 @Composable
 internal fun VerciEdgeNeon(playing: Boolean, physicalEdges: Boolean) {
     val enabled by rememberPreference(VerciNeonKey, true)
@@ -76,6 +85,7 @@ internal fun VerciEdgeNeon(playing: Boolean, physicalEdges: Boolean) {
     val owner = LocalLifecycleOwner.current
     val view = LocalView.current
     var cutouts by remember { mutableStateOf(emptyList<RectF>()) }
+    var actualCutout by remember { mutableStateOf<Path?>(null) }
     var corner by remember { mutableFloatStateOf(0f) }
     var phase by remember { mutableFloatStateOf(0f) }
     var envelope by remember { mutableFloatStateOf(0f) }
@@ -98,15 +108,24 @@ internal fun VerciEdgeNeon(playing: Boolean, physicalEdges: Boolean) {
             cutouts = view.rootWindowInsets?.displayCutout?.boundingRects.orEmpty().map {
                 RectF(it.left - origin.x, it.top - origin.y, it.right - origin.x, it.bottom - origin.y)
             }
-            if (Build.VERSION.SDK_INT >= 31) corner = view.rootWindowInsets?.getRoundedCorner(RoundedCorner.POSITION_TOP_LEFT)?.radius?.toFloat() ?: 0f
-        }
+            if (Build.VERSION.SDK_INT >= 31) {
+                corner = view.rootWindowInsets?.getRoundedCorner(RoundedCorner.POSITION_TOP_LEFT)?.radius?.toFloat() ?: 0f
+                val screen = IntArray(2); val window = IntArray(2)
+                view.getLocationOnScreen(screen); view.getLocationInWindow(window)
+                actualCutout = view.rootWindowInsets?.displayCutout?.cutoutPath?.let { raw ->
+                    Path(raw).apply { offset(-origin.x - screen[0] + window[0], -origin.y - screen[1] + window[1]) }
+                }
+            }
+        } else { cutouts = emptyList(); actualCutout = null; corner = 0f }
     }.drawWithCache {
         val inset = .75.dp.toPx()
-        val outline = bezelPath(size.width, size.height, if (corner > 0) corner else 22.dp.toPx(), cutouts, inset)
-        val rings = cutouts.filter { it.top > inset + 2 }.map { box ->
+        val precise = actualCutout
+        val outline = bezelPath(size.width, size.height, if (corner > 0) corner else 22.dp.toPx(), if (precise == null) cutouts else emptyList(), inset)
+        if (precise != null) outline.op(precise, Path.Op.DIFFERENCE)
+        val rings = (if (precise == null) cutouts else emptyList()).filter { it.top > inset + 2 }.map { box ->
             Path().apply { val r = RectF(box); r.inset(-1.dp.toPx(), -1.dp.toPx()); addRoundRect(r, r.height() / 2, r.height() / 2, Path.Direction.CW) }
         }
-        val paths = listOf(outline) + rings
+        val paths = neonContours(outline) + rings
         val measures = paths.map { PathMeasure(it, true) }
         val comet = Path()
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; this.color = verciColors[colorIndex.coerceIn(0, 4)] }
