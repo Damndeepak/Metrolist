@@ -33,7 +33,8 @@ class VerciHeartbeatTest {
     @Test fun `mega respects toggles and preserves meaning`() {
         assertEquals(emptyList<String>(), verciEmojiBundle("love", false, false, true))
         assertEquals(listOf("❤️"), verciEmojiBundle("love", false, true, false))
-        assertEquals(listOf("❤️", "❤️‍🔥"), verciEmojiBundle("love", false, true, true))
+        assertEquals(listOf("❤️", "💘"), verciEmojiBundle("love", false, true, true))
         assertEquals(emptyList<String>(), verciEmojiBundle("the", true, true, true))
+        assertEquals("🥴", verciEmojiBundle("wasted", false, true, true).first())
     }
 }

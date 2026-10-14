@@ -211,9 +211,13 @@ private val advancedEmojis = buildMap {
 }
 
 internal fun verciEmojiBundle(text: String, advanced: Boolean, basic: Boolean, mega: Boolean): List<String> {
-    val first = verciEmoji(text, advanced, basic)
+    if (!basic && !advanced) return emptyList()
+    val key = text.lowercase(Locale.ROOT).filter { it.isLetter() || Character.getType(it) == Character.NON_SPACING_MARK.toInt() }
+    val variants = if (mega) verciMegaVocabulary[key] else null
+    val first = verciEmoji(text, advanced, basic).ifEmpty { if (mega && basic) variants?.firstOrNull().orEmpty() else "" }
     if (first.isEmpty()) return emptyList()
     if (!mega) return listOf(first)
+    variants?.let { return (listOf(first) + it).distinct().take(2) }
     val companion = when (first) {
         "❤️", "💓", "💘", "💖", "😍", "😘" -> "❤️‍🔥"
         "💔", "🥀", "😔", "😭", "🥲" -> "🥀"
@@ -228,3 +232,82 @@ internal fun verciEmojiBundle(text: String, advanced: Boolean, basic: Boolean, m
     }
     return if (companion.isEmpty() || companion == first) listOf(first) else listOf(first, companion)
 }
+
+private val verciMegaVocabulary = mapOf(
+    "love" to listOf("❤️", "💘", "❤️‍🔥", "🫶", "😍"),
+    "rose" to listOf("🌹", "🥀"),
+    "eyes" to listOf("👀", "😵‍💫", "🙈"),
+    "demons" to listOf("😈", "👻", "🖤"),
+    "money" to listOf("💸", "🤑", "💰"),
+    "time" to listOf("⏳", "⌛", "🕰️"),
+    "friends" to listOf("🫂", "🤝🏻", "💞"),
+    "chain" to listOf("💎", "⛓️", "✨"),
+    "door" to listOf("🚪", "🔓"),
+    "open" to listOf("🔓", "🚪"),
+    "closed" to listOf("🙈", "🔒"),
+    "heart" to listOf("💔", "💘", "❤️‍🔥"),
+    "mind" to listOf("🧠", "💭", "🤯"),
+    "honest" to listOf("💯", "🤞🏻", "🫡"),
+    "pray" to listOf("🙏🏻", "✨", "🕊️"),
+    "blue" to listOf("💙", "🧊"),
+    "rockstar" to listOf("🎸", "🧑🏻‍🎤", "😎", "🤘🏻"),
+    "valley" to listOf("🏞️", "🌄"),
+    "wasted" to listOf("🥴", "💫", "😵‍💫", "🫠"),
+    "waste" to listOf("🥀", "⏳", "💔"),
+    "gta" to listOf("🎮", "🚔", "🏎️"),
+    "bitches" to listOf("😈", "💅", "😼"),
+    "drugs" to listOf("💊", "🥴", "💫"),
+    "demonic" to listOf("😈", "👹", "🖤"),
+    "damn" to listOf("😳", "🤯", "💥"),
+    "medusa" to listOf("🐍", "👑", "🗿"),
+    "pocahontas" to listOf("🍃", "🏞️", "🪶"),
+    "lacin" to listOf("🧪", "💊"),
+    "unconscious" to listOf("😵", "💫", "🫥"),
+    "percs" to listOf("💊", "🥴"),
+    "chronic" to listOf("🍃", "💨"),
+    "smokin" to listOf("🚬", "💨", "😶‍🌫️"),
+    "roll" to listOf("🌀", "💫"),
+    "omen" to listOf("👻", "🌚", "🕯️"),
+    "funeral" to listOf("🥀", "🕊️", "🖤"),
+    "cocaine" to listOf("❄️", "🥴"),
+    "basement" to listOf("🏠", "🌚"),
+    "doctor" to listOf("🩺", "👨🏻‍⚕️", "💊"),
+    "patience" to listOf("⏳", "😮‍💨", "🙏🏻"),
+    "satan" to listOf("😈", "👹", "🔥"),
+    "matrix" to listOf("🤖", "💻", "🟩"),
+    "style" to listOf("😎", "🗿", "✨"),
+    "boys" to listOf("🧑🏻", "😎"),
+    "hatin" to listOf("😡", "😒", "😤"),
+    "cadence" to listOf("🎶", "🎤"),
+    "basic" to listOf("😒", "🙄"),
+    "rari" to listOf("🏎️", "💨", "🔥"),
+    "racin" to listOf("🏁", "🏎️", "⚡"),
+    "weed" to listOf("🍃", "💨"),
+    "lace" to listOf("🧪", "⚠️"),
+    "chasin" to listOf("🏃🏻", "💨"),
+    "foreign" to listOf("🌍", "✈️"),
+    "dominatrix" to listOf("😈", "🖤", "⛓️"),
+    "girl" to listOf("💃🏻", "💅", "😘"),
+    "body" to listOf("🔥", "😍", "🫣"),
+    "molly" to listOf("💊", "🫠"),
+    "father" to listOf("👑", "🧔🏻"),
+    "dreads" to listOf("🧑🏽‍🦱", "✂️"),
+    "head" to listOf("🧠", "🤯"),
+    "lockup" to listOf("🔒", "⛓️"),
+    "legs" to listOf("🦵🏻", "🏃🏻"),
+    "jacuzzi" to listOf("🫧", "💦"),
+    "caps" to listOf("💊", "🔵"),
+    "tweakin" to listOf("🤪", "😵‍💫"),
+    "chakra" to listOf("🌀", "🧘🏻", "✨"),
+    "copper" to listOf("🟠", "🪙"),
+    "tats" to listOf("✍🏻", "🖤"),
+    "avatar" to listOf("💙", "🌊", "🌀"),
+    "appas" to listOf("🦬", "☁️"),
+    "know" to listOf("🤔", "🧐"),
+    "lean" to listOf("🥤", "💜"),
+    "sip" to listOf("🥤", "😋"),
+    "pour" to listOf("🫗", "💧"),
+    "cup" to listOf("🥤", "☕"),
+    "medicine" to listOf("💊", "🩺"),
+    "beat" to listOf("💓", "🥁", "⚡"),
+)
