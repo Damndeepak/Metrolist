@@ -65,7 +65,7 @@ fun verciLyricsSettingsItems(): List<Material3SettingsItem> {
             Column(Modifier.padding(20.dp)) {
                 Text(stringResource(R.string.verci_text_size))
                 Text("${size.roundToInt()} sp")
-                Slider(value = size, onValueChange = { size = it }, valueRange = 28f..80f)
+                Slider(value = size, onValueChange = { size = it }, valueRange = 28f..160f)
             }
         }
     }

@@ -18,7 +18,7 @@ internal data class VerciPreset(
                 v.getOrNull(9)?.toBooleanStrict() ?: false, v.getOrNull(10)?.toBooleanStrict() ?: false,
                 v.getOrNull(11)?.toBooleanStrict() ?: false, v.getOrNull(12)?.toBooleanStrict() ?: false,
                 v.getOrNull(13)?.toBooleanStrict() ?: true, v.getOrNull(14)?.toBooleanStrict() ?: true).also {
-                require(it.size in 28f..80f && it.spacing in .75f..1.35f && it.brightness in 0f..1f && it.color in 0..4)
+                require(it.size in 28f..160f && it.spacing in .75f..1.35f && it.brightness in 0f..1f && it.color in 0..4)
             }
         }.getOrNull()
     }
