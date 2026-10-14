@@ -197,12 +197,12 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
         Canvas(
             Modifier.fillMaxSize().semantics { contentDescription = activeText }.drawWithCache {
                 val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                    textSize = fontPx
+                    this.textSize = fontPx
                     typeface = Typeface.create("sans-serif", Typeface.BOLD)
                     color = foreground
                 }
                 val widths = words.map { paint.measureText(it.text).coerceAtLeast(1f) }
-                val emojiPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = fontPx * .58f }
+                val emojiPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.textSize = fontPx * .58f }
                 val emojiWidths = words.map { emojiPaint.measureText(it.emoji) }
                 val metrics = paint.fontMetrics
                 val baseline = -(metrics.ascent + metrics.descent) / 2f
