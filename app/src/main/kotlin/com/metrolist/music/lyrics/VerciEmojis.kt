@@ -209,3 +209,22 @@ private val advancedEmojis = buildMap {
         "🏞️" to "landscape valley valleys वादी वादियाँ vaadi vaadiyan",
     ).forEach { (emoji, words) -> words.split(' ').forEach { put(it, emoji) } }
 }
+
+internal fun verciEmojiBundle(text: String, advanced: Boolean, basic: Boolean, mega: Boolean): List<String> {
+    val first = verciEmoji(text, advanced, basic)
+    if (first.isEmpty()) return emptyList()
+    if (!mega) return listOf(first)
+    val companion = when (first) {
+        "❤️", "💓", "💘", "💖", "😍", "😘" -> "❤️‍🔥"
+        "💔", "🥀", "😔", "😭", "🥲" -> "🥀"
+        "😂", "🤣", "😁", "😋", "🤭" -> "😂"
+        "😈", "💀", "👻", "🧛" -> "🌚"
+        "🔥", "💥", "😡" -> "❤️‍🔥"
+        "🥴", "💊", "🍷", "🍺" -> "😵‍💫"
+        "😎", "🗿", "🤖" -> "⚡"
+        "🥺", "🙏", "🫂" -> "💖"
+        "🌧️", "❄️", "🥶" -> "💙"
+        else -> ""
+    }
+    return if (companion.isEmpty() || companion == first) listOf(first) else listOf(first, companion)
+}

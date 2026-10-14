@@ -43,6 +43,8 @@ import org.json.JSONObject
 @Composable
 internal fun verciStudioItems(): List<Material3SettingsItem> {
     val (brightness, setBrightness) = rememberPreference(VerciBrightnessKey, .8f)
+    val (beatLift, setBeatLift) = rememberPreference(VerciBeatLiftKey, true)
+    val (mega, setMega) = rememberPreference(VerciMegaEmojiKey, true)
     val (advanced, setAdvanced) = rememberPreference(VerciAdvancedEmojiKey, false)
     val (ring, setRing) = rememberPreference(VerciCameraRingKey, false)
     val (particles, setParticles) = rememberPreference(VerciParticlesKey, false)
@@ -75,6 +77,7 @@ internal fun verciStudioItems(): List<Material3SettingsItem> {
     var permission by remember { mutableStateOf(false) }
     var permissionError by remember { mutableStateOf(false) }
     val presets = remember(saved) { runCatching { JSONObject(saved) }.getOrDefault(JSONObject()) }
+    if (dialog == "camera") VerciCameraFit { dialog = "" }
     if (dialog == "font") EnumDialog(
         onDismiss = { dialog = "" }, onSelect = { setFont(it); dialog = "" },
         title = stringResource(R.string.verci_font), current = font, values = VerciFont.entries,
@@ -100,7 +103,7 @@ internal fun verciStudioItems(): List<Material3SettingsItem> {
                 OutlinedTextField(value = name, onValueChange = { name = it.take(32) }, label = { Text(stringResource(R.string.verci_preset_name)) }, singleLine = true)
                 TextButton(onClick = {
                     val updated = JSONObject(presets.toString())
-                    updated.put(name.trim(), VerciPreset(style, font, size, spacing, brightness, color, neon, emojis, reactive, advanced, ring, particles, clock).encode())
+                    updated.put(name.trim(), VerciPreset(style, font, size, spacing, brightness, color, neon, emojis, reactive, advanced, ring, particles, clock, beatLift, mega).encode())
                     setSaved(updated.toString()); name = ""
                 }, enabled = name.isNotBlank()) { Text(stringResource(R.string.deeplist_save_style)) }
                 presets.keys().asSequence().toList().forEach { label ->
@@ -112,6 +115,7 @@ internal fun verciStudioItems(): List<Material3SettingsItem> {
                                     v[VerciTextSizeKey] = p.size; v[VerciSpacingKey] = p.spacing
                                     v[VerciBrightnessKey] = p.brightness; v[VerciColorKey] = p.color
                                     v[VerciAdvancedEmojiKey] = p.advanced; v[VerciCameraRingKey] = p.ring
+                                    v[VerciBeatLiftKey] = p.beatLift; v[VerciMegaEmojiKey] = p.mega
                                     v[VerciParticlesKey] = p.particles; v[VerciClockKey] = p.clock
                                     v[VerciNeonKey] = p.neon; v[VerciEmojiKey] = p.emojis; v[VerciAudioReactiveKey] = p.reactive
                                 }
@@ -135,6 +139,9 @@ internal fun verciStudioItems(): List<Material3SettingsItem> {
         dismissButton = { TextButton(onClick = { permission = false }) { Text(stringResource(android.R.string.cancel)) } },
     )
     return buildList {
+        add(Material3SettingsItem(title = { Text(stringResource(R.string.verci_beat_lift)) }, trailingContent = { Switch(beatLift, setBeatLift) }, onClick = { setBeatLift(!beatLift) }))
+        add(Material3SettingsItem(title = { Text(stringResource(R.string.verci_mega_emojis)) }, trailingContent = { Switch(mega, setMega) }, onClick = { setMega(!mega) }))
+        add(Material3SettingsItem(title = { Text(stringResource(R.string.verci_camera_fit)) }, onClick = { dialog = "camera" }))
         add(Material3SettingsItem(title = { Text(stringResource(R.string.deeplist_website_sync)) }, description = { Text(if (website.isBlank()) stringResource(R.string.deeplist_easy_connect_hint) else "$website · ${bridgeState.name.lowercase()}") }, trailingContent = {
             if (sharing) TextButton(onClick = { setSharing(false); setPairToken("") }) { Text(stringResource(R.string.deeplist_stop_sync)) }
             else if (website.isNotBlank()) TextButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("$website/deeplist.html"))) }) { Text(stringResource(R.string.deeplist_open_website)) }

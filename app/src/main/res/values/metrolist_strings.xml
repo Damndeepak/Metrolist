@@ -1114,4 +1114,14 @@
     <string name="deeplist_connect_failed">Connection failed. Open the website and try again.</string>
     <string name="deeplist_website_sync">Website connection</string>
     <string name="deeplist_easy_connect_hint">On your website, tap Connect Deeplist and approve in the app.</string>
+    <string name="verci_beat_lift">Heartbeat · beat lift</string>
+    <string name="verci_mega_emojis">Supermega emojis</string>
+    <string name="verci_camera_fit">Camera / notch fit</string>
+    <string name="verci_camera_fit_hint">Align the preview ring with your camera. Zero diameter uses the phone cutout. Save to apply to both the ring and moving trails.</string>
+    <string name="verci_camera_diameter">Diameter (0 = auto)</string>
+    <string name="verci_camera_x">Horizontal offset</string>
+    <string name="verci_camera_y">Vertical offset</string>
+    <string name="verci_camera_gap">Camera clearance</string>
+    <string name="verci_camera_thickness">Neon thickness</string>
+    <string name="verci_camera_auto">Reset auto</string>
 </resources>

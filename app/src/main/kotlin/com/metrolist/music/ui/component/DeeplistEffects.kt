@@ -32,7 +32,7 @@ import kotlinx.coroutines.isActive
 import kotlin.math.sin
 
 @Composable
-internal fun rememberDeeplistClock(playing: Boolean, fastForMs: Long = 0L, smooth: Boolean = false): LongState {
+internal fun rememberDeeplistClock(playing: Boolean, fastForMs: Long = 0L, smooth: Boolean = true): LongState {
     val clock = remember { mutableLongStateOf(0L) }
     val owner = LocalLifecycleOwner.current
     LaunchedEffect(playing, owner, fastForMs, smooth) {

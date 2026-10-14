@@ -44,7 +44,7 @@ internal fun bezelPath(width: Float, height: Float, radius: Float, cutouts: List
     return Path().apply {
         moveTo(inset + r, inset)
         for (box in cutouts.filter { it.bottom > 0 && it.top < height / 3 && it.width() > 0 }.sortedBy { it.left }) {
-            val camera = cameraOrbit(box, inset)
+            val camera = cameraOrbit(box, 0f)
             if (camera.left <= inset + r || camera.right >= right - r) continue
             val x = camera.centerX()
             val y = camera.top
@@ -82,13 +82,19 @@ internal fun neonContours(path: Path): List<Path> {
 }
 
 @Composable
-internal fun VerciEdgeNeon(playing: Boolean, physicalEdges: Boolean) {
+internal fun VerciEdgeNeon(playing: Boolean, physicalEdges: Boolean, preview: CameraFit? = null) {
     val enabled by rememberPreference(VerciNeonKey, true)
     val brightness by rememberPreference(VerciBrightnessKey, .8f)
     val reactive by rememberPreference(VerciAudioReactiveKey, true)
     val colorIndex by rememberPreference(VerciColorKey, 0)
+    val cameraSize by rememberPreference(com.metrolist.music.constants.VerciCameraSizeKey, 0f)
+    val cameraX by rememberPreference(com.metrolist.music.constants.VerciCameraXKey, 0f)
+    val cameraY by rememberPreference(com.metrolist.music.constants.VerciCameraYKey, 0f)
+    val cameraGap by rememberPreference(com.metrolist.music.constants.VerciCameraGapKey, 1f)
+    val cameraThickness by rememberPreference(com.metrolist.music.constants.VerciCameraThicknessKey, 1.5f)
+    val fit = preview ?: CameraFit(cameraSize, cameraX, cameraY, cameraGap, cameraThickness)
     val connection = LocalPlayerConnection.current ?: return
-    if (!enabled || brightness <= 0f) return
+    if (preview == null && (!enabled || brightness <= 0f)) return
     val owner = LocalLifecycleOwner.current
     val view = LocalView.current
     var cutouts by remember { mutableStateOf(emptyList<RectF>()) }
@@ -112,9 +118,10 @@ internal fun VerciEdgeNeon(playing: Boolean, physicalEdges: Boolean) {
     Canvas(Modifier.fillMaxSize().onGloballyPositioned { coordinates ->
         if (physicalEdges && Build.VERSION.SDK_INT >= 28) {
             val origin = coordinates.positionInWindow()
-            cutouts = view.rootWindowInsets?.displayCutout?.boundingRects.orEmpty().map {
+            val updated = view.rootWindowInsets?.displayCutout?.boundingRects.orEmpty().map {
                 RectF(it.left - origin.x, it.top - origin.y, it.right - origin.x, it.bottom - origin.y)
             }
+            if (updated != cutouts) cutouts = updated
             if (Build.VERSION.SDK_INT >= 31) {
                 corner = view.rootWindowInsets?.getRoundedCorner(RoundedCorner.POSITION_TOP_LEFT)?.radius?.toFloat() ?: 0f
 
@@ -122,15 +129,23 @@ internal fun VerciEdgeNeon(playing: Boolean, physicalEdges: Boolean) {
         } else { cutouts = emptyList(); corner = 0f }
     }.drawWithCache {
         val inset = .75.dp.toPx()
-        val outline = bezelPath(size.width, size.height, if (corner > 0) corner else 22.dp.toPx(), cutouts, inset)
-        val rings = if (fixedRing) cutouts.filter { it.width() > 0 && it.height() > 0 }.map { box ->
-            Path().apply { addOval(cameraOrbit(box, inset), Path.Direction.CW) }
+        val calibrated = cutouts.map { box ->
+            val auto = cameraOrbit(box, 0f)
+            val diameter = if (fit.diameter > 0) fit.diameter.dp.toPx() else auto.width()
+            val radius = diameter / 2 + fit.gap.dp.toPx()
+            val x = auto.centerX() + fit.x.dp.toPx()
+            val y = auto.centerY() + fit.y.dp.toPx()
+            RectF(x - radius, y - radius, x + radius, y + radius)
+        }
+        val outline = bezelPath(size.width, size.height, if (corner > 0) corner else 22.dp.toPx(), calibrated, inset)
+        val rings = if (fixedRing || preview != null) calibrated.filter { it.width() > 0 && it.height() > 0 }.map { box ->
+            Path().apply { addOval(cameraOrbit(box, 0f), Path.Direction.CW) }
         } else emptyList()
         val paths = listOf(outline)
         val measures = paths.map { PathMeasure(it, true) }
         val comet = Path()
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; this.color = verciColors[colorIndex.coerceIn(0, 4)] }
-        val thin = 1.5.dp.toPx()
+        val thin = fit.thickness.dp.toPx()
         val glow = 6.dp.toPx()
         onDrawBehind {
             val c = drawContext.canvas.nativeCanvas

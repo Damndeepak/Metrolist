@@ -72,6 +72,9 @@ import com.metrolist.music.constants.VerciStyle
 import com.metrolist.music.constants.VerciStyleKey
 import com.metrolist.music.constants.VerciTextSizeKey
 import com.metrolist.music.lyrics.LyricsUtils
+import com.metrolist.music.lyrics.buildVerciGaps
+import com.metrolist.music.lyrics.VerciGap
+import com.metrolist.music.lyrics.VerciHeartbeat
 import com.metrolist.music.lyrics.VerciPlaybackClock
 import com.metrolist.music.lyrics.verciDampPosition
 import com.metrolist.music.lyrics.VerciWord
@@ -151,13 +154,16 @@ fun VerciLyrics(
             val words by produceState<List<VerciWord>?>(null, source) {
                 value = withContext(Dispatchers.Default) { buildVerciWords(LyricsUtils.parseLyrics(source.orEmpty())) }
             }
+            val gaps by produceState(emptyList<VerciGap>(), source) {
+                value = withContext(Dispatchers.Default) { buildVerciGaps(LyricsUtils.parseLyrics(source.orEmpty())) }
+            }
             val timeline = words
             if (timeline.isNullOrEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     if (timeline != null) Text(stringResource(R.string.lyrics_not_found))
                 }
             } else {
-                VerciWordCanvas(timeline, previewProvider, Modifier, !recording && (!immersive || controls))
+                VerciWordCanvas(timeline, gaps, previewProvider, Modifier, !recording && (!immersive || controls))
             }
         }
         if (!immersive || controls) Row(Modifier.align(Alignment.TopEnd).safeDrawingPadding(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -182,7 +188,7 @@ fun VerciLyrics(
 }
 
 @Composable
-private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -> Long?, modifier: Modifier, showTiming: Boolean) {
+private fun VerciWordCanvas(words: List<VerciWord>, gaps: List<VerciGap>, sliderPositionProvider: () -> Long?, modifier: Modifier, showTiming: Boolean) {
     val connection = LocalPlayerConnection.current ?: return
     val player = connection.player
     val owner = LocalLifecycleOwner.current
@@ -192,6 +198,10 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
     val style by rememberEnumPreference(VerciStyleKey, VerciStyle.FISHEYE)
     val emojis by rememberPreference(VerciEmojiKey, true)
     val advanced by rememberPreference(com.metrolist.music.constants.VerciAdvancedEmojiKey, false)
+    val beatLift by rememberPreference(com.metrolist.music.constants.VerciBeatLiftKey, true)
+    val mega by rememberPreference(com.metrolist.music.constants.VerciMegaEmojiKey, true)
+    val heartbeat = remember { VerciHeartbeat() }
+    var pulse by remember { mutableFloatStateOf(0f) }
     val particles by rememberPreference(com.metrolist.music.constants.VerciParticlesKey, false)
     val clockVisible by rememberPreference(com.metrolist.music.constants.VerciClockKey, false)
     val wallTime by produceState(System.currentTimeMillis(), clockVisible) {
@@ -218,6 +228,8 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
                 if (events.contains(Player.EVENT_POSITION_DISCONTINUITY) ||
                     events.contains(Player.EVENT_PLAYBACK_PARAMETERS_CHANGED)) {
                     clock.reset()
+                    heartbeat.reset()
+                    pulse = 0f
                     time = (slider() ?: player.currentPosition) + offset
                     scroll = verciScrollPosition(words, time)
                 } else if (!playing) {
@@ -229,9 +241,11 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
         player.addListener(listener)
         onDispose { player.removeListener(listener) }
     }
-    LaunchedEffect(player, owner, playing) {
+    LaunchedEffect(player, owner, playing, beatLift) {
         owner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             clock.reset()
+            heartbeat.reset()
+            pulse = 0f
             time = (slider() ?: player.currentPosition) + offset
             scroll = verciScrollPosition(words, time)
             if (playing) {
@@ -239,6 +253,9 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
                 while (isActive) {
                     withFrameNanos { frame ->
                         val preview = slider()
+                        if (preview != null) heartbeat.reset()
+                        val frameDt = if (previousFrame == 0L) 0f else ((frame - previousFrame) / 1e9f).coerceIn(0f, .05f)
+                        pulse = if (beatLift && preview == null) heartbeat.sample(connection.service.lyricsAudioEnergy, frame / 1000000, frameDt) else 0f
                         time = if (preview != null) {
                             clock.reset()
                             preview + offset
@@ -276,12 +293,18 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
                 }
                 val widths = words.map { paint.measureText(it.text).coerceAtLeast(1f) }
                 val emojiPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.textSize = fontPx * .58f }
-                val icons = words.map { if (advanced) com.metrolist.music.lyrics.verciEmoji(it.text, true, emojis) else if (emojis) it.emoji else "" }
-                val displayIcons = icons.map { icon ->
-                    if (icon == "🫪" && !emojiPaint.hasGlyph(icon)) "😳"
-                    else if (icon == "🫯" && !emojiPaint.hasGlyph(icon)) "💥" else icon
+                val displayIcons = words.map { word ->
+                    com.metrolist.music.lyrics.verciEmojiBundle(word.text, advanced, emojis, mega).map { icon ->
+                        if (icon == "🫪" && !emojiPaint.hasGlyph(icon)) "😳"
+                        else if (icon == "🫯" && !emojiPaint.hasGlyph(icon)) "💥" else icon
+                    }
                 }
-                val emojiWidths = displayIcons.map { emojiPaint.measureText(it) }
+                val emojiWidths = displayIcons.map { icons -> icons.maxOfOrNull { emojiPaint.measureText(it) } ?: 0f }
+                val gapLayouts = gaps.map { gap ->
+                    val textPaint = android.text.TextPaint(paint).apply { textSize = fontPx * .68f; color = accent; alpha = 140 }
+                    android.text.StaticLayout.Builder.obtain(gap.echo, 0, gap.echo.length, textPaint, (size.width * .82f).toInt().coerceAtLeast(1))
+                        .setAlignment(android.text.Layout.Alignment.ALIGN_CENTER).setMaxLines(5).setEllipsize(android.text.TextUtils.TruncateAt.END).build()
+                }
                 val atmosphere = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                     shader = android.graphics.RadialGradient(size.width * .18f, size.height * .25f,
                         size.height * .75f, intArrayOf((accent and 0x00ffffff) or 0x28000000, 0x00000000), null, Shader.TileMode.CLAMP)
@@ -290,6 +313,8 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
                 val clockPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = foreground; alpha = 170; this.textSize = 28.dp.toPx(); textAlign = Paint.Align.CENTER }
                 var clockMinute = -1L
                 var clockText = ""
+                val camera = android.graphics.Camera()
+                val perspective = android.graphics.Matrix()
                 val metrics = paint.fontMetrics
                 val baseline = -(metrics.ascent + metrics.descent) / 2f
                 val emojiMetrics = emojiPaint.fontMetrics
@@ -325,7 +350,19 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
                         if (minute != clockMinute) { clockMinute = minute; clockText = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date(wallTime)) }
                         c.drawText(clockText, size.width / 2, size.height * .12f, clockPaint)
                     }
-                    for (i in (center - 4).coerceAtLeast(0)..(center + 5).coerceAtMost(words.lastIndex)) {
+                    val gapIndex = gaps.indexOfFirst { now >= it.start && now < it.end }
+                    val lift = pulse * min(24.dp.toPx(), size.height * .029f) * .75f
+                    c.save()
+                    c.translate(0f, -lift)
+                    c.rotate(pulse * sin(now / 1000f * 2.8f) * .6f, size.width / 2, size.height / 2)
+                    if (gapIndex >= 0) {
+                        val layout = gapLayouts[gapIndex]
+                        spark.color = accent; spark.alpha = (25 + 30 * pulse.coerceAtLeast(0f)).toInt()
+                        c.drawCircle(size.width / 2, size.height / 2, size.width * (.27f + pulse * .009f), spark)
+                        c.save(); c.translate((size.width - layout.width) / 2, (size.height - layout.height) / 2)
+                        layout.draw(c); c.restore()
+                    }
+                    if (gapIndex < 0) for (i in (center - 4).coerceAtLeast(0)..(center + 5).coerceAtMost(words.lastIndex)) {
                         val word = words[i]
                         val u = i - position
                         val distance = abs(u)
@@ -342,7 +379,14 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
                         c.save()
                         c.translate(size.width / 2 + drift, size.height / 2 + y)
                         c.scale(scale * fit * (1 + pop), scale * fit * (1 + pop))
-                        if (style == VerciStyle.SHIP) c.rotate(sin(now / 1700f + i) * min(5f, distance * 3))
+                        if (style == VerciStyle.SHIP) {
+                            camera.save()
+                            camera.rotateX(kotlin.math.cos(now / 2100f + i * .7f) * 5f)
+                            camera.rotateY(sin(now / 1700f + i) * 9f)
+                            camera.getMatrix(perspective)
+                            camera.restore()
+                            c.concat(perspective)
+                        }
                         val x = -(widths[i] + iconWidth) / 2
                         paint.color = if (i > active) accent else foreground
                         paint.alpha = (alpha * if (i == active) .38f else if (i > active) .45f else .72f).toInt()
@@ -357,10 +401,14 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
                         }
                         if (iconWidth > 0) {
                             emojiPaint.alpha = alpha
-                            c.drawText(displayIcons[i], x + widths[i] + fontPx * .18f, emojiBaseline, emojiPaint)
+                            val icons = displayIcons[i]
+                            icons.forEachIndexed { j, icon ->
+                                c.drawText(icon, x + widths[i] + fontPx * .18f, emojiBaseline + (j - (icons.size - 1) / 2f) * fontPx * .52f, emojiPaint)
+                            }
                         }
                         c.restore()
                     }
+                    c.restore()
                     // Soft edge fades and layered strokes avoid a full-screen blur or offscreen layer.
                     c.drawRect(0f, 0f, size.width, fadeHeight, fade)
                     c.save()
