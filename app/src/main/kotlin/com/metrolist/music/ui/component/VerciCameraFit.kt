@@ -32,6 +32,25 @@ internal fun VerciCameraFit(onDismiss: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        val dialogView = androidx.compose.ui.platform.LocalView.current
+        DisposableEffect(dialogView) {
+            val window = (dialogView.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window
+            if (window != null) {
+                androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
+                if (android.os.Build.VERSION.SDK_INT >= 28) {
+                    val attributes = window.attributes
+                    attributes.layoutInDisplayCutoutMode = if (android.os.Build.VERSION.SDK_INT >= 30)
+                        android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+                    else android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                    window.attributes = attributes
+                }
+                androidx.core.view.WindowInsetsControllerCompat(window, dialogView).apply {
+                    systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+                }
+            }
+            onDispose { }
+        }
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface.copy(alpha = .95f)) {
             Box(Modifier.fillMaxSize()) {
                 VerciEdgeNeon(playing = true, physicalEdges = true, preview = fit)
