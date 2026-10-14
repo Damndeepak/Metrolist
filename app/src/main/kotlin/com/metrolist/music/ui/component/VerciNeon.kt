@@ -51,7 +51,8 @@ internal fun bezelPath(width: Float, height: Float, radius: Float, cutouts: List
             val shoulder = camera.width()
             lineTo(x - shoulder, inset)
             cubicTo(x - shoulder / 2, inset, x - shoulder / 2, y, x, y)
-            arcTo(camera, -90f, 360f, false)
+            arcTo(camera, -90f, 180f, false)
+            arcTo(camera, 90f, 180f, false)
             cubicTo(x + shoulder / 2, y, x + shoulder / 2, inset, x + shoulder, inset)
         }
         lineTo(right - r, inset); quadTo(right, inset, right, inset + r)

@@ -194,6 +194,9 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
     val advanced by rememberPreference(com.metrolist.music.constants.VerciAdvancedEmojiKey, false)
     val particles by rememberPreference(com.metrolist.music.constants.VerciParticlesKey, false)
     val clockVisible by rememberPreference(com.metrolist.music.constants.VerciClockKey, false)
+    val wallTime by produceState(System.currentTimeMillis(), clockVisible) {
+        if (clockVisible) while (isActive) { value = System.currentTimeMillis(); delay(1000) }
+    }
     val textSize by rememberPreference(VerciTextSizeKey, 52f)
     val font by rememberEnumPreference(VerciFontKey, VerciFont.BOLD)
     val spacing by rememberPreference(VerciSpacingKey, 1f)
@@ -280,7 +283,7 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
                         size.height * .75f, intArrayOf((accent and 0x00ffffff) or 0x28000000, 0x00000000), null, Shader.TileMode.CLAMP)
                 }
                 val spark = Paint(Paint.ANTI_ALIAS_FLAG)
-                val clockPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = foreground; alpha = 170; textSize = 28.dp.toPx(); textAlign = Paint.Align.CENTER }
+                val clockPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = foreground; alpha = 170; this.textSize = 28.dp.toPx(); textAlign = Paint.Align.CENTER }
                 var clockMinute = -1L
                 var clockText = ""
                 val metrics = paint.fontMetrics
@@ -314,8 +317,8 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
                         }
                     }
                     if (clockVisible) {
-                        val minute = System.currentTimeMillis() / 60000
-                        if (minute != clockMinute) { clockMinute = minute; clockText = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date()) }
+                        val minute = wallTime / 60000
+                        if (minute != clockMinute) { clockMinute = minute; clockText = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date(wallTime)) }
                         c.drawText(clockText, size.width / 2, size.height * .12f, clockPaint)
                     }
                     for (i in (center - 4).coerceAtLeast(0)..(center + 5).coerceAtMost(words.lastIndex)) {

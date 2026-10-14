@@ -78,13 +78,15 @@ internal fun startDeeplistBridge(context: Context, scope: CoroutineScope, databa
                                 val entries = (if (lyricsTextLooksSynced(cachedLyrics)) LyricsUtils.parseLyrics(cachedLyrics!!) else emptyList()).filter { !it.isBackground && it.text.isNotBlank() }.sortedBy { it.time }.take(800)
                                 val lines = JSONArray()
                                 var chars = 0
-                                entries.forEach { line ->
+                                val timeline = com.metrolist.music.lyrics.buildVerciWords(entries)
+                                entries.forEachIndexed { index, line ->
                                     chars += line.text.length
                                     if (chars <= 60000 && line.text.length <= 1200) {
                                         val item = JSONObject().put("time", line.time).put("text", line.text)
                                         val words = JSONArray()
-                                        line.words.orEmpty().take(200).forEach { word ->
-                                            words.put(JSONObject().put("text", word.text.take(200)).put("start", word.startTime * 1000).put("end", word.endTime * 1000))
+                                        val next = entries.getOrNull(index + 1)?.time ?: Long.MAX_VALUE
+                                        timeline.asSequence().filter { it.start >= line.time && it.start < next }.take(200).forEach { word ->
+                                            words.put(JSONObject().put("text", word.text.take(200)).put("start", word.start).put("end", word.end))
                                         }
                                         item.put("words", words); lines.put(item)
                                     }
