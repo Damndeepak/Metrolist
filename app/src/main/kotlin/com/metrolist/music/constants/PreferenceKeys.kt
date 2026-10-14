@@ -763,3 +763,11 @@ val DeeplistAutoPerformanceKey = booleanPreferencesKey("deeplistAutoPerformance"
 val DeeplistSavedStyleKey = stringPreferencesKey("deeplistSavedStyle")
 
 val DeeplistSavedLyricsKey = stringPreferencesKey("deeplistSavedLyrics")
+
+
+enum class VerciStyle { FISHEYE, SHIP, VISUAL, FISHEYE_VISUAL }
+val VerciLyricsKey = booleanPreferencesKey("verciLyrics")
+val VerciStyleKey = stringPreferencesKey("verciStyle")
+val VerciNeonKey = booleanPreferencesKey("verciNeon")
+val VerciEmojiKey = booleanPreferencesKey("verciEmoji")
+val VerciTextSizeKey = floatPreferencesKey("verciTextSize")

@@ -102,6 +102,7 @@ import com.metrolist.music.constants.WordstormAccentKey
 import com.metrolist.music.constants.WordstormCoverKey
 import com.metrolist.music.constants.WordstormFontSizeKey
 import com.metrolist.music.constants.WordstormMotionKey
+import com.metrolist.music.constants.VerciLyricsKey
 import com.metrolist.music.constants.WordstormPresetKey
 import com.metrolist.music.lyrics.LyricsEntry
 import com.metrolist.music.lyrics.LyricsUtils
@@ -121,8 +122,14 @@ internal fun WordstormLyrics(
     immersive: Boolean = false,
     onFullscreen: () -> Unit = {},
     onExitFullscreen: () -> Unit = {},
+    useVerci: Boolean = true,
 ) {
     if (!showLyrics) return
+    var verciEnabled by rememberPreference(VerciLyricsKey, false)
+    if (useVerci && verciEnabled) {
+        VerciLyrics(sliderPositionProvider, modifier, showLyrics, onOriginal, immersive, onFullscreen, onExitFullscreen)
+        return
+    }
     val connection = LocalPlayerConnection.current ?: return
     val metadata by connection.mediaMetadata.collectAsStateWithLifecycle()
     val entity by connection.currentLyrics.collectAsStateWithLifecycle(initialValue = null)
@@ -281,6 +288,7 @@ internal fun WordstormLyrics(
         }
         if (!immersive || controls) {
         Row(Modifier.align(Alignment.TopEnd), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        TextButton(onClick = { verciEnabled = !verciEnabled }) { Text(stringResource(if (verciEnabled) R.string.verci_original else R.string.verci_switch), color = accent) }
         TextButton(onClick = { if (immersive) onExitFullscreen() else onFullscreen() }) { Text(stringResource(if (immersive) R.string.deeplist_exit_fullscreen else R.string.deeplist_fullscreen), color = accent) }
         TextButton(onClick = { websiteDraft = website; tokenDraft = pairingToken; websiteError = false; settings = true }, modifier = Modifier) {
             Text(stringResource(R.string.wordstorm_settings), color = accent)

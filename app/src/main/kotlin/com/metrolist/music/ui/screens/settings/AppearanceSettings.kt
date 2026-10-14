@@ -109,6 +109,7 @@ import com.metrolist.music.ui.component.Material3SettingsGroup
 import com.metrolist.music.ui.component.Material3SettingsItem
 import com.metrolist.music.ui.component.PlayerSliderTrack
 import com.metrolist.music.ui.component.SquigglySlider
+import com.metrolist.music.ui.component.verciLyricsSettingsItems
 import com.metrolist.music.ui.component.WavySlider
 import com.metrolist.music.ui.theme.DefaultThemeColor
 import com.metrolist.music.ui.theme.PlayerSliderColors
@@ -225,6 +226,7 @@ fun AppearanceSettings(
             defaultValue = false,
         )
     val (respectAgentPositioning, onRespectAgentPositioningChange) = rememberPreference(RespectAgentPositioningKey, defaultValue = true)
+    val verciSettings = verciLyricsSettingsItems()
     val (experimentalLyrics, onExperimentalLyricsChange) = rememberPreference(ExperimentalLyricsKey, defaultValue = true)
 
     val (lyricsGlowEffect, onLyricsGlowEffectChange) = rememberPreference(LyricsGlowEffectKey, defaultValue = false)
@@ -1341,6 +1343,7 @@ fun AppearanceSettings(
             title = stringResource(R.string.lyrics),
             items =
                 buildList {
+                    addAll(verciSettings)
                     add(
                         Material3SettingsItem(
                             icon = painterResource(R.drawable.lyrics),

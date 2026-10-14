@@ -1072,4 +1072,18 @@
     <string name="deeplist_clear_saved">Clear saved lyrics</string>
     <string name="deeplist_card_error">Could not share the card. Try again.</string>
     <string name="deeplist_lyric_saved">Lyric saved on this device.</string>
+    <string name="verci_lyrics">Verci word lyrics</string>
+    <string name="verci_lyrics_desc">Large moving words. Turn off to return to Wordstorm. Unsynced lyrics keep the existing view.</string>
+    <string name="verci_style">Verci movement style</string>
+    <string name="verci_fisheye">Fisheye</string>
+    <string name="verci_ship">Ship</string>
+    <string name="verci_visual">Visual</string>
+    <string name="verci_fisheye_visual">Fisheye Visual</string>
+    <string name="verci_text_size">Verci word size</string>
+    <string name="verci_neon">Neon border</string>
+    <string name="verci_neon_desc">Moving theme colors around the lyrics</string>
+    <string name="verci_emojis">Word emojis</string>
+    <string name="verci_timing_note">Estimated word timing</string>
+    <string name="verci_original">Wordstorm lyrics</string>
+    <string name="verci_switch">Verci lyrics</string>
 </resources>
