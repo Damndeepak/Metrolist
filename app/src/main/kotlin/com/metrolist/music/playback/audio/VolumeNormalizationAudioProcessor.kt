@@ -68,7 +68,7 @@ class VolumeNormalizationAudioProcessor : BaseAudioProcessor() {
 
         inputBuffer.order(ByteOrder.LITTLE_ENDIAN)
         audioEnergy = com.metrolist.music.lyrics.pcmEnergy(inputBuffer, bytesPerSample, encoding == C.ENCODING_PCM_FLOAT)
-        energySampleTime = android.os.SystemClock.elapsedRealtime()
+        energySampleTime = (System.nanoTime() / 1_000_000L)
         output.order(ByteOrder.LITTLE_ENDIAN)
 
         when (encoding) {

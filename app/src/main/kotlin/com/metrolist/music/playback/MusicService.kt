@@ -429,7 +429,7 @@ class MusicService :
         get() {
             if (!::player.isInitialized || !player.isPlaying) return 0f
             val meter = playerNormalizationProcessors[player] ?: return 0f
-            return if (android.os.SystemClock.elapsedRealtime() - meter.energySampleTime < 500L) meter.audioEnergy else 0f
+            return if ((System.nanoTime() / 1_000_000L) - meter.energySampleTime < 500L) meter.audioEnergy else 0f
         }
     private val playerEqualizerProcessors = HashMap<Player, CustomEqualizerAudioProcessor>()
 
