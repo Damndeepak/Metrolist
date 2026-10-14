@@ -44,7 +44,10 @@ class DeeplistConnectActivity : Activity() {
                         }
                     }.getOrNull()
                 }
-                if (token != null) dataStore.edit { it[DeeplistWebsiteKey] = origin; it[DeeplistTokenKey] = token; it[DeeplistSyncEnabledKey] = true }
+                if (token != null) {
+                    dataStore.edit { it[DeeplistWebsiteKey] = origin; it[DeeplistTokenKey] = token; it[DeeplistSyncEnabledKey] = true }
+                    startActivity(android.content.Intent(this@DeeplistConnectActivity, com.metrolist.music.MainActivity::class.java))
+                }
                 else Toast.makeText(this@DeeplistConnectActivity, R.string.deeplist_connect_failed, Toast.LENGTH_LONG).show()
                 finish()
             } }.show()
