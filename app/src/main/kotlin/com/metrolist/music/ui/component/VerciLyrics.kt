@@ -28,6 +28,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -62,6 +63,8 @@ import com.metrolist.music.constants.VerciStyle
 import com.metrolist.music.constants.VerciStyleKey
 import com.metrolist.music.constants.VerciTextSizeKey
 import com.metrolist.music.lyrics.LyricsUtils
+import com.metrolist.music.lyrics.VerciPlaybackClock
+import com.metrolist.music.lyrics.verciDampPosition
 import com.metrolist.music.lyrics.VerciWord
 import com.metrolist.music.lyrics.buildVerciWords
 import com.metrolist.music.lyrics.lyricsTextLooksSynced
@@ -164,12 +167,22 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
     val background = MaterialTheme.colorScheme.surface.toArgb()
     var time by remember { mutableLongStateOf(player.currentPosition + offset) }
     var playing by remember { mutableStateOf(player.isPlaying) }
+    val clock = remember(player) { VerciPlaybackClock() }
+    var scroll by remember(words) { mutableFloatStateOf(verciScrollPosition(words, time)) }
 
     DisposableEffect(player) {
         val listener = object : Player.Listener {
             override fun onEvents(player: Player, events: Player.Events) {
                 playing = player.isPlaying
-                time = (slider() ?: player.currentPosition) + offset
+                if (events.contains(Player.EVENT_POSITION_DISCONTINUITY) ||
+                    events.contains(Player.EVENT_PLAYBACK_PARAMETERS_CHANGED)) {
+                    clock.reset()
+                    time = (slider() ?: player.currentPosition) + offset
+                    scroll = verciScrollPosition(words, time)
+                } else if (!playing) {
+                    time = (slider() ?: player.currentPosition) + offset
+                    scroll = verciScrollPosition(words, time)
+                }
             }
         }
         player.addListener(listener)
@@ -177,14 +190,28 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
     }
     LaunchedEffect(player, owner, playing) {
         owner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            clock.reset()
             time = (slider() ?: player.currentPosition) + offset
+            scroll = verciScrollPosition(words, time)
             if (playing) {
+                var previousFrame = 0L
                 while (isActive) {
-                    withFrameNanos { time = (slider() ?: player.currentPosition) + offset }
+                    withFrameNanos { frame ->
+                        val preview = slider()
+                        time = if (preview != null) {
+                            clock.reset()
+                            preview + offset
+                        } else clock.position(player.currentPosition, frame, player.playbackParameters.speed) + offset
+                        val target = verciScrollPosition(words, time)
+                        scroll = if (preview != null || previousFrame == 0L || kotlin.math.abs(target - scroll) > 2f) target
+                            else verciDampPosition(scroll, target, frame - previousFrame)
+                        previousFrame = frame
+                    }
                 }
             } else {
                 snapshotFlow { Pair(slider(), offset) }.collect { (preview, adjustment) ->
                     time = (preview ?: player.currentPosition) + adjustment
+                    scroll = verciScrollPosition(words, time)
                 }
             }
         }
@@ -221,7 +248,7 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
                 }
                 onDrawBehind {
                     val now = time
-                    val position = verciScrollPosition(words, now)
+                    val position = scroll
                     val active = verciWordIndex(words, now)
                     val center = position.toInt()
                     val c = drawContext.canvas.nativeCanvas

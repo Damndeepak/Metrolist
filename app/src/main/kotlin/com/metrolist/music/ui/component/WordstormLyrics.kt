@@ -55,6 +55,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -219,7 +220,8 @@ internal fun WordstormLyrics(
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             while (isActive) {
                 position.longValue = latestSlider() ?: connection.player.currentPosition
-                delay(if (playing && motion && preset != 2 && !effectivePerformance) 32L else 100L)
+                if (playing && motion && preset != 2 && !effectivePerformance) withFrameNanos { }
+                else delay(100L)
             }
         }
     }

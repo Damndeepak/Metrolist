@@ -1849,7 +1849,7 @@ fun BottomSheetPlayer(
         }
 
         if (immersiveLyrics) {
-            InlineLyricsView(mediaMetadata, true, { sliderPosition ?: effectivePosition }, immersive = true, onExitFullscreen = { isFullScreen = false })
+            InlineLyricsView(mediaMetadata, true, { sliderPosition ?: effectivePosition }, immersive = true, onExitFullscreen = { isFullScreen = false }, sliderPositionProvider = { sliderPosition })
         } else when (LocalConfiguration.current.orientation) {
             Configuration.ORIENTATION_LANDSCAPE -> {
                 // Calculate vertical padding like OuterTune
@@ -1891,6 +1891,7 @@ fun BottomSheetPlayer(
                                     mediaMetadata = mediaMetadata,
                                     showLyrics = showLyrics,
                                     positionProvider = { sliderPosition ?: effectivePosition },
+                                    sliderPositionProvider = sliderPositionProvider,
                                     onFullscreen = { isFullScreen = true },
                                 )
                             } else {
@@ -1955,6 +1956,7 @@ fun BottomSheetPlayer(
                                     mediaMetadata = mediaMetadata,
                                     showLyrics = showLyrics,
                                     positionProvider = { sliderPosition ?: effectivePosition },
+                                    sliderPositionProvider = sliderPositionProvider,
                                     onFullscreen = { isFullScreen = true },
                                 )
                             } else {
@@ -2015,6 +2017,7 @@ fun InlineLyricsView(
     immersive: Boolean = false,
     onFullscreen: () -> Unit = {},
     onExitFullscreen: () -> Unit = {},
+    sliderPositionProvider: () -> Long? = { null },
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val deeplistEnabled by rememberPreference(WordstormEnabledKey, true)
@@ -2118,7 +2121,7 @@ fun InlineLyricsView(
         contentAlignment = Alignment.Center,
     ) {
         when {
-            deeplistEnabled -> WordstormLyrics({ positionProvider() }, showLyrics, {}, immersive = immersive, onFullscreen = onFullscreen, onExitFullscreen = onExitFullscreen)
+            deeplistEnabled -> WordstormLyrics(sliderPositionProvider, showLyrics, {}, immersive = immersive, onFullscreen = onFullscreen, onExitFullscreen = onExitFullscreen)
             lyrics == null -> {
                 ContainedLoadingIndicator()
             }
@@ -2135,7 +2138,7 @@ fun InlineLyricsView(
             else -> {
                 val lyricsContent: @Composable () -> Unit = {
                     Lyrics(
-                        sliderPositionProvider = positionProvider,
+                        sliderPositionProvider = sliderPositionProvider,
                         modifier = Modifier.padding(horizontal = 24.dp),
                         showLyrics = showLyrics,
                     )
