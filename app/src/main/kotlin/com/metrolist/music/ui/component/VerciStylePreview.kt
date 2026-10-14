@@ -26,6 +26,7 @@ internal fun VerciStylePreview() {
     val sampleFontSize by rememberPreference(VerciTextSizeKey, 52f)
     val colorIndex by rememberPreference(VerciColorKey, 0)
     val emojis by rememberPreference(VerciEmojiKey, true)
+    val advanced by rememberPreference(VerciAdvancedEmojiKey, false)
     val spacing by rememberPreference(VerciSpacingKey, 1f)
     Box(Modifier.fillMaxWidth().height(150.dp).clipToBounds()) {
         Canvas(Modifier.matchParentSize().drawWithCache {
@@ -34,7 +35,10 @@ internal fun VerciStylePreview() {
                 typeface = Typeface.create(when (font) { VerciFont.BOLD -> "sans-serif"; VerciFont.ROUNDED -> "sans-serif-rounded"; VerciFont.SERIF -> "serif"; VerciFont.MONO -> "monospace" }, Typeface.BOLD)
                 this.color = verciColors[colorIndex.coerceIn(0, 4)]
             }
-            val words = if (emojis) listOf("Feel 🫶", "the", "music 🎶") else listOf("Feel", "the", "music")
+            val words = listOf("Love", "the", "music").map { text ->
+                val icon = com.metrolist.music.lyrics.verciEmoji(text, advanced, emojis)
+                if (icon.isEmpty()) text else "$text $icon"
+            }
             val widths = words.map { paint.measureText(it) }
             onDrawBehind {
                 val phase = (clock.longValue % 3600L) / 1200f

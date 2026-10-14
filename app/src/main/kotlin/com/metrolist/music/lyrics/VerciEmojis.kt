@@ -112,12 +112,12 @@ private val extraEmojis = buildMap {
     ).forEach { (emoji, words) -> words.split(' ').forEach { put(it, emoji) } }
 }
 
-internal fun verciEmoji(text: String, advanced: Boolean = false): String {
+internal fun verciEmoji(text: String, advanced: Boolean = false, basic: Boolean = true): String {
     val word = text.lowercase(Locale.ROOT).filter {
         it.isLetter() || Character.getType(it) == Character.NON_SPACING_MARK.toInt() ||
             Character.getType(it) == Character.COMBINING_SPACING_MARK.toInt()
     }
-    fun lookup(value: String) = (if (advanced) advancedEmojis[value] else null) ?: hindiEmojis[value] ?: verciEmojis[value] ?: extraEmojis[value]
+    fun lookup(value: String) = (if (advanced) advancedEmojis[value] else null) ?: (if (basic) hindiEmojis[value] ?: verciEmojis[value] ?: extraEmojis[value] else null)
     lookup(word)?.let { return it }
     val candidates = buildList {
         if (word.endsWith("ies")) add(word.dropLast(3) + "y")
@@ -133,6 +133,8 @@ internal fun verciEmoji(text: String, advanced: Boolean = false): String {
 
 private val advancedEmojis = buildMap {
     listOf(
+        "🫪" to "distorted panic panicking घबराना ghabrana",
+        "🫯" to "brawl brawls brawling fight fights लड़ाई झगड़ा ladai jhagda",
         "💔" to "heartbroken heartbreak brokenhearted दिलटूटा बिछड़ judaai",
         "😂" to "laugh laughing laughed laughter हँस हंस हँसते हंसते hasna haso",
         "🗿" to "sigma stone statue मूर्ति patthar पत्थर",

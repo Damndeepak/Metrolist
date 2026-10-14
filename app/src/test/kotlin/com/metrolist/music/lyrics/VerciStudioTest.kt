@@ -19,6 +19,10 @@ class VerciStudioTest {
         assertEquals("", verciEmoji("unmatchedword"))
     }
     @Test fun `advanced emojis are optional and match Hindi and plural forms`() {
+        assertEquals("🫪", verciEmoji("panic", true))
+        assertEquals("🫯", verciEmoji("brawls", true))
+        assertEquals("", verciEmoji("CATS", true, false))
+        assertEquals("😡", verciEmoji("angry", true, false))
         assertEquals("😡", verciEmoji("angry", true))
         assertEquals("😡", verciEmoji("गुस्सा!", true))
         assertEquals("🧛🏻", verciEmoji("vampires", true))

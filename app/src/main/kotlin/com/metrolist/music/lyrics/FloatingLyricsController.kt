@@ -59,6 +59,7 @@ internal class FloatingLyricsController(
     private val keyguard = context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
     private var enabled = false
     private var emojis = true
+    private var advanced = false
     private var player: ExoPlayer? = null
     private var words: List<VerciWord> = emptyList()
     private var offset = 0L
@@ -96,8 +97,9 @@ internal class FloatingLyricsController(
             addAction(Intent.ACTION_SCREEN_OFF); addAction(Intent.ACTION_SCREEN_ON); addAction(Intent.ACTION_USER_PRESENT)
         }, ContextCompat.RECEIVER_NOT_EXPORTED)
         scope.launch {
-            context.dataStore.data.map { Pair(it[FloatingLyricsKey] ?: false, it[VerciEmojiKey] ?: true) }.distinctUntilChanged().collect {
-                enabled = it.first; requested.value = enabled; emojis = it.second; refresh()
+            context.dataStore.data.map { Triple(it[FloatingLyricsKey] ?: false, it[VerciEmojiKey] ?: true, it[com.metrolist.music.constants.VerciAdvancedEmojiKey] ?: false) }.distinctUntilChanged().collect {
+                enabled = it.first; requested.value = enabled; emojis = it.second; advanced = it.third
+                words = words.map { word -> word.copy(emoji = verciEmoji(word.text, advanced, emojis)) }; refresh()
             }
         }
         scope.launch {
@@ -114,7 +116,7 @@ internal class FloatingLyricsController(
                 words = emptyList(); offset = 0; view.clock.reset(); view.invalidate()
                 if (id != null) combine(database.lyrics(id), database.song(id)) { lyrics, song -> Pair(lyrics, song) }.collectLatest { (lyrics, song) ->
                     val parsed = withContext(Dispatchers.Default) { buildVerciWords(LyricsUtils.parseLyrics(lyrics?.lyrics.orEmpty())) }
-                    words = parsed
+                    words = parsed.map { word -> word.copy(emoji = verciEmoji(word.text, advanced, emojis)) }
                     offset = song?.song?.lyricsOffset?.toLong() ?: 0
                     view.invalidate()
                 }
@@ -161,7 +163,7 @@ internal class FloatingLyricsController(
             val position = if (p.isPlaying) clock.position(p.currentPosition, now, p.playbackParameters.speed) else p.currentPosition
             val index = verciWordIndex(words, position + offset)
             val active = words.getOrNull(index)
-            val word = active?.let { it.text + if (emojis && it.emoji.isNotEmpty()) " ${it.emoji}" else "" } ?: p.currentMediaItem?.mediaMetadata?.title?.toString().orEmpty()
+            val word = active?.let { it.text + if (it.emoji.isNotEmpty()) " ${it.emoji}" else "" } ?: p.currentMediaItem?.mediaMetadata?.title?.toString().orEmpty()
             if (word != lastWord) {
                 previousWord = lastWord; lastWord = word; changed = now
                 contentDescription = word + ". " + context.getString(R.string.verci_bubble_accessibility)

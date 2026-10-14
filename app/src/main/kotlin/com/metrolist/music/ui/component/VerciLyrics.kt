@@ -276,8 +276,12 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
                 }
                 val widths = words.map { paint.measureText(it.text).coerceAtLeast(1f) }
                 val emojiPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.textSize = fontPx * .58f }
-                val icons = words.map { if (advanced) com.metrolist.music.lyrics.verciEmoji(it.text, true) else if (emojis) it.emoji else "" }
-                val emojiWidths = icons.map { emojiPaint.measureText(it) }
+                val icons = words.map { if (advanced) com.metrolist.music.lyrics.verciEmoji(it.text, true, emojis) else if (emojis) it.emoji else "" }
+                val displayIcons = icons.map { icon ->
+                    if (icon == "🫪" && !emojiPaint.hasGlyph(icon)) "😳"
+                    else if (icon == "🫯" && !emojiPaint.hasGlyph(icon)) "💥" else icon
+                }
+                val emojiWidths = displayIcons.map { emojiPaint.measureText(it) }
                 val atmosphere = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                     shader = android.graphics.RadialGradient(size.width * .18f, size.height * .25f,
                         size.height * .75f, intArrayOf((accent and 0x00ffffff) or 0x28000000, 0x00000000), null, Shader.TileMode.CLAMP)
@@ -330,7 +334,7 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
                             else (1f - .16f * distance).coerceIn(.35f, 1f)
                         val y = if (fisheye) tanh(u * .62f) * size.height * .43f * spacing else u * size.height * .14f * spacing
                         val drift = if (style == VerciStyle.SHIP) sin(i * 127.1f) * size.width * .22f * min(1f, distance) else 0f
-                        val iconWidth = if (icons[i].isNotEmpty()) emojiWidths[i] + fontPx * .18f else 0f
+                        val iconWidth = if (displayIcons[i].isNotEmpty()) emojiWidths[i] + fontPx * .18f else 0f
                         val fit = min(1f, (size.width * .84f - abs(drift) * 2).coerceAtLeast(size.width * .35f) / (widths[i] + iconWidth))
                         val progress = ((now - word.start).toFloat() / (word.end - word.start)).coerceIn(0f, 1f)
                         val pop = if (i == active) sin(progress * Math.PI).toFloat() * .07f else 0f
@@ -353,7 +357,7 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
                         }
                         if (iconWidth > 0) {
                             emojiPaint.alpha = alpha
-                            c.drawText(icons[i], x + widths[i] + fontPx * .18f, emojiBaseline, emojiPaint)
+                            c.drawText(displayIcons[i], x + widths[i] + fontPx * .18f, emojiBaseline, emojiPaint)
                         }
                         c.restore()
                     }
