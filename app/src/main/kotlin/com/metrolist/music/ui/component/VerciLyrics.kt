@@ -1,11 +1,11 @@
 package com.metrolist.music.ui.component
 
 import android.graphics.LinearGradient
-import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Shader
-import android.graphics.SweepGradient
 import android.graphics.Typeface
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.Icon
@@ -43,6 +43,8 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -56,6 +58,13 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.Player
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
+import com.metrolist.music.constants.VerciRecordingKey
+import com.metrolist.music.constants.VerciDoubleTapKey
+import com.metrolist.music.constants.VerciSwipeKey
+import com.metrolist.music.constants.VerciFontKey
+import com.metrolist.music.constants.VerciFont
+import com.metrolist.music.constants.VerciColorKey
+import com.metrolist.music.constants.VerciSpacingKey
 import com.metrolist.music.constants.VerciLyricsKey
 import com.metrolist.music.constants.VerciEmojiKey
 import com.metrolist.music.constants.VerciNeonKey
@@ -72,6 +81,7 @@ import com.metrolist.music.lyrics.verciScrollPosition
 import com.metrolist.music.lyrics.verciWordIndex
 import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
@@ -97,6 +107,38 @@ fun VerciLyrics(
     var settings by remember { mutableStateOf(false) }
     val settingsItems = verciLyricsSettingsItems()
     val playing by connection.isPlaying.collectAsStateWithLifecycle()
+    val recording by rememberPreference(VerciRecordingKey, false)
+    val doubleTap by rememberPreference(VerciDoubleTapKey, true)
+    val swipe by rememberPreference(VerciSwipeKey, true)
+    val manager = com.metrolist.music.LocalListenTogetherManager.current
+    val canControl = manager?.isInRoom != true || manager.isHost
+    var controls by remember(immersive) { mutableStateOf(!immersive) }
+    var seekPreview by remember { mutableStateOf<Long?>(null) }
+    val latestSlider by rememberUpdatedState(sliderPositionProvider)
+    val previewProvider = remember { { seekPreview ?: latestSlider() } }
+    val view = LocalView.current
+    DisposableEffect(view, immersive) {
+        val before = view.keepScreenOn
+        if (immersive) view.keepScreenOn = true
+        onDispose { view.keepScreenOn = before }
+    }
+    LaunchedEffect(controls, settings, seekPreview, immersive) {
+        if (immersive && controls && !settings && seekPreview == null) { delay(4000); controls = false }
+    }
+    val dragThreshold = with(LocalDensity.current) { 64.dp.toPx() }
+    val gestures = Modifier.pointerInput(immersive, doubleTap, canControl) {
+        detectTapGestures(
+            onTap = { if (immersive) controls = !controls },
+            onDoubleTap = if (doubleTap && canControl) ({ _: androidx.compose.ui.geometry.Offset -> if (connection.player.isPlaying) connection.player.pause() else connection.player.play() }) else null,
+        )
+    }.pointerInput(swipe, canControl) {
+        var drag = 0f
+        detectHorizontalDragGestures(
+            onDragStart = { drag = 0f },
+            onHorizontalDrag = { change, amount -> if (swipe && canControl) { change.consume(); drag += amount } },
+            onDragEnd = { if (swipe && canControl && kotlin.math.abs(drag) > dragThreshold) { if (drag < 0) connection.seekToNext() else connection.seekToPrevious() } },
+        )
+    }
     val source = entity?.takeIf { it.id == metadata?.id }?.lyrics
     if (!showLyrics) return
 
@@ -104,7 +146,7 @@ fun VerciLyrics(
         WordstormLyrics(sliderPositionProvider, true, onOriginal, modifier, immersive, onFullscreen, onExitFullscreen, useVerci = false)
         return
     }
-    Box(modifier.fillMaxSize()) {
+    Box(modifier.fillMaxSize().then(gestures)) {
         key(metadata?.id, source) {
             val words by produceState<List<VerciWord>?>(null, source) {
                 value = withContext(Dispatchers.Default) { buildVerciWords(LyricsUtils.parseLyrics(source.orEmpty())) }
@@ -115,27 +157,19 @@ fun VerciLyrics(
                     if (timeline != null) Text(stringResource(R.string.lyrics_not_found))
                 }
             } else {
-                VerciWordCanvas(timeline, sliderPositionProvider, Modifier)
+                VerciWordCanvas(timeline, previewProvider, Modifier, !recording && (!immersive || controls))
             }
         }
-        Row(Modifier.align(Alignment.TopEnd).safeDrawingPadding(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (!immersive || controls) Row(Modifier.align(Alignment.TopEnd).safeDrawingPadding(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             TextButton(onClick = { verciEnabled = false }) { Text(stringResource(R.string.verci_original)) }
             TextButton(onClick = { if (immersive) onExitFullscreen() else onFullscreen() }) {
                 Text(stringResource(if (immersive) R.string.deeplist_exit_fullscreen else R.string.deeplist_fullscreen))
             }
             TextButton(onClick = { settings = true }) { Text(stringResource(R.string.wordstorm_settings)) }
         }
-        if (immersive) Row(Modifier.align(Alignment.BottomCenter).safeDrawingPadding().padding(bottom = 8.dp)) {
-            IconButton(onClick = { connection.seekToPrevious() }) {
-                Icon(painterResource(R.drawable.skip_previous), stringResource(R.string.deeplist_previous))
-            }
-            IconButton(onClick = { if (playing) connection.player.pause() else connection.player.play() }) {
-                Icon(painterResource(if (playing) R.drawable.pause else R.drawable.play), stringResource(R.string.deeplist_play_pause))
-            }
-            IconButton(onClick = { connection.seekToNext() }) {
-                Icon(painterResource(R.drawable.skip_next), stringResource(R.string.deeplist_next))
-            }
-        }
+        if (immersive && controls) VerciTransport(seekPreview, { seekPreview = it }, Modifier.align(Alignment.BottomCenter).safeDrawingPadding())
+        VerciEdgeNeon(playing, immersive)
+
     }
     if (settings) {
         AlertDialog(
@@ -148,7 +182,7 @@ fun VerciLyrics(
 }
 
 @Composable
-private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -> Long?, modifier: Modifier) {
+private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -> Long?, modifier: Modifier, showTiming: Boolean) {
     val connection = LocalPlayerConnection.current ?: return
     val player = connection.player
     val owner = LocalLifecycleOwner.current
@@ -156,13 +190,14 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
     val offset by rememberUpdatedState(song?.song?.lyricsOffset ?: 0)
     val slider by rememberUpdatedState(sliderPositionProvider)
     val style by rememberEnumPreference(VerciStyleKey, VerciStyle.FISHEYE)
-    val neon by rememberPreference(VerciNeonKey, true)
     val emojis by rememberPreference(VerciEmojiKey, true)
     val textSize by rememberPreference(VerciTextSizeKey, 52f)
+    val font by rememberEnumPreference(VerciFontKey, VerciFont.BOLD)
+    val spacing by rememberPreference(VerciSpacingKey, 1f)
+    val colorIndex by rememberPreference(VerciColorKey, 0)
     val density = LocalDensity.current
     val fontPx = with(density) { textSize.coerceIn(28f, 80f).sp.toPx() }
-    val accent = MaterialTheme.colorScheme.primary.toArgb()
-    val secondary = MaterialTheme.colorScheme.tertiary.toArgb()
+    val accent = verciColors[colorIndex.coerceIn(0, 4)]
     val foreground = MaterialTheme.colorScheme.onSurface.toArgb()
     val background = MaterialTheme.colorScheme.surface.toArgb()
     var time by remember { mutableLongStateOf(player.currentPosition + offset) }
@@ -225,7 +260,12 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
             Modifier.fillMaxSize().semantics { contentDescription = activeText }.drawWithCache {
                 val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                     this.textSize = fontPx
-                    typeface = Typeface.create("sans-serif", Typeface.BOLD)
+                    typeface = Typeface.create(when (font) {
+                        VerciFont.BOLD -> "sans-serif"
+                        VerciFont.ROUNDED -> "sans-serif-rounded"
+                        VerciFont.SERIF -> "serif"
+                        VerciFont.MONO -> "monospace"
+                    }, Typeface.BOLD)
                     color = foreground
                 }
                 val widths = words.map { paint.measureText(it.text).coerceAtLeast(1f) }
@@ -237,10 +277,6 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
                 val emojiBaseline = -(emojiMetrics.ascent + emojiMetrics.descent) / 2f
                 val border = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.style = Paint.Style.STROKE }
                 val inset = 12.dp.toPx()
-                val radius = 24.dp.toPx()
-                val borderShader = SweepGradient(size.width / 2, size.height / 2,
-                    intArrayOf(accent, secondary, accent, secondary, accent), null)
-                val matrix = Matrix()
                 val fadeHeight = min(size.height * .15f, 72.dp.toPx())
                 val fade = Paint().apply {
                     shader = LinearGradient(0f, 0f, 0f, fadeHeight,
@@ -259,7 +295,7 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
                         val fisheye = style == VerciStyle.FISHEYE || style == VerciStyle.FISHEYE_VISUAL
                         val scale = if (fisheye) 1f / (1f + .8f * distance)
                             else (1f - .16f * distance).coerceIn(.35f, 1f)
-                        val y = if (fisheye) tanh(u * .62f) * size.height * .43f else u * size.height * .14f
+                        val y = if (fisheye) tanh(u * .62f) * size.height * .43f * spacing else u * size.height * .14f * spacing
                         val drift = if (style == VerciStyle.SHIP) sin(i * 127.1f) * size.width * .22f * min(1f, distance) else 0f
                         val iconWidth = if (emojis && word.emoji.isNotEmpty()) emojiWidths[i] + fontPx * .18f else 0f
                         val fit = min(1f, (size.width * .84f - abs(drift) * 2).coerceAtLeast(size.width * .35f) / (widths[i] + iconWidth))
@@ -294,16 +330,6 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
                     c.rotate(180f, size.width / 2, size.height / 2)
                     c.drawRect(0f, 0f, size.width, fadeHeight, fade)
                     c.restore()
-                    if (neon) {
-                        matrix.setRotate((now % 8000L) * 360f / 8000, size.width / 2, size.height / 2)
-                        borderShader.setLocalMatrix(matrix)
-                        border.shader = borderShader
-                        for (layer in 3 downTo 1) {
-                            border.strokeWidth = (layer * layer * 1.5f).dp.toPx()
-                            border.alpha = if (layer == 1) 230 else 24
-                            c.drawRoundRect(inset, inset, size.width - inset, size.height - inset, radius, radius, border)
-                        }
-                    }
                     if (style == VerciStyle.VISUAL || style == VerciStyle.FISHEYE_VISUAL) {
                         border.shader = null
                         border.color = accent
@@ -318,7 +344,7 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
                 }
             },
         ) {}
-        if (words.any { it.estimated }) Text(
+        if (showTiming && words.any { it.estimated }) Text(
             stringResource(R.string.verci_timing_note),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.labelSmall,

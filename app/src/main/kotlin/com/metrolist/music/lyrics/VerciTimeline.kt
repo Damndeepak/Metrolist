@@ -1,6 +1,5 @@
 package com.metrolist.music.lyrics
 
-import java.util.Locale
 import kotlin.math.min
 
 internal data class VerciWord(val text: String, val start: Long, val end: Long, val emoji: String, val estimated: Boolean = false)
@@ -58,45 +57,3 @@ internal fun verciScrollPosition(words: List<VerciWord>, time: Long): Float {
     val progress = ((time - next.start + lead).toFloat() / lead).coerceIn(0f, 1f)
     return index + progress * progress * (3 - 2 * progress)
 }
-
-private val verciEmojis = buildMap {
-    listOf(
-        "❤️" to "love loved lover loves dil pyaar pyar ishq mohabbat",
-        "💔" to "broken heartbreak hurt pain dard",
-        "💋" to "kiss kisses kissing lips",
-        "🌙" to "moon moonlight chand raat night midnight tonight",
-        "✨" to "stars shine glow sparkle taare magic",
-        "🔥" to "fire flame burn burning aag lit",
-        "🌧️" to "rain raining baarish tears cry crying",
-        "🌊" to "ocean sea waves paani water",
-        "🦋" to "butterfly butterflies fly flying freedom",
-        "💭" to "dream dreams dreaming think thought khwaab yaad",
-        "🥀" to "lonely alone tanha miss missing",
-        "☀️" to "sun sunshine morning day subah",
-        "🌹" to "rose roses flower flowers gulab",
-        "👀" to "eyes eye look looking see aankhen",
-        "💫" to "crazy dizzy pagal spinning",
-        "💃" to "dance dancing party groove",
-        "🎶" to "music song singing melody gaana",
-        "🫶" to "care together saath always forever",
-        "⚡" to "thunder lightning electric power",
-        "🚀" to "sky space rocket high aasman",
-        "🧊" to "ice cold frozen freeze",
-        "👑" to "king queen crown royal",
-        "💀" to "dead death dying die",
-        "😈" to "devil demon demons wicked",
-        "😇" to "angel heaven paradise",
-        "💸" to "money cash rich dollar dollars paisa",
-        "🚬" to "smoke smoking cigarette",
-        "🍷" to "wine drunk drinking",
-        "😊" to "smile smiling happy laugh",
-        "🤫" to "secret secrets quiet silence whisper",
-        "🏠" to "home ghar house",
-        "🌍" to "world duniya earth",
-        "⏳" to "time waqt waiting wait",
-        "🛣️" to "road roads journey safar",
-    ).forEach { (emoji, words) -> words.split(' ').forEach { put(it, emoji) } }
-}
-
-internal fun verciEmoji(text: String): String =
-    verciEmojis[text.lowercase(Locale.ROOT).filter { it.isLetter() }] ?: ""

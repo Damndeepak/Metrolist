@@ -324,6 +324,7 @@ class MusicService :
         }
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private var floatingLyrics: com.metrolist.music.lyrics.FloatingLyricsController? = null
 
     private val binder = MusicBinder()
 
@@ -424,6 +425,12 @@ class MusicService :
     private var isAudioEffectSessionOpened = false
     private var openedAudioEffectSessionId: Int = C.AUDIO_SESSION_ID_UNSET
     private val playerNormalizationProcessors = HashMap<Player, VolumeNormalizationAudioProcessor>()
+    val lyricsAudioEnergy: Float
+        get() {
+            if (!::player.isInitialized || !player.isPlaying) return 0f
+            val meter = playerNormalizationProcessors[player] ?: return 0f
+            return if (android.os.SystemClock.elapsedRealtime() - meter.energySampleTime < 500L) meter.audioEnergy else 0f
+        }
     private val playerEqualizerProcessors = HashMap<Player, CustomEqualizerAudioProcessor>()
 
     private var loudnessSetupJob: Job? = null
@@ -693,6 +700,7 @@ class MusicService :
 
         startDeeplistBridge(this, scope, database, { player }, { currentMediaMetadata.value })
         playerInitialized.value = true
+        floatingLyrics = com.metrolist.music.lyrics.FloatingLyricsController(this, scope, database, playerFlow) { lyricsAudioEnergy }
         Timber.tag(TAG).d("Player successfully initialized")
 
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -4246,6 +4254,8 @@ class MusicService :
         }
 
     override fun onDestroy() {
+        floatingLyrics?.close()
+        floatingLyrics = null
         isRunning = false
 
         if (!::player.isInitialized) {

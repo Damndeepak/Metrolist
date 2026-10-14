@@ -11,6 +11,11 @@ import kotlin.math.pow
 
 @UnstableApi
 class VolumeNormalizationAudioProcessor : BaseAudioProcessor() {
+    @Volatile var audioEnergy: Float = 0f
+        private set
+    @Volatile var energySampleTime: Long = 0L
+        private set
+
     private var encoding = C.ENCODING_INVALID
     private var bytesPerSample = 0
 
@@ -62,6 +67,8 @@ class VolumeNormalizationAudioProcessor : BaseAudioProcessor() {
         val output = replaceOutputBuffer(sampleCount * bytesPerSample)
 
         inputBuffer.order(ByteOrder.LITTLE_ENDIAN)
+        audioEnergy = com.metrolist.music.lyrics.pcmEnergy(inputBuffer, bytesPerSample, encoding == C.ENCODING_PCM_FLOAT)
+        energySampleTime = android.os.SystemClock.elapsedRealtime()
         output.order(ByteOrder.LITTLE_ENDIAN)
 
         when (encoding) {
@@ -131,6 +138,8 @@ class VolumeNormalizationAudioProcessor : BaseAudioProcessor() {
     }
 
     override fun onReset() {
+        audioEnergy = 0f
+        energySampleTime = 0L
         encoding = C.ENCODING_INVALID
         bytesPerSample = 0
     }

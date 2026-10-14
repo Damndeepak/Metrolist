@@ -40,7 +40,7 @@ internal fun rememberDeeplistClock(playing: Boolean, fastForMs: Long = 0L, smoot
             var last = 0L
             while (isActive) withFrameMillis { now ->
                 if (last == 0L) last = now
-                val interval = if (smooth || clock.longValue < fastForMs) 16L else 32L
+                val interval = if (smooth) 0L else if (clock.longValue < fastForMs) 16L else 32L
                 if (now - last >= interval) { clock.longValue += (now - last).coerceAtMost(100L); last = now }
             }
         }

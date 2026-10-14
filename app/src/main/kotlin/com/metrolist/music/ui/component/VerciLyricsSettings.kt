@@ -69,8 +69,10 @@ fun verciLyricsSettingsItems(): List<Material3SettingsItem> {
             }
         }
     }
+    val studio = verciStudioItems()
     val icon = painterResource(R.drawable.lyrics)
     return buildList {
+        if (enabled) add(Material3SettingsItem(title = { VerciStylePreview() }))
         add(Material3SettingsItem(
             icon = icon,
             title = { Text(stringResource(R.string.verci_lyrics)) },
@@ -78,6 +80,7 @@ fun verciLyricsSettingsItems(): List<Material3SettingsItem> {
             trailingContent = { Switch(checked = enabled, onCheckedChange = enable) },
             onClick = { enable(!enabled) },
         ))
+        addAll(studio)
         if (enabled) {
             add(Material3SettingsItem(
                 icon = icon,

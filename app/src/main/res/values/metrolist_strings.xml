@@ -1086,4 +1086,22 @@
     <string name="verci_timing_note">Estimated word timing</string>
     <string name="verci_original">Wordstorm lyrics</string>
     <string name="verci_switch">Verci lyrics</string>
+    <string name="verci_brightness">Neon brightness</string>
+    <string name="verci_audio_reactive">Audio reactive neon</string>
+    <string name="verci_audio_hint">Follows local PCM audio energy with smooth attack and release. Hardware offload and casting may not provide PCM levels.</string>
+    <string name="verci_font">Lyrics font</string>
+    <string name="verci_spacing">Word spacing</string>
+    <string name="verci_colors">Lyrics and neon colour</string>
+    <string name="verci_presets">Saved lyric presets</string>
+    <string name="verci_preset_name">Preset name</string>
+    <string name="verci_recording">Clean recording mode</string>
+    <string name="verci_recording_hint">Fullscreen hides extra labels and keeps the screen awake. Tap to reveal controls.</string>
+    <string name="verci_double_tap">Double tap to play or pause</string>
+    <string name="verci_swipe">Swipe to change track</string>
+    <string name="verci_bubble">Floating lyrics bubble</string>
+    <string name="verci_bubble_hint">Optional, off by default. Shows lyrics over other apps while Deeplist playback is active. Drag to move, tap to expand, × to turn off.</string>
+    <string name="verci_overlay_permission">Allow Deeplist to display over other apps, return here, then tap Enable bubble.</string>
+    <string name="verci_overlay_unavailable">This phone could not open overlay settings. Enable Display over other apps for Deeplist in Android settings, then return here.</string>
+    <string name="verci_allow_overlay">Enable bubble</string>
+    <string name="verci_bubble_accessibility">Tap to expand or collapse lyrics. Drag to move. Expanded controls include previous, play or pause, and next.</string>
 </resources>

@@ -131,12 +131,14 @@ internal fun WordstormLyrics(
         VerciLyrics(sliderPositionProvider, modifier, showLyrics, onOriginal, immersive, onFullscreen, onExitFullscreen)
         return
     }
+    val studioItems = verciLyricsSettingsItems()
     val connection = LocalPlayerConnection.current ?: return
     val metadata by connection.mediaMetadata.collectAsStateWithLifecycle()
     val entity by connection.currentLyrics.collectAsStateWithLifecycle(initialValue = null)
     val song by connection.currentSong.collectAsStateWithLifecycle(initialValue = null)
     val playing by connection.isPlaying.collectAsStateWithLifecycle()
-    val latestSlider by rememberUpdatedState(sliderPositionProvider)
+    var transportPreview by remember { mutableStateOf<Long?>(null) }
+    val latestSlider by rememberUpdatedState<() -> Long?>({ transportPreview ?: sliderPositionProvider() })
     var preset by rememberPreference(WordstormPresetKey, 1)
     var fontSize by rememberPreference(WordstormFontSizeKey, 44f)
     var motion by rememberPreference(WordstormMotionKey, true)
@@ -169,7 +171,7 @@ internal fun WordstormLyrics(
     val effectivePerformance = performance || automaticEconomy
     val database = LocalDatabase.current
     val scope = rememberCoroutineScope()
-    LaunchedEffect(controls, immersive, settings) { if (immersive && controls && !settings) { delay(4000L); controls = false } }
+    LaunchedEffect(controls, immersive, settings, transportPreview) { if (immersive && controls && !settings && transportPreview == null) { delay(4000L); controls = false } }
     val palette = listOf(Color(0xFFC2A1FF), Color(0xFF7EDAE3), Color(0xFFFFB296))
     val accent = palette[accentIndex.coerceIn(0, 2)]
     val validText = wordstormLyricsForTrack(metadata?.id, entity?.id, entity?.lyrics)
@@ -249,7 +251,7 @@ internal fun WordstormLyrics(
     BoxWithConstraints(modifier.fillMaxSize().background(Color(0xFF05040C)).then(gestureModifier)) {
         val lineHeightLimit = maxHeight * (if (showContext && (!immersive || controls)) 0.4f else 0.7f)
         DeeplistAtmosphere(rainWords, playing && motion, accent, backgroundMode, density, rainSpeed, wordBrightness, rings, glow, effectivePerformance)
-        if (immersive) DeeplistEdgeLights(playing, performanceOverride = effectivePerformance)
+        if (immersive) VerciEdgeNeon(playing, true)
         Box(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 12.dp)) {
         Column(
             Modifier.align(Alignment.Center).fillMaxWidth().padding(vertical = 62.dp),
@@ -299,11 +301,8 @@ internal fun WordstormLyrics(
         if (cover) {
             AsyncImage(model = metadata?.thumbnailUrl, contentDescription = stringResource(R.string.wordstorm_cover), modifier = Modifier.align(Alignment.TopStart).padding(12.dp).size(58.dp))
         }
-        if (immersive) Row(Modifier.align(Alignment.BottomCenter).padding(bottom = 32.dp).clip(RoundedCornerShape(24.dp)).background(Color(0xFF171223)), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-            IconButton(onClick = { connection.seekToPrevious() }, enabled = canSeek) { Icon(painterResource(R.drawable.skip_previous), stringResource(R.string.deeplist_previous), tint = accent) }
-            IconButton(onClick = { if (playing) connection.player.pause() else connection.player.play() }, enabled = canSeek) { Icon(painterResource(if (playing) R.drawable.pause else R.drawable.play), stringResource(R.string.deeplist_play_pause), tint = Color.White) }
-            IconButton(onClick = { connection.seekToNext() }, enabled = canSeek) { Icon(painterResource(R.drawable.skip_next), stringResource(R.string.deeplist_next), tint = accent) }
-        }
+        if (immersive) VerciTransport(transportPreview, { transportPreview = it }, Modifier.align(Alignment.BottomCenter).safeDrawingPadding())
+
         if (!immersive) Text(metadata?.title.orEmpty(), color = accent.copy(alpha = 0.6f), fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(16.dp))
         }
         }
@@ -337,6 +336,7 @@ internal fun WordstormLyrics(
             title = { Text(stringResource(R.string.wordstorm_settings)) },
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
+                    Material3SettingsGroup(items = studioItems)
                     listOf(R.string.deeplist_lyrics_tab, R.string.deeplist_background_tab, R.string.deeplist_controls_tab, R.string.deeplist_connection_tab).chunked(2).forEachIndexed { row, labels ->
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             labels.forEachIndexed { column, title ->

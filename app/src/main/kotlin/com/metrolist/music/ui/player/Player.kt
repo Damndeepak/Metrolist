@@ -270,6 +270,7 @@ fun BottomSheetPlayer(
 
     DisposableEffect(playerBackground, state.isExpanded, useDarkTheme, keepScreenOn, isFullScreen, hideStatusBarOnFullscreen, immersiveLyrics) {
         val window = (context as? android.app.Activity)?.window
+        val previousCutoutMode = if (android.os.Build.VERSION.SDK_INT >= 28) window?.attributes?.layoutInDisplayCutoutMode else null
         if (window != null && state.isExpanded) {
             val insetsController = WindowCompat.getInsetsController(window, window.decorView)
 
@@ -283,6 +284,11 @@ fun BottomSheetPlayer(
                 }
             }
 
+            if (immersiveLyrics && android.os.Build.VERSION.SDK_INT >= 28) {
+                val params = window.attributes
+                params.layoutInDisplayCutoutMode = if (android.os.Build.VERSION.SDK_INT >= 30) WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS else WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                window.attributes = params
+            }
             if (immersiveLyrics || (isFullScreen && hideStatusBarOnFullscreen)) {
                 insetsController.hide(if (immersiveLyrics) WindowInsetsCompat.Type.systemBars() else WindowInsetsCompat.Type.statusBars())
                 insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
@@ -290,7 +296,7 @@ fun BottomSheetPlayer(
                 insetsController.show(WindowInsetsCompat.Type.systemBars())
             }
 
-            if (keepScreenOn && state.isExpanded) {
+            if ((keepScreenOn || immersiveLyrics) && state.isExpanded) {
                 window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             } else {
                 window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -299,6 +305,11 @@ fun BottomSheetPlayer(
 
         onDispose {
             if (window != null) {
+                if (android.os.Build.VERSION.SDK_INT >= 28 && previousCutoutMode != null) {
+                    val params = window.attributes
+                    params.layoutInDisplayCutoutMode = previousCutoutMode
+                    window.attributes = params
+                }
                 val insetsController = WindowCompat.getInsetsController(window, window.decorView)
                 insetsController.isAppearanceLightStatusBars = !useDarkTheme
                 insetsController.show(WindowInsetsCompat.Type.systemBars())
@@ -846,7 +857,7 @@ fun BottomSheetPlayer(
                         .fillMaxSize()
                         .background(bottomSheetBackgroundColor),
             ) {
-                if (deeplistEnabled) DeeplistEdgeLights(effectiveIsPlaying)
+                if (deeplistEnabled && !immersiveLyrics) DeeplistEdgeLights(effectiveIsPlaying)
                 if (!deeplistEnabled) when (playerBackground) {
                     PlayerBackgroundStyle.BLUR -> {
                         AnimatedContent(
@@ -2117,7 +2128,7 @@ fun InlineLyricsView(
         modifier =
             Modifier
                 .fillMaxSize()
-                .clip(RoundedCornerShape(12.dp)),
+                .then(if (immersive) Modifier else Modifier.clip(RoundedCornerShape(12.dp))),
         contentAlignment = Alignment.Center,
     ) {
         when {
