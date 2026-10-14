@@ -43,6 +43,10 @@ import org.json.JSONObject
 @Composable
 internal fun verciStudioItems(): List<Material3SettingsItem> {
     val (brightness, setBrightness) = rememberPreference(VerciBrightnessKey, .8f)
+    val (advanced, setAdvanced) = rememberPreference(VerciAdvancedEmojiKey, false)
+    val (ring, setRing) = rememberPreference(VerciCameraRingKey, false)
+    val (particles, setParticles) = rememberPreference(VerciParticlesKey, false)
+    val (clock, setClock) = rememberPreference(VerciClockKey, false)
     val (reactive, setReactive) = rememberPreference(VerciAudioReactiveKey, true)
     val (recording, setRecording) = rememberPreference(VerciRecordingKey, false)
     val (doubleTap, setDoubleTap) = rememberPreference(VerciDoubleTapKey, true)
@@ -56,6 +60,10 @@ internal fun verciStudioItems(): List<Material3SettingsItem> {
     val (emojis, _) = rememberPreference(VerciEmojiKey, true)
     val (saved, setSaved) = rememberPreference(VerciPresetsKey, "{}")
     val (floating, setFloating) = rememberPreference(FloatingLyricsKey, false)
+    val (website, _) = rememberPreference(DeeplistWebsiteKey, "")
+    val (sharing, setSharing) = rememberPreference(DeeplistSyncEnabledKey, false)
+    val (_, setPairToken) = rememberPreference(DeeplistTokenKey, "")
+    val bridgeState by com.metrolist.music.deeplist.DeeplistBridgeStatus.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val database = LocalDatabase.current
@@ -92,7 +100,7 @@ internal fun verciStudioItems(): List<Material3SettingsItem> {
                 OutlinedTextField(value = name, onValueChange = { name = it.take(32) }, label = { Text(stringResource(R.string.verci_preset_name)) }, singleLine = true)
                 TextButton(onClick = {
                     val updated = JSONObject(presets.toString())
-                    updated.put(name.trim(), VerciPreset(style, font, size, spacing, brightness, color, neon, emojis, reactive).encode())
+                    updated.put(name.trim(), VerciPreset(style, font, size, spacing, brightness, color, neon, emojis, reactive, advanced, ring, particles, clock).encode())
                     setSaved(updated.toString()); name = ""
                 }, enabled = name.isNotBlank()) { Text(stringResource(R.string.deeplist_save_style)) }
                 presets.keys().asSequence().toList().forEach { label ->
@@ -103,6 +111,8 @@ internal fun verciStudioItems(): List<Material3SettingsItem> {
                                     v[VerciStyleKey] = p.style.name; v[VerciFontKey] = p.font.name
                                     v[VerciTextSizeKey] = p.size; v[VerciSpacingKey] = p.spacing
                                     v[VerciBrightnessKey] = p.brightness; v[VerciColorKey] = p.color
+                                    v[VerciAdvancedEmojiKey] = p.advanced; v[VerciCameraRingKey] = p.ring
+                                    v[VerciParticlesKey] = p.particles; v[VerciClockKey] = p.clock
                                     v[VerciNeonKey] = p.neon; v[VerciEmojiKey] = p.emojis; v[VerciAudioReactiveKey] = p.reactive
                                 }
                             } }
@@ -125,6 +135,14 @@ internal fun verciStudioItems(): List<Material3SettingsItem> {
         dismissButton = { TextButton(onClick = { permission = false }) { Text(stringResource(android.R.string.cancel)) } },
     )
     return buildList {
+        add(Material3SettingsItem(title = { Text(stringResource(R.string.deeplist_website_sync)) }, description = { Text(if (website.isBlank()) stringResource(R.string.deeplist_easy_connect_hint) else "$website · ${bridgeState.name.lowercase()}") }, trailingContent = {
+            if (sharing) TextButton(onClick = { setSharing(false); setPairToken("") }) { Text(stringResource(R.string.deeplist_stop_sync)) }
+            else if (website.isNotBlank()) TextButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("$website/deeplist.html"))) }) { Text(stringResource(R.string.deeplist_open_website)) }
+        }))
+        add(Material3SettingsItem(title = { Text(stringResource(R.string.verci_advanced_emojis)) }, description = { Text(stringResource(R.string.verci_advanced_emojis_hint)) }, trailingContent = { Switch(advanced, setAdvanced) }, onClick = { setAdvanced(!advanced) }))
+        add(Material3SettingsItem(title = { Text(stringResource(R.string.verci_camera_ring)) }, trailingContent = { Switch(ring, setRing) }, onClick = { setRing(!ring) }))
+        add(Material3SettingsItem(title = { Text(stringResource(R.string.verci_particles)) }, trailingContent = { Switch(particles, setParticles) }, onClick = { setParticles(!particles) }))
+        add(Material3SettingsItem(title = { Text(stringResource(R.string.verci_clock)) }, trailingContent = { Switch(clock, setClock) }, onClick = { setClock(!clock) }))
         add(Material3SettingsItem(title = { Text(stringResource(R.string.verci_brightness)) }, description = { Text("${(brightness * 100).toInt()}%") }, onClick = { dialog = "brightness" }))
         add(Material3SettingsItem(title = { Text(stringResource(R.string.verci_audio_reactive)) }, description = { Text(stringResource(R.string.verci_audio_hint)) }, trailingContent = { Switch(reactive, setReactive) }, onClick = { setReactive(!reactive) }))
         add(Material3SettingsItem(title = { Text(stringResource(R.string.verci_font)) }, description = { Text(font.name.lowercase()) }, onClick = { dialog = "font" }))

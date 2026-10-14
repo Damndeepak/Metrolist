@@ -18,6 +18,19 @@ class VerciStudioTest {
         assertEquals("🌙", verciEmoji("रातों"))
         assertEquals("", verciEmoji("unmatchedword"))
     }
+    @Test fun `advanced emojis are optional and match Hindi and plural forms`() {
+        assertEquals("😡", verciEmoji("angry", true))
+        assertEquals("😡", verciEmoji("गुस्सा!", true))
+        assertEquals("🧛🏻", verciEmoji("vampires", true))
+        assertEquals("", verciEmoji("vampires"))
+        assertEquals("🖕🏻", verciEmoji("fucking", true))
+        assertEquals("", verciEmoji("hello", true))
+    }
+    @Test fun `extended presets preserve all optional effects and read legacy presets`() {
+        val p = VerciPreset(VerciStyle.SHIP, VerciFont.BOLD, 52f, 1f, .8f, 0, true, false, true, true, true, true, true)
+        assertEquals(p, VerciPreset.decode(p.encode()))
+        assertFalse(VerciPreset.decode(p.encode().split('|').take(9).joinToString("|"))!!.advanced)
+    }
     @Test fun `PCM level reads are non destructive and silence stays zero`() {
         val buffer = ByteBuffer.allocate(512).order(ByteOrder.LITTLE_ENDIAN)
         repeat(256) { buffer.putShort(8192.toShort()) }

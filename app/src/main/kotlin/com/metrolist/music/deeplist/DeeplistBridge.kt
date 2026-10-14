@@ -53,6 +53,7 @@ internal fun startDeeplistBridge(context: Context, scope: CoroutineScope, databa
                 var uploadedLyrics: String? = null
                 var cachedLyrics: String? = null
                 var failures = 0
+                var acknowledged: String? = null
                 while (isActive) {
                     val metadata = metadataProvider()
                     val player = playerProvider()
@@ -70,7 +71,7 @@ internal fun startDeeplistBridge(context: Context, scope: CoroutineScope, databa
                     var sentLyrics: String? = null
                     val success = withContext(Dispatchers.IO) {
                         runCatching {
-                            if (cachedLyrics == null) cachedLyrics = database.lyrics(metadata.id).first()?.lyrics
+                            cachedLyrics = database.lyrics(metadata.id).first()?.lyrics
                             val offset = database.song(metadata.id).first()?.song?.lyricsOffset ?: 0
                             payload.put("offset", offset)
                             if (cachedLyrics != null && cachedLyrics != uploadedLyrics) {
@@ -96,6 +97,29 @@ internal fun startDeeplistBridge(context: Context, scope: CoroutineScope, databa
                                 .post(payload.toString().toRequestBody("application/json".toMediaType())).build()
                             client.newCall(request).execute().use { it.isSuccessful }
                         }.getOrDefault(false)
+                    }
+                    if (success) {
+                        val command = withContext(Dispatchers.IO) {
+                            runCatching {
+                                val query = acknowledged?.let { "?ack=$it" }.orEmpty()
+                                val request = Request.Builder().url(endpoint.replace("/state", "/control") + query)
+                                    .header("Authorization", "Bearer $token").build()
+                                client.newCall(request).execute().use { response ->
+                                    if (response.isSuccessful) JSONObject(response.body.string()).optJSONObject("command") else null
+                                }
+                            }.getOrNull()
+                        }
+                        if (command != null && command.optString("id") != acknowledged) {
+                            val room = (context as? com.metrolist.music.playback.MusicService)?.listenTogetherManager
+                            if (command.optString("trackId") == player.currentMediaItem?.mediaId && (room?.isInRoom != true || room.isHost)) {
+                                when (command.optString("action")) {
+                                    "play" -> player.play()
+                                    "pause" -> player.pause()
+                                    "seek" -> player.seekTo(command.optLong("position").coerceIn(0, duration))
+                                }
+                            }
+                            acknowledged = command.optString("id")
+                        }
                     }
                     if (success) { uploadedLyrics = sentLyrics ?: uploadedLyrics; failures = 0 }
                     else failures = (failures + 1).coerceAtMost(4)

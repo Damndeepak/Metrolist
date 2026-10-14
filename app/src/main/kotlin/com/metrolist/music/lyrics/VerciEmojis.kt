@@ -112,12 +112,12 @@ private val extraEmojis = buildMap {
     ).forEach { (emoji, words) -> words.split(' ').forEach { put(it, emoji) } }
 }
 
-internal fun verciEmoji(text: String): String {
+internal fun verciEmoji(text: String, advanced: Boolean = false): String {
     val word = text.lowercase(Locale.ROOT).filter {
         it.isLetter() || Character.getType(it) == Character.NON_SPACING_MARK.toInt() ||
             Character.getType(it) == Character.COMBINING_SPACING_MARK.toInt()
     }
-    fun lookup(value: String) = hindiEmojis[value] ?: verciEmojis[value] ?: extraEmojis[value]
+    fun lookup(value: String) = (if (advanced) advancedEmojis[value] else null) ?: hindiEmojis[value] ?: verciEmojis[value] ?: extraEmojis[value]
     lookup(word)?.let { return it }
     val candidates = buildList {
         if (word.endsWith("ies")) add(word.dropLast(3) + "y")
@@ -129,4 +129,81 @@ internal fun verciEmoji(text: String): String {
         }
     }
     return candidates.firstNotNullOfOrNull { lookup(it) } ?: ""
+}
+
+private val advancedEmojis = buildMap {
+    listOf(
+        "💔" to "heartbroken heartbreak brokenhearted दिलटूटा बिछड़ judaai",
+        "😂" to "laugh laughing laughed laughter हँस हंस हँसते हंसते hasna haso",
+        "🗿" to "sigma stone statue मूर्ति patthar पत्थर",
+        "😎" to "cool swag attitude stylish tashan टशन",
+        "🥀" to "wilt wither withered lonely तन्हाई tanhai",
+        "🙏🏻" to "pray prayer prayers praying please mercy दुआ दुआएँ प्रार्थना meherbani",
+        "😭" to "cry crying cried tears आँसू आंसू रोना रोते aansu rona",
+        "🤣" to "hilarious funny comedy मज़ाक मजाक mazaak",
+        "😋" to "tasty delicious स्वाद swad yummy",
+        "🤭" to "giggle giggling blush sharma शर्म शरमाना",
+        "🤤" to "drool drooling craving ललचाना lalchana",
+        "🫄🏻" to "pregnant pregnancy गर्भवती garbhvati",
+        "😡" to "angry anger furious rage गुस्सा गुस्से gussa",
+        "💀" to "dead death dying die मौत मरना maut marna",
+        "🤔" to "wonder wondering question सवाल सोच soch sawal",
+        "🥺" to "beg begging plead pleading विनती बेबस bebas",
+        "😘" to "kiss kisses kissing चूम चुम्बन chum chumna",
+        "🖕🏻" to "fuck fucking fucked fucker motherfucker",
+        "😁" to "grin grinning खुश khush",
+        "😔" to "sad sadness दुख उदास udaas dukhi",
+        "😚" to "smooch smooches smooching",
+        "🚒" to "firetruck firefighter fireman दमकल damkal",
+        "🥲" to "bittersweet मजबूर majboor",
+        "😼" to "smirk smirking sly चालाक chalaak",
+        "😒" to "annoyed unimpressed नाराज़ नाराज naraaz",
+        "😍" to "adore adored adorable खूबसूरत khoobsurat",
+        "😈" to "devil devils demon demons शैतान shaitan",
+        "🤓" to "nerd nerds nerdy पढ़ाकू padhaku",
+        "🧐" to "inspect inspecting curious जिज्ञासा jigyasa",
+        "😶‍🌫️" to "fog foggy धुंध dhund",
+        "🫥" to "invisible vanish vanished गायब gayab",
+        "😱" to "scream screaming चीख cheekh",
+        "🫢" to "oops gasp gasping उफ़ uff",
+        "🫤" to "unsure uncertain दुविधा duvidha",
+        "😨" to "scared afraid fear डर dara dar डरना",
+        "😵" to "dizzy faint बेहोश behosh",
+        "🤯" to "mindblown explode explosion धमाका dhamaka",
+        "😴" to "sleep sleeping sleepy नींद सोना neend sona",
+        "😣" to "struggle struggling संघर्ष sangharsh",
+        "😮" to "surprise surprised हैरान hairan",
+        "😰" to "anxious anxiety बेचैन bechain",
+        "😳" to "embarrassed awkward शर्मिंदा sharminda",
+        "😥" to "worried worry चिंता chinta",
+        "🤒" to "sick fever बीमार bukhar बुखार bimaar",
+        "👻" to "ghost ghosts haunted भूत bhoot",
+        "🌝" to "moonlight चांदनी chandni",
+        "🙀" to "shocked shock दहशत dehshat",
+        "😻" to "kitten kitty बिल्ली billi",
+        "🙈" to "shy bashful शर्मीली sharmili",
+        "💥" to "boom bang crash टक्कर takkar",
+        "❤️" to "love प्यार pyar pyaar प्रेम",
+        "💙" to "blue नीला neela",
+        "🖤" to "black darkness काला kaala अंधेरा andhera",
+        "💘" to "cupid crush इश्क ishq",
+        "🤖" to "robot robots robotic मशीन machine",
+        "☃️" to "snowman snowmen snow बर्फ barf",
+        "😾" to "grumpy sulk sulking रूठ rooth",
+        "🌚" to "midnight अमावस amaavas",
+        "💓" to "heartbeat heartbeats धड़कन dhadkan dhadkane",
+        "🫂" to "hug hugs embrace बाहों baahon गले gale",
+        "💖" to "sweetheart darling जान jaan जानू jaanu",
+        "❤️‍🔥" to "passion passionate जुनून junoon",
+        "👌🏻" to "perfect perfection कमाल kamaal",
+        "☝🏻" to "above ऊपर upar",
+        "✍🏻" to "write writing लिख लिखना likh likhna",
+        "🧛🏻" to "vampire vampires पिशाच pishach",
+        "🦸🏻" to "hero heroes superhero हीरो",
+        "🧑🏻‍✈️" to "pilot pilots captain कप्तान kaptaan",
+        "🧑🏻‍🏭" to "worker workers factory मजदूर mazdoor",
+        "🧑🏻‍🎓" to "student students graduate पढ़ाई padhai",
+        "🧑🏻‍🎤" to "singer singers rockstar गायक gayak",
+        "🏞️" to "landscape valley valleys वादी वादियाँ vaadi vaadiyan",
+    ).forEach { (emoji, words) -> words.split(' ').forEach { put(it, emoji) } }
 }

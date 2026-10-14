@@ -783,3 +783,8 @@ val VerciSpacingKey = floatPreferencesKey("verciSpacing")
 val VerciColorKey = intPreferencesKey("verciColor")
 val VerciPresetsKey = stringPreferencesKey("verciPresets")
 val FloatingLyricsKey = booleanPreferencesKey("floatingLyrics")
+
+val VerciAdvancedEmojiKey = booleanPreferencesKey("verciAdvancedEmoji")
+val VerciCameraRingKey = booleanPreferencesKey("verciCameraRing")
+val VerciParticlesKey = booleanPreferencesKey("verciParticles")
+val VerciClockKey = booleanPreferencesKey("verciClock")

@@ -1104,4 +1104,14 @@
     <string name="verci_overlay_unavailable">This phone could not open overlay settings. Enable Display over other apps for Deeplist in Android settings, then return here.</string>
     <string name="verci_allow_overlay">Enable bubble</string>
     <string name="verci_bubble_accessibility">Tap to expand or collapse lyrics. Drag to move. Expanded controls include previous, play or pause, and next.</string>
+    <string name="verci_advanced_emojis">Advanced Emojis</string>
+    <string name="verci_advanced_emojis_hint">Extra expressive emojis for English, Hindi and Hinglish lyrics</string>
+    <string name="verci_camera_ring">Fixed camera ring</string>
+    <string name="verci_particles">Soft lyric particles</string>
+    <string name="verci_clock">Fullscreen clock</string>
+    <string name="deeplist_connect_approve">Connect this website?</string>
+    <string name="deeplist_connect_hint">Your current song and lyrics will be public. This browser can control playback.</string>
+    <string name="deeplist_connect_failed">Connection failed. Open the website and try again.</string>
+    <string name="deeplist_website_sync">Website connection</string>
+    <string name="deeplist_easy_connect_hint">On your website, tap Connect Deeplist and approve in the app.</string>
 </resources>

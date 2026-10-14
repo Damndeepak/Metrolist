@@ -43,19 +43,16 @@ internal fun bezelPath(width: Float, height: Float, radius: Float, cutouts: List
     val bottom = height - inset
     return Path().apply {
         moveTo(inset + r, inset)
-        for (box in cutouts.filter { it.top <= inset + 2 && it.bottom < height / 3 }.sortedBy { it.left }) {
-            val a = box.left.coerceIn(inset + r, right - r)
-            val b = box.right.coerceIn(a, right - r)
-            val y = box.bottom + inset
-            val bend = minOf(10f, (b - a) / 4).coerceAtLeast(1f)
-            lineTo(a - bend, inset)
-            quadTo(a, inset, a, inset + bend)
-            lineTo(a, y - bend)
-            quadTo(a, y, a + bend, y)
-            lineTo(b - bend, y)
-            quadTo(b, y, b, y - bend)
-            lineTo(b, inset + bend)
-            quadTo(b, inset, b + bend, inset)
+        for (box in cutouts.filter { it.bottom > 0 && it.top < height / 3 && it.width() > 0 }.sortedBy { it.left }) {
+            val camera = cameraOrbit(box, inset)
+            if (camera.left <= inset + r || camera.right >= right - r) continue
+            val x = camera.centerX()
+            val y = camera.top
+            val shoulder = camera.width()
+            lineTo(x - shoulder, inset)
+            cubicTo(x - shoulder / 2, inset, x - shoulder / 2, y, x, y)
+            arcTo(camera, -90f, 360f, false)
+            cubicTo(x + shoulder / 2, y, x + shoulder / 2, inset, x + shoulder, inset)
         }
         lineTo(right - r, inset); quadTo(right, inset, right, inset + r)
         lineTo(right, bottom - r); quadTo(right, bottom, right - r, bottom)
@@ -63,6 +60,15 @@ internal fun bezelPath(width: Float, height: Float, radius: Float, cutouts: List
         lineTo(inset, inset + r); quadTo(inset, inset, inset + r, inset)
         close()
     }
+}
+
+// OEM bounds can include the blank area above a punch-hole; anchor its circle at the bottom.
+internal fun cameraOrbit(box: RectF, gap: Float): RectF {
+    val diameter = minOf(box.width(), box.height())
+    val cx = box.centerX()
+    val cy = box.bottom - diameter / 2
+    return RectF(cx - diameter / 2 - gap, cy - diameter / 2 - gap,
+        cx + diameter / 2 + gap, cy + diameter / 2 + gap)
 }
 
 internal fun neonContours(path: Path): List<Path> {
@@ -85,7 +91,7 @@ internal fun VerciEdgeNeon(playing: Boolean, physicalEdges: Boolean) {
     val owner = LocalLifecycleOwner.current
     val view = LocalView.current
     var cutouts by remember { mutableStateOf(emptyList<RectF>()) }
-    var actualCutout by remember { mutableStateOf<Path?>(null) }
+    val fixedRing by rememberPreference(com.metrolist.music.constants.VerciCameraRingKey, false)
     var corner by remember { mutableFloatStateOf(0f) }
     var phase by remember { mutableFloatStateOf(0f) }
     var envelope by remember { mutableFloatStateOf(0f) }
@@ -110,22 +116,16 @@ internal fun VerciEdgeNeon(playing: Boolean, physicalEdges: Boolean) {
             }
             if (Build.VERSION.SDK_INT >= 31) {
                 corner = view.rootWindowInsets?.getRoundedCorner(RoundedCorner.POSITION_TOP_LEFT)?.radius?.toFloat() ?: 0f
-                val screen = IntArray(2); val window = IntArray(2)
-                view.getLocationOnScreen(screen); view.getLocationInWindow(window)
-                actualCutout = view.rootWindowInsets?.displayCutout?.cutoutPath?.let { raw ->
-                    Path(raw).apply { offset(-origin.x - screen[0] + window[0], -origin.y - screen[1] + window[1]) }
-                }
+
             }
-        } else { cutouts = emptyList(); actualCutout = null; corner = 0f }
+        } else { cutouts = emptyList(); corner = 0f }
     }.drawWithCache {
         val inset = .75.dp.toPx()
-        val precise = actualCutout
-        val outline = bezelPath(size.width, size.height, if (corner > 0) corner else 22.dp.toPx(), if (precise == null) cutouts else emptyList(), inset)
-        if (precise != null) outline.op(precise, Path.Op.DIFFERENCE)
-        val rings = (if (precise == null) cutouts else emptyList()).filter { it.top > inset + 2 }.map { box ->
-            Path().apply { val r = RectF(box); r.inset(-1.dp.toPx(), -1.dp.toPx()); addRoundRect(r, r.height() / 2, r.height() / 2, Path.Direction.CW) }
-        }
-        val paths = neonContours(outline) + rings
+        val outline = bezelPath(size.width, size.height, if (corner > 0) corner else 22.dp.toPx(), cutouts, inset)
+        val rings = if (fixedRing) cutouts.filter { it.width() > 0 && it.height() > 0 }.map { box ->
+            Path().apply { addOval(cameraOrbit(box, inset), Path.Direction.CW) }
+        } else emptyList()
+        val paths = listOf(outline)
         val measures = paths.map { PathMeasure(it, true) }
         val comet = Path()
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; this.color = verciColors[colorIndex.coerceIn(0, 4)] }
@@ -135,19 +135,21 @@ internal fun VerciEdgeNeon(playing: Boolean, physicalEdges: Boolean) {
             val c = drawContext.canvas.nativeCanvas
             val energy = envelope
             val alpha = brightness.coerceIn(0f, 1f) * (.35f + .65f * energy)
+            paint.strokeWidth = thin; paint.alpha = (180 * brightness).toInt()
+            rings.forEach { c.drawPath(it, paint) }
             paths.forEachIndexed { index, path ->
                 paint.strokeWidth = thin; paint.alpha = (45 * brightness).toInt()
                 c.drawPath(path, paint)
                 val m = measures[index]
-                for (tail in 5 downTo 0) {
+                for (tail in 0..1) {
                     comet.reset()
-                    val start = ((phase + index * .13f - tail * .018f + 1f) % 1f) * m.length
-                    val length = m.length * .11f
+                    val start = ((phase + index * .13f + tail * .5f + 1f) % 1f) * m.length
+                    val length = m.length * .32f
                     m.getSegment(start, minOf(start + length, m.length), comet, true)
                     if (start + length > m.length) m.getSegment(0f, start + length - m.length, comet, true)
-                    paint.strokeWidth = glow; paint.alpha = (12 * alpha * (6 - tail) / 6).toInt()
+                    paint.strokeWidth = glow; paint.alpha = (20 * alpha).toInt()
                     c.drawPath(comet, paint)
-                    paint.strokeWidth = thin; paint.alpha = (255 * alpha * (6 - tail) / 6).toInt()
+                    paint.strokeWidth = thin; paint.alpha = (255 * alpha).toInt()
                     c.drawPath(comet, paint)
                 }
             }

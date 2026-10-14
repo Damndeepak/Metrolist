@@ -191,6 +191,9 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
     val slider by rememberUpdatedState(sliderPositionProvider)
     val style by rememberEnumPreference(VerciStyleKey, VerciStyle.FISHEYE)
     val emojis by rememberPreference(VerciEmojiKey, true)
+    val advanced by rememberPreference(com.metrolist.music.constants.VerciAdvancedEmojiKey, false)
+    val particles by rememberPreference(com.metrolist.music.constants.VerciParticlesKey, false)
+    val clockVisible by rememberPreference(com.metrolist.music.constants.VerciClockKey, false)
     val textSize by rememberPreference(VerciTextSizeKey, 52f)
     val font by rememberEnumPreference(VerciFontKey, VerciFont.BOLD)
     val spacing by rememberPreference(VerciSpacingKey, 1f)
@@ -270,7 +273,16 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
                 }
                 val widths = words.map { paint.measureText(it.text).coerceAtLeast(1f) }
                 val emojiPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.textSize = fontPx * .58f }
-                val emojiWidths = words.map { emojiPaint.measureText(it.emoji) }
+                val icons = words.map { if (advanced) com.metrolist.music.lyrics.verciEmoji(it.text, true) else if (emojis) it.emoji else "" }
+                val emojiWidths = icons.map { emojiPaint.measureText(it) }
+                val atmosphere = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    shader = android.graphics.RadialGradient(size.width * .18f, size.height * .25f,
+                        size.height * .75f, intArrayOf((accent and 0x00ffffff) or 0x28000000, 0x00000000), null, Shader.TileMode.CLAMP)
+                }
+                val spark = Paint(Paint.ANTI_ALIAS_FLAG)
+                val clockPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = foreground; alpha = 170; textSize = 28.dp.toPx(); textAlign = Paint.Align.CENTER }
+                var clockMinute = -1L
+                var clockText = ""
                 val metrics = paint.fontMetrics
                 val baseline = -(metrics.ascent + metrics.descent) / 2f
                 val emojiMetrics = emojiPaint.fontMetrics
@@ -288,6 +300,24 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
                     val active = verciWordIndex(words, now)
                     val center = position.toInt()
                     val c = drawContext.canvas.nativeCanvas
+                    if (style == VerciStyle.VISUAL || style == VerciStyle.FISHEYE_VISUAL) {
+                        c.save(); c.translate(sin(now / 8000f) * size.width * .08f, 0f)
+                        c.drawRect(-size.width * .1f, 0f, size.width * 1.1f, size.height, atmosphere); c.restore()
+                    }
+                    if (particles) {
+                        spark.color = accent
+                        for (j in 0..17) {
+                            spark.alpha = (25 + 35 * abs(sin(now / 1900f + j))).toInt()
+                            val x = (sin(j * 43.7f) * .46f + .5f) * size.width
+                            val y = ((j * .137f + now / 90000f) % 1f) * size.height
+                            c.drawCircle(x, y, (1 + j % 3).dp.toPx(), spark)
+                        }
+                    }
+                    if (clockVisible) {
+                        val minute = System.currentTimeMillis() / 60000
+                        if (minute != clockMinute) { clockMinute = minute; clockText = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date()) }
+                        c.drawText(clockText, size.width / 2, size.height * .12f, clockPaint)
+                    }
                     for (i in (center - 4).coerceAtLeast(0)..(center + 5).coerceAtMost(words.lastIndex)) {
                         val word = words[i]
                         val u = i - position
@@ -297,7 +327,7 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
                             else (1f - .16f * distance).coerceIn(.35f, 1f)
                         val y = if (fisheye) tanh(u * .62f) * size.height * .43f * spacing else u * size.height * .14f * spacing
                         val drift = if (style == VerciStyle.SHIP) sin(i * 127.1f) * size.width * .22f * min(1f, distance) else 0f
-                        val iconWidth = if (emojis && word.emoji.isNotEmpty()) emojiWidths[i] + fontPx * .18f else 0f
+                        val iconWidth = if (icons[i].isNotEmpty()) emojiWidths[i] + fontPx * .18f else 0f
                         val fit = min(1f, (size.width * .84f - abs(drift) * 2).coerceAtLeast(size.width * .35f) / (widths[i] + iconWidth))
                         val progress = ((now - word.start).toFloat() / (word.end - word.start)).coerceIn(0f, 1f)
                         val pop = if (i == active) sin(progress * Math.PI).toFloat() * .07f else 0f
@@ -307,8 +337,8 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
                         c.scale(scale * fit * (1 + pop), scale * fit * (1 + pop))
                         if (style == VerciStyle.SHIP) c.rotate(sin(now / 1700f + i) * min(5f, distance * 3))
                         val x = -(widths[i] + iconWidth) / 2
-                        paint.color = foreground
-                        paint.alpha = (alpha * if (i == active) .38f else .62f).toInt()
+                        paint.color = if (i > active) accent else foreground
+                        paint.alpha = (alpha * if (i == active) .38f else if (i > active) .45f else .72f).toInt()
                         c.drawText(word.text, x, baseline, paint)
                         if (i == active) {
                             c.save()
@@ -320,7 +350,7 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
                         }
                         if (iconWidth > 0) {
                             emojiPaint.alpha = alpha
-                            c.drawText(word.emoji, x + widths[i] + fontPx * .18f, emojiBaseline, emojiPaint)
+                            c.drawText(icons[i], x + widths[i] + fontPx * .18f, emojiBaseline, emojiPaint)
                         }
                         c.restore()
                     }
@@ -330,17 +360,7 @@ private fun VerciWordCanvas(words: List<VerciWord>, sliderPositionProvider: () -
                     c.rotate(180f, size.width / 2, size.height / 2)
                     c.drawRect(0f, 0f, size.width, fadeHeight, fade)
                     c.restore()
-                    if (style == VerciStyle.VISUAL || style == VerciStyle.FISHEYE_VISUAL) {
-                        border.shader = null
-                        border.color = accent
-                        border.alpha = 100
-                        border.strokeWidth = 3.dp.toPx()
-                        for (bar in 0..10) {
-                            val h = (6 + 14 * abs(sin(now / 220f + bar * .8f))).dp.toPx()
-                            val x = size.width / 2 + (bar - 5) * 9.dp.toPx()
-                            c.drawLine(x, size.height - inset * 2, x, size.height - inset * 2 - h, border)
-                        }
-                    }
+
                 }
             },
         ) {}

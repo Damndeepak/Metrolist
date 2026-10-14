@@ -54,6 +54,14 @@
             android:excludeFromRecents="true"
             android:process=":crash" />
 
+        <activity android:name=".deeplist.DeeplistConnectActivity" android:exported="true" android:excludeFromRecents="true" android:theme="@android:style/Theme.Material.Dialog.Alert">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="deeplist" android:host="connect" />
+            </intent-filter>
+        </activity>
         <activity
             android:name=".MainActivity"
             android:exported="true"
