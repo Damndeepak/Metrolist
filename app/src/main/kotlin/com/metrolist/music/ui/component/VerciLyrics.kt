@@ -301,7 +301,7 @@ private fun VerciWordCanvas(words: List<VerciWord>, gaps: List<VerciGap>, slider
                 }
                 val emojiWidths = displayIcons.map { icons -> icons.maxOfOrNull { emojiPaint.measureText(it) } ?: 0f }
                 val gapLayouts = gaps.map { gap ->
-                    val textPaint = android.text.TextPaint(paint).apply { textSize = fontPx * .68f; color = accent; alpha = 140 }
+                    val textPaint = android.text.TextPaint(paint).apply { this.textSize = fontPx * .68f; color = accent; alpha = 140 }
                     android.text.StaticLayout.Builder.obtain(gap.echo, 0, gap.echo.length, textPaint, (size.width * .82f).toInt().coerceAtLeast(1))
                         .setAlignment(android.text.Layout.Alignment.ALIGN_CENTER).setMaxLines(5).setEllipsize(android.text.TextUtils.TruncateAt.END).build()
                 }
