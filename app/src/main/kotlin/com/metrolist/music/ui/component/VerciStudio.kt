@@ -133,11 +133,19 @@ internal fun verciStudioItems(): List<Material3SettingsItem> {
             TextButton(onClick = { setColor((color + 1) % verciColors.size) }) { Text("● ${color + 1}", color = Color(verciColors[color.coerceIn(0, 4)])) }
         }))
         add(Material3SettingsItem(title = { Text(stringResource(R.string.verci_presets)) }, onClick = { dialog = "presets" }))
-        if (song != null) add(Material3SettingsItem(title = { Text(stringResource(R.string.deeplist_sync_adjust, song?.song?.lyricsOffset ?: 0)) }, trailingContent = {
-            Row { listOf(-100, 0, 100).forEach { delta -> TextButton(onClick = {
-                song?.song?.let { current -> database.query { upsert(current.copy(lyricsOffset = if (delta == 0) 0 else (current.lyricsOffset + delta).coerceIn(-10000, 10000))) } }
-            }) { Text(if (delta == 0) "0" else if (delta > 0) "+100" else "−100") } }
-        }))
+        if (song != null) add(Material3SettingsItem(
+            title = { Text(stringResource(R.string.deeplist_sync_adjust, song.song.lyricsOffset)) },
+            trailingContent = {
+                Row {
+                    listOf(-100, 0, 100).forEach { delta ->
+                        TextButton(onClick = {
+                            val current = song.song
+                            database.query { upsert(current.copy(lyricsOffset = if (delta == 0) 0 else (current.lyricsOffset + delta).coerceIn(-10000, 10000))) }
+                        }) { Text(if (delta == 0) "0" else if (delta > 0) "+100" else "−100") }
+                    }
+                }
+            },
+        ))
         add(Material3SettingsItem(title = { Text(stringResource(R.string.verci_recording)) }, description = { Text(stringResource(R.string.verci_recording_hint)) }, trailingContent = { Switch(recording, setRecording) }, onClick = { setRecording(!recording) }))
         add(Material3SettingsItem(title = { Text(stringResource(R.string.verci_double_tap)) }, trailingContent = { Switch(doubleTap, setDoubleTap) }, onClick = { setDoubleTap(!doubleTap) }))
         add(Material3SettingsItem(title = { Text(stringResource(R.string.verci_swipe)) }, trailingContent = { Switch(swipe, setSwipe) }, onClick = { setSwipe(!swipe) }))

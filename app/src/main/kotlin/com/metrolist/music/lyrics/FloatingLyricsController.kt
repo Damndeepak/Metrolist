@@ -63,6 +63,7 @@ internal class FloatingLyricsController(
     private var words: List<VerciWord> = emptyList()
     private var offset = 0L
     private val track = MutableStateFlow<String?>(null)
+    private val requested = MutableStateFlow(false)
     private var expanded = false
     private var attached = false
     private val density = context.resources.displayMetrics.density
@@ -96,7 +97,7 @@ internal class FloatingLyricsController(
         }, ContextCompat.RECEIVER_NOT_EXPORTED)
         scope.launch {
             context.dataStore.data.map { Pair(it[FloatingLyricsKey] ?: false, it[VerciEmojiKey] ?: true) }.distinctUntilChanged().collect {
-                enabled = it.first; emojis = it.second; refresh()
+                enabled = it.first; requested.value = enabled; emojis = it.second; refresh()
             }
         }
         scope.launch {
@@ -109,7 +110,7 @@ internal class FloatingLyricsController(
             }
         }
         scope.launch {
-            track.collectLatest { id ->
+            combine(track, requested) { id, on -> if (on) id else null }.distinctUntilChanged().collectLatest { id ->
                 words = emptyList(); offset = 0; view.clock.reset(); view.invalidate()
                 if (id != null) combine(database.lyrics(id), database.song(id)) { lyrics, song -> Pair(lyrics, song) }.collectLatest { (lyrics, song) ->
                     val parsed = withContext(Dispatchers.Default) { buildVerciWords(LyricsUtils.parseLyrics(lyrics?.lyrics.orEmpty())) }
