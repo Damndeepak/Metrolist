@@ -1197,7 +1197,10 @@
     <string name="deeplist_off">Off</string>
     <string name="deeplist_cover">Cover</string>
     <string name="deeplist_auto_video">Auto video</string>
-    <string name="deeplist_background_hint">Video when available for a linked Spotify track or your chosen video; otherwise your song’s cover moves softly. Automatic video uses a third-party service.</string>
+    <string name="deeplist_background_hint">Auto looks for matching animated artwork; when none is available, the cover moves softly. You can choose a video separately for every song. Online lookup sends the song title and artist to artwork providers.</string>
+    <string name="deeplist_this_song_background">This song: %1$s</string>
+    <string name="deeplist_my_video">My video</string>
+    <string name="deeplist_video_permission_failed">Could not save access to this video. Choose it from a local folder and try again.</string>
     <string name="deeplist_background_brightness">Background brightness</string>
     <string name="deeplist_song_journey">Song journey &amp; scenes</string>
     <string name="deeplist_playlist_import">Import playlist</string>
@@ -1209,9 +1212,9 @@
     <string name="deeplist_duet">Duet mode</string>
     <string name="deeplist_duet_hint">Tag the current lyric: A on the left, B on the right, or both in the centre. Singer tags are manual.</string>
     <string name="deeplist_pick_video">Choose video for this song</string>
-    <string name="deeplist_remove_video">Remove this song’s video</string>
+    <string name="deeplist_remove_video">Remove video and return to Auto</string>
     <string name="deeplist_video_provider">Automatic video source</string>
-    <string name="deeplist_provider_hint">Optional trusted source URL. It receives the song title and artist and must return a videoUrl. Without one, Auto uses animated cover art.</string>
+    <string name="deeplist_provider_hint">Optional extra source URL. It receives the song title and artist and must return a videoUrl. Otherwise Auto tries available animated artwork providers, then moving cover art.</string>
     <string name="deeplist_import_hint">Paste a Deeplist link, Spotify playlist link, or song list. CSV exports with track and artist columns work too. Review matches before saving.</string>
     <string name="deeplist_playlist_input">Playlist link or song list</string>
     <string name="deeplist_import_csv">Choose CSV / song-list file</string>

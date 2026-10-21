@@ -71,6 +71,28 @@ jobs:
           ./gradlew --no-daemon --max-workers=1 --no-parallel -Pkotlin.compiler.execution.strategy=in-process -Dorg.gradle.jvmargs="-Xmx3g -XX:ActiveProcessorCount=2" :app:assembleFossDebug :app:testFossDebugUnitTest
           ./gradlew --no-daemon --max-workers=1 --no-parallel -Pkotlin.compiler.execution.strategy=in-process -Dorg.gradle.jvmargs="-Xmx3g -XX:ActiveProcessorCount=2" :app:assembleFossRelease
 
+      - name: Verify release identity and report tests
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import glob, hashlib, os, subprocess, xml.etree.ElementTree as ET
+          apks = glob.glob('app/build/outputs/apk/**/release/*.apk', recursive=True)
+          assert len(apks) == 1, apks
+          apk = apks[0]
+          tools = os.path.join(os.environ['ANDROID_HOME'], 'build-tools', '36.0.0')
+          cert = subprocess.check_output([tools + '/apksigner', 'verify', '--print-certs', apk], text=True)
+          assert 'Signer #1 certificate SHA-256 digest: 1c73c95916d7e14bac0533d0a4a20a3c01be78f066fcc0c1102254712c4bcd5d' in cert
+          badging = subprocess.check_output([tools + '/aapt', 'dump', 'badging', apk], text=True)
+          assert "package: name='com.deepu.wordstorm'" in badging
+          assert "application-label:'Deeplist'" in badging
+          reports = [ET.parse(p).getroot() for p in glob.glob('app/build/test-results/testFossDebugUnitTest/TEST-*.xml')]
+          assert reports and not any(int(r.get('failures', 0)) + int(r.get('errors', 0)) for r in reports)
+          print('Unit tests passed:', sum(int(r.get('tests', 0)) for r in reports))
+          print(cert)
+          print('APK SHA256:', hashlib.sha256(open(apk, 'rb').read()).hexdigest())
+          print('Release package and original Deeplist certificate verified.')
+          PY
+
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
         with:

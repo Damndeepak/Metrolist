@@ -88,6 +88,7 @@ internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Bo
     var time by remember(source) { mutableLongStateOf(connection.player.currentPosition + offset) }
     var scroll by remember(source) { mutableFloatStateOf(0f) }
     val times = remember(lines) { lines.map { it.time } }
+    val latestTimes by rememberUpdatedState(times)
     val active by remember(times) { derivedStateOf { wordstormLineIndex(times, time) } }
     val activeText by remember(displayLines) { derivedStateOf { displayLines.getOrNull(active)?.text.orEmpty() } }
     val manager = LocalListenTogetherManager.current
@@ -98,17 +99,14 @@ internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Bo
     LaunchedEffect(connection, source, playing, owner, economy, intensity) {
         owner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             val clock = VerciPlaybackClock()
-            var previous = 0L
+            // Read the current timeline after asynchronous parsing, never the initial empty list.
+            val motion = AppleLyricsMotion(scroll) { latestTimes }
             while (isActive) {
             withFrameNanos { frame ->
                 val preview = latestSlider()
                 time = (preview ?: if (playing) clock.position(connection.player.currentPosition, frame, connection.player.playbackParameters.speed) else connection.player.currentPosition) + offset
                 if (preview != null) clock.reset()
-                val target = wordstormLineIndex(times, time).coerceAtLeast(0).toFloat()
-                val dt = if (previous == 0L) .016f else ((frame - previous) / 1e9f).coerceIn(0f, .1f)
-                scroll = if (preview != null || intensity == 0f || abs(target - scroll) > 4f) target
-                    else scroll + (target - scroll) * (1f - exp(-dt * (4f + 4f * (1f - intensity))))
-                previous = frame
+                scroll = motion.advance(time, frame, preview != null, intensity)
             }
             if (!playing) delay(80)
             }
@@ -170,7 +168,7 @@ internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Bo
                         val scale = if (focused && chorusBoost && lines[i].time in chorusTimes && intensity > 0f) 1.02f else if (focused) 1f else .96f
                         val singer = if (duet) deeplistSinger(duetTags, metadata?.id.orEmpty(), lines[i].time) else 0
                         canvas.save(); canvas.translate(if (duet && singer == 1) size.width * .14f else if (duet && singer == 2) size.width * .07f else 0f, y); canvas.scale(scale, scale)
-                        paint.alpha = if (focused) 255 else (90 - abs(i - position) * 14).toInt().coerceIn(25, 100)
+                        paint.alpha = if (focused) 255 else (135 - abs(i - position) * 18).toInt().coerceIn(55, 135)
                         if (!focused && Build.VERSION.SDK_INT >= 31 && canvas.isHardwareAccelerated && nodes.isNotEmpty()) {
                             nodes[i].setAlpha(paint.alpha / 255f)
                             canvas.drawRenderNode(nodes[i])

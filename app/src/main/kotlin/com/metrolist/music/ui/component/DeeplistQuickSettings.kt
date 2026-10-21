@@ -67,6 +67,7 @@ internal fun DeeplistQuickSettings(onDismiss: () -> Unit) {
                             }
                         }
                         Text(stringResource(R.string.deeplist_background_hint), style = MaterialTheme.typography.bodySmall)
+                        DeeplistSongBackground()
                         if (enabled && background > 0) {
                             Text(stringResource(R.string.deeplist_background_brightness)); Slider(1f - dim, { dim = 1f - it }, valueRange = .15f..0.85f)
                             Text(stringResource(R.string.deeplist_soft_blur)); Slider(blur, { blur = it })
@@ -128,17 +129,8 @@ private fun DeeplistJourneyEditor(onDismiss: () -> Unit) {
     var instrumental by rememberPreference(DeeplistInstrumentalKey, true)
     var chorus by rememberPreference(DeeplistChorusBoostKey, true)
     var provider by rememberPreference(DeeplistVideoProviderKey, "")
-    var overrides by rememberPreference(DeeplistVideoOverridesKey, "{}")
     var choose by remember { mutableStateOf(false) }
     var showProvider by remember { mutableStateOf(false) }
-    var url by remember(track) { mutableStateOf(runCatching { JSONObject(overrides).optString(track) }.getOrDefault("")) }
-    val context = LocalContext.current
-    val pickVideo = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) runCatching {
-            context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            val root = runCatching { JSONObject(overrides) }.getOrDefault(JSONObject()); root.put(track, uri.toString()); overrides = root.toString(); url = uri.toString()
-        }
-    }
     var editingTime by remember(track) { mutableLongStateOf(connection.player.currentPosition) }
     LaunchedEffect(track) { while (true) { editingTime = connection.player.currentPosition + (song?.song?.lyricsOffset ?: 0); kotlinx.coroutines.delay(150) } }
     val cues = remember(raw, track) { deeplistCues(raw, track) }
@@ -173,8 +165,7 @@ private fun DeeplistJourneyEditor(onDismiss: () -> Unit) {
                 }) { Text(label) } } }
             }
             HorizontalDivider()
-            TextButton(onClick = { pickVideo.launch(arrayOf("video/*")) }, enabled = track.isNotBlank()) { Text(stringResource(R.string.deeplist_pick_video)) }
-            if (url.isNotBlank()) TextButton(onClick = { val root = JSONObject(overrides); root.remove(track); overrides = root.toString(); url = "" }) { Text(stringResource(R.string.deeplist_remove_video)) }
+            DeeplistSongBackground()
             TextButton(onClick = { showProvider = !showProvider }) { Text(stringResource(R.string.deeplist_video_provider)) }
             if (showProvider) {
                 Text(stringResource(R.string.deeplist_provider_hint), style = MaterialTheme.typography.bodySmall)

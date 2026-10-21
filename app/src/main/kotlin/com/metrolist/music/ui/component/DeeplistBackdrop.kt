@@ -23,6 +23,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.exoplayer.ExoPlayer
 import coil3.compose.AsyncImage
 import com.metrolist.music.constants.*
+import com.metrolist.music.lyrics.canvas.DeeplistCanvasResolver
 import com.metrolist.music.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -69,17 +70,30 @@ internal fun DeeplistBackdrop(track: String?, art: String?, title: String, artis
     val blur by rememberPreference(DeeplistBackdropBlurKey, .55f)
     val reduced by rememberPreference(DeeplistPerformanceKey, false)
     val overrides by rememberPreference(DeeplistVideoOverridesKey, "{}")
+    val songModes by rememberPreference(DeeplistSongBackdropModesKey, "{}")
+    val songMode = remember(track, songModes, overrides) { deeplistSongBackdropMode(songModes, overrides, track.orEmpty()) }
     val spotifyTracks by rememberPreference(DeeplistSpotifyTracksKey, "{}")
     val spotifyId = remember(track, spotifyTracks) { runCatching { JSONObject(spotifyTracks).optString(track.orEmpty()) }.getOrDefault("") }
     val provider by rememberPreference(DeeplistVideoProviderKey, "")
     val clock = rememberDeeplistClock(playing && !reduced && mode != 0)
-    var resolved by remember(track, overrides, provider, spotifyId) { mutableStateOf<String?>(null) }
+    var resolved by remember(track, overrides, provider, spotifyId, songMode) { mutableStateOf<String?>(null) }
+    var fallback by remember(track, overrides, provider, spotifyId, songMode) { mutableStateOf<String?>(null) }
     var failed by remember(track, resolved) { mutableStateOf(false) }
-    LaunchedEffect(track, overrides, provider, mode, enabled, spotifyId) {
+    LaunchedEffect(track, title, artist, overrides, provider, mode, enabled, spotifyId, songMode, reduced) {
         resolved = null
-        if (enabled && mode == 2) {
-            resolved = runCatching { JSONObject(overrides).optString(track.orEmpty()).takeIf { it.startsWith("https://") || it.startsWith("content://") } }.getOrNull()
-                ?: if (provider.isNotBlank()) deeplistResolveVideo(provider, title, artist) else deeplistCanvasVideo(spotifyId)
+        fallback = null
+        if (enabled && mode == 2 && !reduced && songMode != "cover") {
+            if (songMode == "custom") {
+                resolved = deeplistSongVideo(overrides, track.orEmpty())
+            } else {
+                resolved = (if (provider.isNotBlank()) deeplistResolveVideo(provider, title, artist) else null)
+                    ?: deeplistCanvasVideo(spotifyId)
+                if (resolved == null) {
+                    val artwork = DeeplistCanvasResolver.resolve(title, artist)
+                    resolved = artwork?.tallUrl ?: artwork?.url
+                    fallback = listOfNotNull(artwork?.url, artwork?.fallbackUrl).firstOrNull { it != resolved }
+                }
+            }
         }
     }
     if (!enabled || mode == 0) return
@@ -91,7 +105,11 @@ internal fun DeeplistBackdrop(track: String?, art: String?, title: String, artis
     Box(Modifier.fillMaxSize().clipToBounds()) {
         AsyncImage(art, null, contentScale = ContentScale.Crop, modifier = layer)
         if (mode == 2 && resolved != null && !failed && !reduced) {
-            DeeplistVideo(resolved!!, playing, layer) { failed = true }
+            key(resolved) {
+                DeeplistVideo(resolved!!, playing, layer) {
+                    if (fallback != null) { resolved = fallback; fallback = null } else failed = true
+                }
+            }
         }
         Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = dim.coerceIn(.15f, .85f))))
     }
@@ -107,8 +125,12 @@ private fun DeeplistVideo(url: String, playing: Boolean, modifier: Modifier, onF
         setMediaItem(MediaItem.fromUri(Uri.parse(url))); prepare()
     } }
     val latestFailure by rememberUpdatedState(onFailure)
+    var firstFrame by remember(url) { mutableStateOf(false) }
     DisposableEffect(player) {
-        val listener = object : Player.Listener { override fun onPlayerError(error: PlaybackException) { latestFailure() } }
+        val listener = object : Player.Listener {
+            override fun onPlayerError(error: PlaybackException) { latestFailure() }
+            override fun onRenderedFirstFrame() { firstFrame = true }
+        }
         player.addListener(listener)
         onDispose { player.removeListener(listener); player.release() }
     }
@@ -117,8 +139,9 @@ private fun DeeplistVideo(url: String, playing: Boolean, modifier: Modifier, onF
             try { player.playWhenReady = playing; kotlinx.coroutines.awaitCancellation() } finally { player.playWhenReady = false }
         }
     }
-    AndroidView(factory = { TextureView(it).apply { player.setVideoTextureView(this) } }, modifier = modifier,
+    AndroidView(factory = { TextureView(it).apply { isOpaque = false; alpha = 0f; player.setVideoTextureView(this) } }, modifier = modifier,
         update = { texture ->
+            texture.alpha = if (firstFrame) 1f else 0f
             val video = player.videoSize
             if (texture.width > 0 && texture.height > 0 && video.width > 0 && video.height > 0) {
                 val viewRatio = texture.width.toFloat() / texture.height
