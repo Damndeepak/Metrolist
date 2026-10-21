@@ -324,7 +324,7 @@ class MusicService :
         }
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-    internal val lyricsLoop = DeeplistLoop(scope) { player }
+    internal val lyricsLoop = DeeplistLoop(scope, { player }) { !listenTogetherManager.isInRoom || listenTogetherManager.isHost }
     private var floatingLyrics: com.metrolist.music.lyrics.FloatingLyricsController? = null
 
     private val binder = MusicBinder()

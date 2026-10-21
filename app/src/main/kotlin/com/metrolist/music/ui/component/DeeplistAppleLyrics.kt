@@ -48,7 +48,7 @@ import kotlin.math.exp
 import kotlin.math.sin
 
 @Composable
-internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Boolean, onSave: (String) -> Unit, onCorrect: (String) -> Unit) {
+internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Boolean, onSave: (String) -> Unit, onCorrect: (String) -> Unit, onToggleControls: () -> Unit) {
     val connection = LocalPlayerConnection.current ?: return
     val metadata by connection.mediaMetadata.collectAsStateWithLifecycle()
     val song by connection.currentSong.collectAsStateWithLifecycle(initialValue = null)
@@ -64,12 +64,17 @@ internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Bo
     val advanced by rememberPreference(VerciAdvancedEmojiKey, false)
     val mega by rememberPreference(VerciMegaEmojiKey, true)
     val density by rememberPreference(DeeplistEmojiDensityKey, 1)
+    val iconPack by rememberPreference(DeeplistEmojiPackKey, 0)
+    val colorIndex by rememberPreference(VerciColorKey, 0)
     val roman by rememberPreference(DeeplistRomanHindiKey, false)
+    val chorusBoost by rememberPreference(DeeplistChorusBoostKey, true)
+    val marksRaw by rememberPreference(DeeplistChorusMarksKey, "{}")
     val economy = rememberDeeplistEconomy(playing, auto, metadata?.id) || reduce
     val lines by produceState(emptyList<LyricsEntry>(), source) {
         value = withContext(Dispatchers.Default) { LyricsUtils.parseLyrics(source).filter { !it.isBackground && it.text.isNotBlank() }.sortedBy { it.time } }
     }
     val displayLines = remember(lines, roman) { if (roman) lines.map { it.copy(text = deeplistRomanHindi(it.text), words = null) } else lines }
+    val chorusTimes = remember(lines, marksRaw, metadata?.id) { deeplistChorusLines(lines, deeplistChorusMarks(marksRaw, metadata?.id.orEmpty())) }
     val words = remember(lines) { buildVerciWords(lines) }
     val corrections = remember(correctionsRaw) { runCatching { decodeEmojiCorrections(correctionsRaw) }.getOrDefault(emptyList()) }
     val icons = remember(words, corrections, metadata?.id, basic, advanced, mega, density) {
@@ -101,7 +106,7 @@ internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Bo
                     else scroll + (target - scroll) * (1f - exp(-dt * (8f + 8f * (1f - intensity))))
                 previous = frame
             }
-            if (!playing || economy) delay(40)
+            if (!playing) delay(80)
             }
         }
     }
@@ -115,7 +120,9 @@ internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Bo
             .semantics { contentDescription = activeText }
             .pointerInput(displayLines, canSeek, offset) {
                 detectTapGestures(onTap = { point ->
-                    if (canSeek) hitLines.firstOrNull { point.y in it.second..it.third }?.let { connection.seekTo((lines[it.first].time - offset).coerceAtLeast(0)) }
+                    val hit = hitLines.firstOrNull { point.y in it.second..it.third }
+                    if (canSeek && hit != null) connection.seekTo((lines[hit.first].time - offset).coerceAtLeast(0))
+                    else onToggleControls()
                 }, onLongPress = { point ->
                     if (!locked) hitLines.firstOrNull { point.y in it.second..it.third }?.let { onSave(lines[it.first].text) }
                 }, onDoubleTap = { point ->
@@ -140,14 +147,18 @@ internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Bo
                     }
                 } else emptyList()
                 val timed = lines.mapIndexed { i, line -> if (line.words.isNullOrEmpty() || roman) emptyList() else deeplistMotionWords(line, lines.getOrNull(i + 1)?.time) }
-                val iconPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.textSize = 30.dp.toPx() }
+                val moods = lines.map { deeplistLyricMood(it.text) }
+                val iconPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    this.textSize = 30.dp.toPx()
+                    if (iconPack > 0) colorFilter = android.graphics.PorterDuffColorFilter(if (iconPack == 1) android.graphics.Color.WHITE else verciColors[colorIndex.coerceIn(0, 4)], android.graphics.PorterDuff.Mode.SRC_IN)
+                }
                 onDrawBehind {
                     if (layouts.isEmpty()) return@onDrawBehind
                     val position = scroll.coerceIn(0f, layouts.lastIndex.toFloat())
                     val index = position.toInt()
                     val fraction = position - index
                     val base = starts[index] + (starts[minOf(index + 1, layouts.lastIndex)] - starts[index]) * fraction
-                    val current = active.coerceIn(0, layouts.lastIndex)
+                    val current = active
                     val canvas = drawContext.canvas.nativeCanvas
                     hitLines.clear()
                     for (i in (index - 3).coerceAtLeast(0)..(index + 4).coerceAtMost(layouts.lastIndex)) {
@@ -156,11 +167,11 @@ internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Bo
                         if (y + layout.height < 0 || y > size.height) continue
                         hitLines.add(Triple(i, y, y + layout.height))
                         val focused = i == current
-                        val scale = if (focused) 1f else .96f
+                        val scale = if (focused && chorusBoost && lines[i].time in chorusTimes && intensity > 0f) 1.02f else if (focused) 1f else .96f
                         canvas.save(); canvas.translate(0f, y); canvas.scale(scale, scale)
                         paint.alpha = if (focused) 255 else (90 - abs(i - position) * 14).toInt().coerceIn(25, 100)
                         if (!focused && Build.VERSION.SDK_INT >= 31 && canvas.isHardwareAccelerated && nodes.isNotEmpty()) {
-                            nodes[i].alpha = paint.alpha / 255f
+                            nodes[i].setAlpha(paint.alpha / 255f)
                             canvas.drawRenderNode(nodes[i])
                         } else {
                             paint.color = android.graphics.Color.WHITE
@@ -177,7 +188,7 @@ internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Bo
                                         val start = maxOf(word.startChar, layout.getLineStart(line))
                                         val end = minOf(word.endChar, layout.getLineEnd(line))
                                         val left = layout.getPrimaryHorizontal(start)
-                                        val right = layout.getPrimaryHorizontal(end)
+                                        val right = if (end >= layout.getLineEnd(line)) layout.getLineRight(line) else layout.getPrimaryHorizontal(end)
                                         canvas.save()
                                         canvas.clipRect(minOf(left, right), layout.getLineTop(line).toFloat(), minOf(left, right) + abs(right - left) * progress, layout.getLineBottom(line).toFloat())
                                         paint.alpha = 255; layout.draw(canvas); canvas.restore()
@@ -191,7 +202,13 @@ internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Bo
                     val currentWord = words.getOrNull(wordIndex)
                     if (currentWord != null && time in currentWord.start..currentWord.end) {
                         val icon = icons.getOrNull(wordIndex).orEmpty().joinToString("")
-                        if (icon.isNotEmpty()) canvas.drawText(icon, 0f, size.height - 8.dp.toPx(), iconPaint)
+                        if (icon.isNotEmpty()) {
+                            val mood = moods.getOrElse(active) { 0 }
+                            iconPaint.alpha = if (mood < 0) 150 else 255
+                            val progress = ((time - currentWord.start).toFloat() / (currentWord.end - currentWord.start).coerceAtLeast(1)).coerceIn(0f, 1f)
+                            val bounce = if (mood > 0 && !economy) sin(progress * Math.PI).toFloat() * 8.dp.toPx() * intensity else 0f
+                            canvas.drawText(icon, 0f, size.height - 8.dp.toPx() - bounce, iconPaint)
+                        }
                     }
                 }
             }) {}

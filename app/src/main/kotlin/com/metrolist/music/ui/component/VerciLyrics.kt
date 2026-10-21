@@ -128,7 +128,6 @@ fun VerciLyrics(
     var correctPhrase by remember { mutableStateOf<String?>(null) }
     var actions by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
-    val scope = androidx.compose.runtime.rememberCoroutineScope()
     fun saveLine(text: String) {
         val track = metadata ?: return
         saved = deeplistSaveLyric(saved, DeeplistSavedLyric(text, track.title, track.artists.joinToString { it.name }))
@@ -185,7 +184,9 @@ fun VerciLyrics(
         val stage = if (recording) Modifier.fillMaxWidth().aspectRatio(9f / 16f, matchHeightConstraintsFirst = maxWidth / maxHeight > 9f / 16f) else Modifier.fillMaxSize()
         Box(stage) {
         if (renderer == VerciStyle.APPLE) {
-            DeeplistAppleLyrics(source.orEmpty(), previewProvider, locked, { saveLine(it) }, { correctPhrase = it })
+            key(metadata?.id, source) {
+                DeeplistAppleLyrics(source.orEmpty(), previewProvider, locked, { saveLine(it) }, { correctPhrase = it }, { controls = !controls })
+            }
         } else
         key(metadata?.id, source) {
             val words by produceState<List<VerciWord>?>(null, source) {
@@ -266,6 +267,16 @@ private fun VerciWordCanvas(words: List<VerciWord>, gaps: List<VerciGap>, slider
     val preparedIcons = remember(words, corrections, song?.song?.id, advanced, emojis, mega, iconDensity) {
         deeplistEmojiTimeline(words, song?.song?.id.orEmpty(), corrections, advanced, emojis, mega, iconDensity)
     }
+    val chorusBoost by rememberPreference(DeeplistChorusBoostKey, true)
+    val marksRaw by rememberPreference(DeeplistChorusMarksKey, "{}")
+    val lyricsEntity by connection.currentLyrics.collectAsStateWithLifecycle(initialValue = null)
+    val chorusFlags = remember(words, lyricsEntity?.lyrics, marksRaw, song?.song?.id) {
+        val lines = LyricsUtils.parseLyrics(lyricsEntity?.takeIf { it.id == song?.song?.id }?.lyrics.orEmpty()).filter { !it.isBackground }.sortedBy { it.time }
+        val chorus = deeplistChorusLines(lines, deeplistChorusMarks(marksRaw, song?.song?.id.orEmpty()))
+        val times = lines.map { it.time }
+        words.map { word -> lines.getOrNull(wordstormLineIndex(times, word.start))?.time?.let { it in chorus } == true }
+    }
+    val moods = remember(words) { words.indices.map { i -> deeplistLyricMood(words.subList((i - 4).coerceAtLeast(0), (i + 5).coerceAtMost(words.size)).joinToString(" ") { it.text }) } }
     val heartbeat = remember { VerciHeartbeat() }
     var pulse by remember { mutableFloatStateOf(0f) }
     val particles by rememberPreference(com.metrolist.music.constants.VerciParticlesKey, false)
@@ -326,12 +337,11 @@ private fun VerciWordCanvas(words: List<VerciWord>, gaps: List<VerciGap>, slider
                             clock.reset()
                             preview + offset
                         } else clock.position(player.currentPosition, frame, player.playbackParameters.speed) + offset
-                        val target = verciScrollPosition(words, time)
+                        val target = if (animation == 0f) verciWordIndex(words, time).toFloat() else verciScrollPosition(words, time)
                         scroll = if (preview != null || previousFrame == 0L || kotlin.math.abs(target - scroll) > 2f) target
                             else verciDampPosition(scroll, target, frame - previousFrame)
                         previousFrame = frame
                     }
-                    if (economy) delay(16)
                 }
             } else {
                 snapshotFlow { Pair(slider(), offset) }.collect { (preview, adjustment) ->
@@ -446,7 +456,7 @@ private fun VerciWordCanvas(words: List<VerciWord>, gaps: List<VerciGap>, slider
                         val iconWidth = if (hasIcons && !giant) emojiWidths[i] + fontPx * .18f else 0f
                         val fit = min(1f, (size.width * (if (giant) .90f else .84f) - abs(drift) * 2).coerceAtLeast(size.width * .35f) / (widths[i] + iconWidth))
                         val progress = ((now - word.start).toFloat() / (word.end - word.start)).coerceIn(0f, 1f)
-                        val pop = if (i == active && animation > 0f) sin(progress * Math.PI).toFloat() * .07f * animation else 0f
+                        val pop = if (i == active && animation > 0f) sin(progress * Math.PI).toFloat() * (if (chorusBoost && chorusFlags[i]) .1f else .07f) * animation else 0f
                         val alpha = ((1 - .22f * distance).coerceIn(0f, 1f) * 255).toInt()
                         c.save()
                         c.translate(size.width / 2 + drift, size.height / 2 + y)
@@ -473,7 +483,8 @@ private fun VerciWordCanvas(words: List<VerciWord>, gaps: List<VerciGap>, slider
                         }
                         if (hasIcons) {
                             emojiPaint.alpha = if (i == active) alpha else (alpha * .3f).toInt()
-                            val effect = if (i == active && !economy) animation * sin(progress * Math.PI).toFloat() else 0f
+                            val mood = moods[i]
+                            val effect = if (i == active && !economy) animation * sin(progress * Math.PI).toFloat() * if (mood < 0) .35f else if (mood > 0) 1.2f else 1f else 0f
                             val icons = displayIcons[i]
                             icons.forEachIndexed { j, icon ->
                                 val iconX = if (giant) (j - icons.size / 2f) * emojiWidths[i] else x + widths[i] + fontPx * .18f

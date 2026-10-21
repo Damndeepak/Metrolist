@@ -10,7 +10,7 @@ internal data class SetupField(val key: String, val default: Any, val min: Doubl
 internal object DeeplistSetup {
     private const val MAX_LENGTH = 240_000
     val fields = listOf(
-        SetupField(WordstormEnabledKey.name, true), SetupField(VerciLyricsKey.name, true),
+        SetupField(WordstormEnabledKey.name, true), SetupField(VerciLyricsKey.name, false),
         SetupField(VerciStyleKey.name, VerciStyle.FISHEYE.name, choices = VerciStyle.entries.map { it.name }.toSet()),
         SetupField(VerciFontKey.name, VerciFont.BOLD.name, choices = VerciFont.entries.map { it.name }.toSet()),
         SetupField(VerciTextSizeKey.name, 52f, 28.0, 160.0), SetupField(VerciSpacingKey.name, 1f, .75, 1.35),
@@ -31,7 +31,7 @@ internal object DeeplistSetup {
         SetupField(DeeplistWordBrightnessKey.name, .23f, .07, .32), SetupField(DeeplistRingsKey.name, true),
         SetupField(DeeplistGlowKey.name, .4f), SetupField(DeeplistSparksKey.name, .65f),
         SetupField(DeeplistLiftKey.name, 7f, 0.0, 14.0), SetupField(DeeplistFlightKey.name, .43f, .2, .65),
-        SetupField(DeeplistGesturesKey.name, true),
+        SetupField(DeeplistGesturesKey.name, true), SetupField(DeeplistChorusBoostKey.name, true),
     )
     fun snapshot(preferences: Preferences, corrections: Boolean = true): String {
         val values = JSONObject()
@@ -55,7 +55,7 @@ internal object DeeplistSetup {
         val json = if (value.startsWith("DPL1.")) String(Base64.getUrlDecoder().decode(value.substring(5)), Charsets.UTF_8) else value
         require(json.length <= MAX_LENGTH)
         val root = JSONObject(json)
-        require(root.getString("format") == "deeplist-setup" && root.getInt("version") == 1)
+        require(root.getString("format") == "deeplist-setup" && root.get("version") == 1)
         val settings = root.getJSONObject("settings")
         require(settings.length() <= fields.size + 1)
         val valid = fields.associateBy { it.key }

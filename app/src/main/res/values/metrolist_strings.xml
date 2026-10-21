@@ -1184,4 +1184,8 @@
     <string name="deeplist_sleep_timer">Sleep timer</string>
     <string name="deeplist_minutes">%1$d min</string>
     <string name="deeplist_unlock">Unlock</string>
+    <string name="deeplist_chorus_boost">Chorus emphasis</string>
+    <string name="deeplist_chorus_hint">Repeated lines get extra emphasis. You can also mark a line manually.</string>
+    <string name="deeplist_mark_chorus">Mark current line as chorus</string>
+    <string name="deeplist_clear_chorus">Clear manual chorus marks for this song</string>
 </resources>

@@ -30,9 +30,12 @@ internal fun decodeEmojiCorrections(value: String): List<EmojiCorrection> {
     }.distinctBy { it.song to it.phrase }
 }
 
-internal fun encodeEmojiCorrections(items: List<EmojiCorrection>): String = JSONArray().apply {
-    items.take(500).forEach { put(JSONObject().put("phrase", it.phrase).put("emoji", it.emoji).put("song", it.song)) }
+internal fun encodeEmojiCorrections(items: List<EmojiCorrection>): String {
+    require(items.size <= 500)
+    return JSONArray().apply {
+    items.forEach { put(JSONObject().put("phrase", it.phrase).put("emoji", it.emoji).put("song", it.song)) }
 }.toString()
+}
 
 internal fun saveEmojiCorrection(value: String, correction: EmojiCorrection): String {
     val clean = correction.copy(phrase = emojiPhrase(correction.phrase), emoji = correction.emoji.trim())
@@ -43,7 +46,7 @@ internal fun saveEmojiCorrection(value: String, correction: EmojiCorrection): St
 }
 
 private val phraseEmojis = mapOf(
-    "cold heart" to "🧊🖤", "broken heart" to "💔", "broken dreams" to "💔💭",
+    "kho gaya" to "🧭", "खो गया" to "🧭", "cold heart" to "🧊🖤", "broken heart" to "💔", "broken dreams" to "💔💭",
     "fall in love" to "🥰", "falling in love" to "🥰", "not happy" to "😔", "not afraid" to "💪",
     "no tears" to "🫶", "miss you" to "🥀", "without you" to "🥀", "feel blue" to "😔",
     "feeling blue" to "😔", "blue eyes" to "💙👀", "my baby" to "🫶", "baby girl" to "🫶",
@@ -63,6 +66,7 @@ internal fun deeplistEmojiTimeline(
     val tokens = words.map { emojiToken(it.text) }
     val custom = corrections.filter { it.song.isEmpty() || it.song == song }
         .sortedBy { if (it.song == song) 1 else 0 }.associate { it.phrase to it.emoji }
+    val occurrences = mutableMapOf<String, Int>()
     var i = 0
     while (i < words.size) {
         var matched = false
@@ -78,7 +82,11 @@ internal fun deeplistEmojiTimeline(
         }
         if (matched) continue
         if (density != 0 || i % 3 == 0) {
-            val bundle = verciEmojiBundle(words[i].text, advanced, basic, mega)
+            val token = tokens[i]
+            val count = occurrences[token] ?: 0
+            occurrences[token] = count + 1
+            val original = verciEmojiBundle(words[i].text, advanced, basic, mega)
+            val bundle = if (advanced && mega && original.isNotEmpty()) verciRepeatedEmoji(words[i].text, count, original) else original
             result[i] = bundle.take(if (density == 2) 2 else 1)
         }
         i++

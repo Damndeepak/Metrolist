@@ -34,6 +34,7 @@ internal fun DeeplistSetupDialog(onDismiss: () -> Unit) {
     var includeCorrections by remember { mutableStateOf(true) }
     var status by remember { mutableStateOf<Int?>(null) }
     var preview by remember { mutableStateOf<Map<String, Any>?>(null) }
+    var selected by remember { mutableStateOf<Set<String>>(emptySet()) }
     var busy by remember { mutableStateOf(false) }
     val errorText = stringResource(R.string.deeplist_setup_invalid)
     val readFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -57,7 +58,8 @@ internal fun DeeplistSetupDialog(onDismiss: () -> Unit) {
         }
     }
     fun applyImport(replace: Boolean) {
-        val values = preview ?: return
+        val values = preview?.filterKeys { it in selected } ?: return
+        if (values.isEmpty()) return
         scope.launch {
             busy = true
             runCatching { context.dataStore.edit { prefs ->
@@ -88,16 +90,19 @@ internal fun DeeplistSetupDialog(onDismiss: () -> Unit) {
             OutlinedTextField(text, { text = it.take(240_000); preview = null; status = null }, label = { Text(stringResource(R.string.deeplist_paste_setup)) }, maxLines = 4)
             TextButton(onClick = { readFile.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) }) { Text(stringResource(R.string.deeplist_import_file)) }
             TextButton(onClick = {
-                runCatching { DeeplistSetup.decode(text) }.onSuccess { preview = it; status = null }.onFailure { preview = null; status = R.string.deeplist_setup_invalid }
+                runCatching { DeeplistSetup.decode(text) }.onSuccess { preview = it; selected = it.keys; status = null }.onFailure { preview = null; status = R.string.deeplist_setup_invalid }
             }, enabled = text.isNotBlank() && !busy) { Text(stringResource(R.string.deeplist_preview_import)) }
             preview?.let { values ->
-                Text(stringResource(R.string.deeplist_import_count, values.size))
+                Text(stringResource(R.string.deeplist_import_count, selected.size))
                 values.forEach { (key, value) ->
-                    val label = key.replace(Regex("([a-z])([A-Z])"), "$1 $2").replaceFirstChar { it.uppercase() }
-                    Text(if (key == DeeplistEmojiCorrectionsKey.name) stringResource(R.string.deeplist_correction_count, decodeEmojiCorrections(value as String).size) else "$label: $value", style = MaterialTheme.typography.bodySmall)
+                    val label = deeplistSetupLabel(key)
+                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Checkbox(key in selected, { checked -> selected = if (checked) selected + key else selected - key })
+                        Text(if (key == DeeplistEmojiCorrectionsKey.name) stringResource(R.string.deeplist_correction_count, decodeEmojiCorrections(value as String).size) else "$label: $value", style = MaterialTheme.typography.bodySmall)
+                    }
                 }
-                TextButton(onClick = { applyImport(false) }, enabled = !busy) { Text(stringResource(R.string.deeplist_merge_setup)) }
-                TextButton(onClick = { applyImport(true) }, enabled = !busy) { Text(stringResource(R.string.deeplist_replace_setup)) }
+                TextButton(onClick = { applyImport(false) }, enabled = !busy && selected.isNotEmpty()) { Text(stringResource(R.string.deeplist_merge_setup)) }
+                TextButton(onClick = { applyImport(true) }, enabled = !busy && selected.isNotEmpty()) { Text(stringResource(R.string.deeplist_replace_setup)) }
             }
             TextButton(onClick = { scope.launch {
                 runCatching { context.dataStore.edit { prefs ->
@@ -116,7 +121,9 @@ internal fun DeeplistSetupDialog(onDismiss: () -> Unit) {
 internal fun DeeplistEmojiEditor(songId: String?, initialPhrase: String = "", onDismiss: () -> Unit) {
     var raw by com.metrolist.music.utils.rememberPreference(DeeplistEmojiCorrectionsKey, "[]")
     val corrections = remember(raw) { runCatching { decodeEmojiCorrections(raw) }.getOrDefault(emptyList()) }
-    var phrase by remember { mutableStateOf(initialPhrase) }
+    val targetSong = remember { songId }
+    var editing by remember { mutableStateOf<EmojiCorrection?>(null) }
+    var phrase by remember { mutableStateOf(initialPhrase.take(100)) }
     var icon by remember { mutableStateOf("") }
     var onlySong by remember { mutableStateOf(songId != null) }
     var error by remember { mutableStateOf(false) }
@@ -130,13 +137,13 @@ internal fun DeeplistEmojiEditor(songId: String?, initialPhrase: String = "", on
                 Switch(onlySong, { onlySong = it }, enabled = songId != null)
             }
             TextButton(onClick = {
-                runCatching { saveEmojiCorrection(raw, EmojiCorrection(phrase, icon, if (onlySong) songId.orEmpty() else "")) }
-                    .onSuccess { raw = it; phrase = ""; icon = "" }.onFailure { error = true }
+                runCatching { saveEmojiCorrection(if (editing != null) encodeEmojiCorrections(corrections - editing!!) else raw, EmojiCorrection(phrase, icon, if (onlySong) targetSong.orEmpty() else "")) }
+                    .onSuccess { raw = it; phrase = ""; icon = ""; editing = null }.onFailure { error = true }
             }, enabled = phrase.isNotBlank()) { Text(stringResource(R.string.deeplist_save_correction)) }
             if (error) Text(stringResource(R.string.deeplist_setup_invalid))
-            corrections.filter { it.song.isEmpty() || it.song == songId }.forEach { rule ->
+            corrections.filter { it.song.isEmpty() || it.song == targetSong }.forEach { rule ->
                 Row {
-                    TextButton(onClick = { phrase = rule.phrase; icon = rule.emoji; onlySong = rule.song.isNotEmpty() }, Modifier.weight(1f)) {
+                    TextButton(onClick = { editing = rule; phrase = rule.phrase; icon = rule.emoji; onlySong = rule.song.isNotEmpty() }, Modifier.weight(1f)) {
                         Text("${rule.phrase} → ${rule.emoji.ifEmpty { "∅" }} · " + stringResource(if (rule.song.isEmpty()) R.string.deeplist_all_songs else R.string.deeplist_only_song))
                     }
                     TextButton(onClick = { raw = encodeEmojiCorrections(corrections - rule) }) { Text(stringResource(R.string.delete)) }
@@ -144,4 +151,55 @@ internal fun DeeplistEmojiEditor(songId: String?, initialPhrase: String = "", on
             }
         }
     }, confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.wordstorm_done)) } })
+}
+
+@Composable
+private fun deeplistSetupLabel(key: String): String {
+    val label = when (key) {
+        WordstormEnabledKey.name -> R.string.wordstorm_settings
+        VerciLyricsKey.name -> R.string.verci_lyrics
+        VerciStyleKey.name -> R.string.verci_style
+        VerciFontKey.name -> R.string.verci_font
+        VerciTextSizeKey.name -> R.string.verci_text_size
+        VerciSpacingKey.name -> R.string.verci_spacing
+        VerciBrightnessKey.name -> R.string.verci_brightness
+        VerciColorKey.name -> R.string.verci_colors
+        VerciNeonKey.name -> R.string.verci_neon
+        VerciEmojiKey.name -> R.string.verci_emojis
+        VerciAudioReactiveKey.name -> R.string.verci_audio_reactive
+        VerciAdvancedEmojiKey.name -> R.string.verci_advanced_emojis
+        VerciMegaEmojiKey.name -> R.string.verci_mega_emojis
+        VerciCameraRingKey.name -> R.string.verci_camera_ring
+        VerciParticlesKey.name -> R.string.verci_particles
+        VerciClockKey.name -> R.string.verci_clock
+        VerciBeatLiftKey.name -> R.string.verci_beat_lift
+        VerciDoubleTapKey.name -> R.string.verci_double_tap
+        VerciSwipeKey.name -> R.string.verci_swipe
+        DeeplistEmojiDensityKey.name -> R.string.deeplist_emoji_density
+        DeeplistEmojiPackKey.name -> R.string.deeplist_emoji_pack
+        DeeplistSoftBlurKey.name -> R.string.deeplist_soft_blur
+        DeeplistAnimationKey.name -> R.string.deeplist_animation_intensity
+        DeeplistArtworkBackgroundKey.name -> R.string.deeplist_artwork_background
+        DeeplistAutoPerformanceKey.name -> R.string.deeplist_auto_performance
+        DeeplistPerformanceKey.name -> R.string.deeplist_reduce_effects
+        WordstormFontSizeKey.name -> R.string.wordstorm_size
+        WordstormMotionKey.name -> R.string.wordstorm_motion_on
+        WordstormCoverKey.name -> R.string.wordstorm_cover
+        WordstormAccentKey.name -> R.string.verci_colors
+        DeeplistNeonKey.name -> R.string.deeplist_neon
+        DeeplistSpeedKey.name -> R.string.deeplist_speed
+        DeeplistContextKey.name -> R.string.deeplist_context_on
+        DeeplistDensityKey.name -> R.string.deeplist_density
+        DeeplistRainSpeedKey.name -> R.string.deeplist_rain_speed
+        DeeplistWordBrightnessKey.name -> R.string.deeplist_word_brightness
+        DeeplistRingsKey.name -> R.string.deeplist_rings
+        DeeplistGlowKey.name -> R.string.deeplist_glow
+        DeeplistSparksKey.name -> R.string.deeplist_sparks
+        DeeplistLiftKey.name -> R.string.deeplist_lift
+        DeeplistFlightKey.name -> R.string.deeplist_flight
+        DeeplistGesturesKey.name -> R.string.deeplist_gestures
+        DeeplistChorusBoostKey.name -> R.string.deeplist_chorus_boost
+        else -> R.string.verci_style
+    }
+    return stringResource(label)
 }

@@ -51,6 +51,8 @@ internal fun DeeplistTools(onDismiss: () -> Unit) {
     var automatic by rememberPreference(DeeplistAutoPerformanceKey, true)
     var reduced by rememberPreference(DeeplistPerformanceKey, false)
     var roman by rememberPreference(DeeplistRomanHindiKey, false)
+    var chorus by rememberPreference(DeeplistChorusBoostKey, true)
+    var marksRaw by rememberPreference(DeeplistChorusMarksKey, "{}")
     var recording by rememberPreference(VerciRecordingKey, false)
     var touchLock by rememberPreference(DeeplistTouchLockKey, false)
     var status by remember { mutableStateOf<Int?>(null) }
@@ -99,6 +101,24 @@ internal fun DeeplistTools(onDismiss: () -> Unit) {
                 listOf(R.string.deeplist_classic, R.string.deeplist_monochrome, R.string.deeplist_neon_pack).forEachIndexed { i, label ->
                     FilterChip(selected = pack == i, onClick = { pack = i }, label = { Text(stringResource(label)) })
                 }
+                ToolSwitch(R.string.deeplist_chorus_boost, chorus) { chorus = it }
+                Text(stringResource(R.string.deeplist_chorus_hint), style = MaterialTheme.typography.bodySmall)
+                TextButton(onClick = {
+                    val id = trackId ?: return@TextButton
+                    val source = entity?.takeIf { it.id == id }?.lyrics ?: return@TextButton
+                    val song = connection?.currentSong?.value?.takeIf { it.song.id == id }
+                    val now = (connection?.player?.currentPosition ?: 0L) + (song?.song?.lyricsOffset ?: 0)
+                    val line = LyricsUtils.parseLyrics(source).filter { !it.isBackground && it.text.isNotBlank() }.lastOrNull { it.time <= now } ?: return@TextButton
+                    val marks = runCatching { JSONObject(marksRaw) }.getOrDefault(JSONObject())
+                    val marked = deeplistChorusMarks(marksRaw, id) + emojiPhrase(line.text)
+                    if (marked.size <= 50 && (marks.has(id) || marks.length() < 300)) {
+                        marks.put(id, org.json.JSONArray(marked.toList())); marksRaw = marks.toString()
+                    }
+                }, enabled = trackId != null) { Text(stringResource(R.string.deeplist_mark_chorus)) }
+                TextButton(onClick = {
+                    val marks = runCatching { JSONObject(marksRaw) }.getOrDefault(JSONObject())
+                    marks.remove(trackId.orEmpty()); marksRaw = marks.toString()
+                }) { Text(stringResource(R.string.deeplist_clear_chorus)) }
                 Text(stringResource(R.string.deeplist_soft_blur))
                 Slider(blur.coerceIn(0f, 1f), { blur = it }, valueRange = 0f..1f)
                 Text(stringResource(R.string.deeplist_animation_intensity))
@@ -111,7 +131,7 @@ internal fun DeeplistTools(onDismiss: () -> Unit) {
                     val id = trackId ?: return@launch
                     val json = DeeplistSetup.snapshot(context.dataStore.data.first(), false)
                     val styles = runCatching { JSONObject(songStyles) }.getOrDefault(JSONObject())
-                    require(styles.length() < 300 || styles.has(id))
+                    if (styles.length() >= 300 && !styles.has(id)) { status = R.string.deeplist_setup_invalid; return@launch }
                     styles.put(id, json); songStyles = styles.toString(); status = R.string.deeplist_style_saved
                 } }, enabled = trackId != null) { Text(stringResource(R.string.deeplist_save_song_style)) }
                 TextButton(onClick = {

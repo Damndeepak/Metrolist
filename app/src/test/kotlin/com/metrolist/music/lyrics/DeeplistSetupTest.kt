@@ -11,11 +11,11 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class DeeplistSetupTest {
     @Test fun `setup round trip preserves appearance but excludes credentials and history`() {
-        val prefs = mutablePreferencesOf(VerciTextSizeKey to 160f, VerciStyleKey to "APPLE", DeeplistTokenKey to "private-token", DeeplistWebsiteKey to "https://private.example", DeeplistSavedLyricsKey to "private history")
+        val prefs = mutablePreferencesOf().apply { this[VerciTextSizeKey] = 160f; this[VerciStyleKey] = "APPLE"; this[DeeplistTokenKey] = "private-token"; this[DeeplistWebsiteKey] = "https://private.example"; this[DeeplistSavedLyricsKey] = "private history" }
         val json = DeeplistSetup.snapshot(prefs)
         assertFalse(json.contains("private"))
         val imported = DeeplistSetup.decode(DeeplistSetup.shareCode(json))
-        val destination = mutablePreferencesOf(DeeplistTokenKey to "keep-token")
+        val destination = mutablePreferencesOf().apply { this[DeeplistTokenKey] = "keep-token" }
         DeeplistSetup.apply(destination, imported, true)
         assertEquals(160f, destination[VerciTextSizeKey])
         assertEquals("APPLE", destination[VerciStyleKey])
@@ -38,7 +38,7 @@ class DeeplistSetupTest {
     @Test fun `merge retains unrelated settings and corrections while replace resets appearance only`() {
         val original = encodeEmojiCorrections(listOf(EmojiCorrection("rain", "🌧️")))
         val incoming = encodeEmojiCorrections(listOf(EmojiCorrection("heart", "🖤")))
-        val prefs = mutablePreferencesOf(VerciTextSizeKey to 80f, DeeplistEmojiCorrectionsKey to original, DeeplistTokenKey to "token")
+        val prefs = mutablePreferencesOf().apply { this[VerciTextSizeKey] = 80f; this[DeeplistEmojiCorrectionsKey] = original; this[DeeplistTokenKey] = "token" }
         DeeplistSetup.apply(prefs, mapOf(VerciColorKey.name to 3, DeeplistEmojiCorrectionsKey.name to incoming), false)
         assertEquals(80f, prefs[VerciTextSizeKey])
         assertEquals(2, decodeEmojiCorrections(prefs[DeeplistEmojiCorrectionsKey]!!).size)

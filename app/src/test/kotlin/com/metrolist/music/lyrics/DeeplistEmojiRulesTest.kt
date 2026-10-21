@@ -37,4 +37,21 @@ class DeeplistEmojiRulesTest {
         assertEquals(listOf(EmojiCorrection("cold heart", "💙", "song")), decodeEmojiCorrections(value))
         assertTrue(runCatching { saveEmojiCorrection("[]", EmojiCorrection("!!!", "💙")) }.isFailure)
     }
+    @Test fun `repeated words vary without changing custom corrections`() {
+        val result = deeplistEmojiTimeline(words("love", "love", "love"), "song", emptyList(), true, true, true, 2)
+        assertNotEquals(result[0], result[1])
+        val custom = deeplistEmojiTimeline(words("love", "love"), "song", listOf(EmojiCorrection("love", "🖤")), true, true, true, 2)
+        assertEquals(custom[0], custom[1])
+    }
+    @Test fun `chorus emphasis uses repeated lines or explicit marks`() {
+        val lines = listOf(LyricsEntry(0, "Hello world"), LyricsEntry(1000, "One verse"), LyricsEntry(2000, "Hello world"), LyricsEntry(3000, "Solo line"))
+        assertEquals(setOf(0L, 2000L), deeplistChorusLines(lines, emptySet()))
+        assertEquals(setOf(0L, 2000L, 3000L), deeplistChorusLines(lines, setOf("solo line")))
+    }
+    @Test fun `mood rules are conservative and bilingual`() {
+        assertEquals(-1, deeplistLyricMood("I feel lonely"))
+        assertEquals(1, deeplistLyricMood("नाच झूम"))
+        assertEquals(0, deeplistLyricMood("ordinary unmatched words"))
+    }
+
 }

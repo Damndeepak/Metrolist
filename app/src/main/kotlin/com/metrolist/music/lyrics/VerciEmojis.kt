@@ -242,7 +242,7 @@ private val verciMegaVocabulary = mapOf(
     "door" to listOf("🚪", "🔓"),
     "open" to listOf("🔓", "🚪"),
     "closed" to listOf("🙈", "🔒"),
-    "heart" to listOf("💔", "💘", "❤️‍🔥"),
+    "heart" to listOf("❤️", "💓", "❤️‍🔥"),
     "mind" to listOf("🧠", "💭", "🤯"),
     "honest" to listOf("💯", "🤞🏻", "🫡"),
     "pray" to listOf("🙏🏻", "✨", "🕊️"),
@@ -308,3 +308,9 @@ private val verciMegaVocabulary = mapOf(
     "medicine" to listOf("💊", "🩺"),
     "beat" to listOf("💓", "🥁", "⚡"),
 )
+
+internal fun verciRepeatedEmoji(text: String, occurrence: Int, fallback: List<String>): List<String> {
+    val pool = verciMegaVocabulary[emojiToken(text)] ?: return fallback
+    if (pool.isEmpty() || occurrence == 0) return fallback
+    return listOf(pool[occurrence % pool.size])
+}
