@@ -38,6 +38,7 @@ internal fun DeeplistSongBackground() {
     val raw by rememberPreference(DeeplistSongBackdropModesKey, "{}")
     val videos by rememberPreference(DeeplistVideoOverridesKey, "{}")
     val mode = deeplistSongBackdropMode(raw, videos, track)
+    val reduced by rememberPreference(DeeplistPerformanceKey, false)
     var failed by remember(track) { mutableStateOf(false) }
     fun changeMode(value: String) { scope.launch { context.dataStore.edit { prefs ->
         val modes = runCatching { JSONObject(prefs[DeeplistSongBackdropModesKey] ?: "{}") }.getOrDefault(JSONObject())
@@ -72,6 +73,8 @@ internal fun DeeplistSongBackground() {
         val modes = runCatching { JSONObject(prefs[DeeplistSongBackdropModesKey] ?: "{}") }.getOrDefault(JSONObject())
         values.remove(track); modes.put(track, "auto")
         prefs[DeeplistVideoOverridesKey] = values.toString(); prefs[DeeplistSongBackdropModesKey] = modes.toString()
+        prefs[DeeplistArtworkBackgroundKey] = true; prefs[DeeplistBackdropModeKey] = 2
     } } }) { Text(stringResource(R.string.deeplist_remove_video)) }
+    if (reduced) Text(stringResource(R.string.deeplist_video_reduced_hint), style = MaterialTheme.typography.bodySmall)
     if (failed) Text(stringResource(R.string.deeplist_video_permission_failed), color = MaterialTheme.colorScheme.error)
 }

@@ -1200,6 +1200,7 @@
     <string name="deeplist_background_hint">Auto looks for matching animated artwork; when none is available, the cover moves softly. You can choose a video separately for every song. Online lookup sends the song title and artist to artwork providers.</string>
     <string name="deeplist_this_song_background">This song: %1$s</string>
     <string name="deeplist_my_video">My video</string>
+    <string name="deeplist_video_reduced_hint">Reduced effects is on. Turn it off in Advanced to play background videos.</string>
     <string name="deeplist_video_permission_failed">Could not save access to this video. Choose it from a local folder and try again.</string>
     <string name="deeplist_background_brightness">Background brightness</string>
     <string name="deeplist_song_journey">Song journey &amp; scenes</string>
