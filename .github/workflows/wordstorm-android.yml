@@ -2,7 +2,7 @@ name: Deeplist Android APK
 
 on:
   push:
-    branches: [wordstorm-build]
+    branches: [wordstorm-build, feat/deeplist-lyrics-studio]
   workflow_dispatch:
 
 permissions:

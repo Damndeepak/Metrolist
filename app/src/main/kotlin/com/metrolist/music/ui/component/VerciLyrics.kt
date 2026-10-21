@@ -8,6 +8,17 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Color
+import com.metrolist.music.constants.*
+import com.metrolist.music.lyrics.*
+import com.metrolist.music.utils.dataStore
+import androidx.datastore.preferences.core.edit
+import kotlinx.coroutines.flow.first
+import org.json.JSONObject
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.ui.res.painterResource
@@ -111,11 +122,30 @@ fun VerciLyrics(
     val settingsItems = verciLyricsSettingsItems()
     val playing by connection.isPlaying.collectAsStateWithLifecycle()
     val recording by rememberPreference(VerciRecordingKey, false)
+    var locked by rememberPreference(DeeplistTouchLockKey, false)
+    val renderer by rememberEnumPreference(VerciStyleKey, VerciStyle.FISHEYE)
+    var saved by rememberPreference(DeeplistSavedLyricsKey, "[]")
+    var correctPhrase by remember { mutableStateOf<String?>(null) }
+    var actions by remember { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    fun saveLine(text: String) {
+        val track = metadata ?: return
+        saved = deeplistSaveLyric(saved, DeeplistSavedLyric(text, track.title, track.artists.joinToString { it.name }))
+    }
+    LaunchedEffect(metadata?.id) {
+        val id = metadata?.id ?: return@LaunchedEffect
+        val prefs = context.dataStore.data.first()
+        val json = runCatching { JSONObject(prefs[DeeplistSongStylesKey] ?: "{}").optString(id) }.getOrDefault("")
+        if (json.isNotBlank()) runCatching { DeeplistSetup.decode(json) }.onSuccess { values ->
+            context.dataStore.edit { DeeplistSetup.apply(it, values, false) }
+        }
+    }
     val doubleTap by rememberPreference(VerciDoubleTapKey, true)
     val swipe by rememberPreference(VerciSwipeKey, true)
     val manager = com.metrolist.music.LocalListenTogetherManager.current
     val canControl = manager?.isInRoom != true || manager.isHost
-    var controls by remember(immersive) { mutableStateOf(!immersive) }
+    var controls by remember(immersive, recording) { mutableStateOf(!immersive && !recording) }
     var seekPreview by remember { mutableStateOf<Long?>(null) }
     val latestSlider by rememberUpdatedState(sliderPositionProvider)
     val previewProvider = remember { { seekPreview ?: latestSlider() } }
@@ -125,21 +155,22 @@ fun VerciLyrics(
         if (immersive) view.keepScreenOn = true
         onDispose { view.keepScreenOn = before }
     }
-    LaunchedEffect(controls, settings, seekPreview, immersive) {
-        if (immersive && controls && !settings && seekPreview == null) { delay(4000); controls = false }
+    LaunchedEffect(controls, settings, seekPreview, immersive, recording) {
+        if ((immersive || recording) && controls && !settings && seekPreview == null) { delay(4000); controls = false }
     }
     val dragThreshold = with(LocalDensity.current) { 64.dp.toPx() }
-    val gestures = Modifier.pointerInput(immersive, doubleTap, canControl) {
+    val gestures = Modifier.pointerInput(immersive, recording, doubleTap, canControl, locked) {
         detectTapGestures(
-            onTap = { if (immersive) controls = !controls },
-            onDoubleTap = if (doubleTap && canControl) ({ _: androidx.compose.ui.geometry.Offset -> if (connection.player.isPlaying) connection.player.pause() else connection.player.play() }) else null,
+            onTap = { if (immersive || recording || locked) controls = !controls },
+            onLongPress = { if (!locked) actions = true },
+            onDoubleTap = if (doubleTap && canControl && !locked) ({ _: androidx.compose.ui.geometry.Offset -> if (connection.player.isPlaying) connection.player.pause() else connection.player.play() }) else null,
         )
-    }.pointerInput(swipe, canControl) {
+    }.pointerInput(swipe, canControl, locked) {
         var drag = 0f
         detectHorizontalDragGestures(
             onDragStart = { drag = 0f },
-            onHorizontalDrag = { change, amount -> if (swipe && canControl) { change.consume(); drag += amount } },
-            onDragEnd = { if (swipe && canControl && kotlin.math.abs(drag) > dragThreshold) { if (drag < 0) connection.seekToNext() else connection.seekToPrevious() } },
+            onHorizontalDrag = { change, amount -> if (swipe && canControl && !locked) { change.consume(); drag += amount } },
+            onDragEnd = { if (swipe && canControl && !locked && kotlin.math.abs(drag) > dragThreshold) { if (drag < 0) connection.seekToNext() else connection.seekToPrevious() } },
         )
     }
     val source = entity?.takeIf { it.id == metadata?.id }?.lyrics
@@ -149,7 +180,13 @@ fun VerciLyrics(
         WordstormLyrics(sliderPositionProvider, true, onOriginal, modifier, immersive, onFullscreen, onExitFullscreen, useVerci = false)
         return
     }
-    Box(modifier.fillMaxSize().then(gestures)) {
+    Box(modifier.fillMaxSize().background(Color.Black).then(gestures)) {
+        BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        val stage = if (recording) Modifier.fillMaxWidth().aspectRatio(9f / 16f, matchHeightConstraintsFirst = maxWidth / maxHeight > 9f / 16f) else Modifier.fillMaxSize()
+        Box(stage) {
+        if (renderer == VerciStyle.APPLE) {
+            DeeplistAppleLyrics(source.orEmpty(), previewProvider, locked, { saveLine(it) }, { correctPhrase = it })
+        } else
         key(metadata?.id, source) {
             val words by produceState<List<VerciWord>?>(null, source) {
                 value = withContext(Dispatchers.Default) { buildVerciWords(LyricsUtils.parseLyrics(source.orEmpty())) }
@@ -166,16 +203,34 @@ fun VerciLyrics(
                 VerciWordCanvas(timeline, gaps, previewProvider, Modifier, !recording && (!immersive || controls))
             }
         }
-        if (!immersive || controls) Row(Modifier.align(Alignment.TopEnd).safeDrawingPadding(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            TextButton(onClick = { verciEnabled = false }) { Text(stringResource(R.string.verci_original)) }
+        }
+        }
+        if (controls || (!immersive && !recording)) Row(Modifier.align(Alignment.TopEnd).safeDrawingPadding(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            TextButton(onClick = { verciEnabled = false }, enabled = !locked) { Text(stringResource(R.string.verci_original)) }
             TextButton(onClick = { if (immersive) onExitFullscreen() else onFullscreen() }) {
                 Text(stringResource(if (immersive) R.string.deeplist_exit_fullscreen else R.string.deeplist_fullscreen))
             }
             TextButton(onClick = { settings = true }) { Text(stringResource(R.string.wordstorm_settings)) }
         }
-        if (immersive && controls) VerciTransport(seekPreview, { seekPreview = it }, Modifier.align(Alignment.BottomCenter).safeDrawingPadding())
+        if (locked && (controls || !immersive)) TextButton(onClick = { locked = false }, modifier = Modifier.align(Alignment.TopStart).safeDrawingPadding()) { Text(stringResource(R.string.deeplist_unlock)) }
+        if (immersive && controls && !locked) VerciTransport(seekPreview, { seekPreview = it }, Modifier.align(Alignment.BottomCenter).safeDrawingPadding())
         VerciEdgeNeon(playing, immersive)
 
+    }
+    correctPhrase?.let { phrase -> DeeplistEmojiEditor(metadata?.id, phrase) { correctPhrase = null } }
+    if (actions) {
+        val currentTime = connection.player.currentPosition
+        val entries = remember(source) { LyricsUtils.parseLyrics(source.orEmpty()).filter { !it.isBackground && it.text.isNotBlank() }.sortedBy { it.time } }
+        val song = connection.currentSong.collectAsStateWithLifecycle(initialValue = null).value
+        val now = currentTime + (song?.song?.lyricsOffset ?: 0)
+        val line = entries.lastOrNull { it.time <= now }
+        val word = remember(source, now) { buildVerciWords(entries).let { it.getOrNull(verciWordIndex(it, now))?.text.orEmpty() } }
+        AlertDialog(onDismissRequest = { actions = false }, title = { Text(line?.text.orEmpty()) }, text = {
+            androidx.compose.foundation.layout.Column {
+                TextButton(onClick = { line?.let { saveLine(it.text) }; actions = false }, enabled = line != null) { Text(stringResource(R.string.deeplist_save_lyric)) }
+                TextButton(onClick = { correctPhrase = word; actions = false }, enabled = word.isNotBlank()) { Text(stringResource(R.string.deeplist_emoji_corrections)) }
+            }
+        }, confirmButton = { TextButton(onClick = { actions = false }) { Text(stringResource(R.string.wordstorm_done)) } })
     }
     if (settings) {
         AlertDialog(
@@ -200,6 +255,17 @@ private fun VerciWordCanvas(words: List<VerciWord>, gaps: List<VerciGap>, slider
     val advanced by rememberPreference(com.metrolist.music.constants.VerciAdvancedEmojiKey, false)
     val beatLift by rememberPreference(com.metrolist.music.constants.VerciBeatLiftKey, true)
     val mega by rememberPreference(com.metrolist.music.constants.VerciMegaEmojiKey, true)
+    val correctionsRaw by rememberPreference(DeeplistEmojiCorrectionsKey, "[]")
+    val iconDensity by rememberPreference(DeeplistEmojiDensityKey, 1)
+    val iconPack by rememberPreference(DeeplistEmojiPackKey, 0)
+    val animation by rememberPreference(DeeplistAnimationKey, 1f)
+    val reduce by rememberPreference(DeeplistPerformanceKey, false)
+    val autoPerformance by rememberPreference(DeeplistAutoPerformanceKey, true)
+    val economy = rememberDeeplistEconomy(connection.player.isPlaying, autoPerformance, song?.song?.id) || reduce
+    val corrections = remember(correctionsRaw) { runCatching { decodeEmojiCorrections(correctionsRaw) }.getOrDefault(emptyList()) }
+    val preparedIcons = remember(words, corrections, song?.song?.id, advanced, emojis, mega, iconDensity) {
+        deeplistEmojiTimeline(words, song?.song?.id.orEmpty(), corrections, advanced, emojis, mega, iconDensity)
+    }
     val heartbeat = remember { VerciHeartbeat() }
     var pulse by remember { mutableFloatStateOf(0f) }
     val particles by rememberPreference(com.metrolist.music.constants.VerciParticlesKey, false)
@@ -241,7 +307,7 @@ private fun VerciWordCanvas(words: List<VerciWord>, gaps: List<VerciGap>, slider
         player.addListener(listener)
         onDispose { player.removeListener(listener) }
     }
-    LaunchedEffect(player, owner, playing, beatLift) {
+    LaunchedEffect(player, owner, playing, beatLift, economy, animation) {
         owner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             clock.reset()
             heartbeat.reset()
@@ -255,7 +321,7 @@ private fun VerciWordCanvas(words: List<VerciWord>, gaps: List<VerciGap>, slider
                         val preview = slider()
                         if (preview != null) heartbeat.reset()
                         val frameDt = if (previousFrame == 0L) 0f else ((frame - previousFrame) / 1e9f).coerceIn(0f, .05f)
-                        pulse = if (beatLift && preview == null) heartbeat.sample(connection.service.lyricsAudioEnergy, frame / 1000000, frameDt) else 0f
+                        pulse = if (beatLift && preview == null && animation > 0f) heartbeat.sample(connection.service.lyricsAudioEnergy, frame / 1000000, frameDt) else 0f
                         time = if (preview != null) {
                             clock.reset()
                             preview + offset
@@ -265,6 +331,7 @@ private fun VerciWordCanvas(words: List<VerciWord>, gaps: List<VerciGap>, slider
                             else verciDampPosition(scroll, target, frame - previousFrame)
                         previousFrame = frame
                     }
+                    if (economy) delay(16)
                 }
             } else {
                 snapshotFlow { Pair(slider(), offset) }.collect { (preview, adjustment) ->
@@ -292,9 +359,12 @@ private fun VerciWordCanvas(words: List<VerciWord>, gaps: List<VerciGap>, slider
                     color = foreground
                 }
                 val widths = words.map { paint.measureText(it.text).coerceAtLeast(1f) }
-                val emojiPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.textSize = min(fontPx * .58f, 40.dp.toPx()) }
-                val displayIcons = words.map { word ->
-                    com.metrolist.music.lyrics.verciEmojiBundle(word.text, advanced, emojis, mega).map { icon ->
+                val emojiPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    this.textSize = min(fontPx * .58f, 40.dp.toPx())
+                    if (iconPack > 0) colorFilter = android.graphics.PorterDuffColorFilter(if (iconPack == 1) foreground else accent, android.graphics.PorterDuff.Mode.SRC_IN)
+                }
+                val displayIcons = preparedIcons.map { icons ->
+                    icons.map { icon ->
                         if (icon == "🫪" && !emojiPaint.hasGlyph(icon)) "😳"
                         else if (icon == "🫯" && !emojiPaint.hasGlyph(icon)) "💥" else icon
                     }
@@ -336,7 +406,7 @@ private fun VerciWordCanvas(words: List<VerciWord>, gaps: List<VerciGap>, slider
                         c.save(); c.translate(sin(now / 8000f) * size.width * .08f, 0f)
                         c.drawRect(-size.width * .1f, 0f, size.width * 1.1f, size.height, atmosphere); c.restore()
                     }
-                    if (particles) {
+                    if (particles && !economy && animation > 0f) {
                         spark.color = accent
                         for (j in 0..17) {
                             spark.alpha = (25 + 35 * abs(sin(now / 1900f + j))).toInt()
@@ -351,7 +421,7 @@ private fun VerciWordCanvas(words: List<VerciWord>, gaps: List<VerciGap>, slider
                         c.drawText(clockText, size.width / 2, size.height * .12f, clockPaint)
                     }
                     val gapIndex = gaps.indexOfFirst { now >= it.start && now < it.end }
-                    val lift = pulse * min(24.dp.toPx(), size.height * .029f) * .75f
+                    val lift = animation * pulse * min(24.dp.toPx(), size.height * .029f) * .75f
                     c.save()
                     c.translate(0f, -lift)
                     c.rotate(pulse * sin(now / 1000f * 2.8f) * .6f, size.width / 2, size.height / 2)
@@ -376,12 +446,12 @@ private fun VerciWordCanvas(words: List<VerciWord>, gaps: List<VerciGap>, slider
                         val iconWidth = if (hasIcons && !giant) emojiWidths[i] + fontPx * .18f else 0f
                         val fit = min(1f, (size.width * (if (giant) .90f else .84f) - abs(drift) * 2).coerceAtLeast(size.width * .35f) / (widths[i] + iconWidth))
                         val progress = ((now - word.start).toFloat() / (word.end - word.start)).coerceIn(0f, 1f)
-                        val pop = if (i == active) sin(progress * Math.PI).toFloat() * .07f else 0f
+                        val pop = if (i == active && animation > 0f) sin(progress * Math.PI).toFloat() * .07f * animation else 0f
                         val alpha = ((1 - .22f * distance).coerceIn(0f, 1f) * 255).toInt()
                         c.save()
                         c.translate(size.width / 2 + drift, size.height / 2 + y)
                         c.scale(scale * fit * (1 + pop), scale * fit * (1 + pop))
-                        if (style == VerciStyle.SHIP) {
+                        if (style == VerciStyle.SHIP && animation > 0f && !economy) {
                             camera.save()
                             camera.rotateX(kotlin.math.cos(now / 2100f + i * .7f) * 5f)
                             camera.rotateY(sin(now / 1700f + i) * 9f)
@@ -402,12 +472,17 @@ private fun VerciWordCanvas(words: List<VerciWord>, gaps: List<VerciGap>, slider
                             c.restore()
                         }
                         if (hasIcons) {
-                            emojiPaint.alpha = alpha
+                            emojiPaint.alpha = if (i == active) alpha else (alpha * .3f).toInt()
+                            val effect = if (i == active && !economy) animation * sin(progress * Math.PI).toFloat() else 0f
                             val icons = displayIcons[i]
                             icons.forEachIndexed { j, icon ->
                                 val iconX = if (giant) (j - icons.size / 2f) * emojiWidths[i] else x + widths[i] + fontPx * .18f
                                 val iconY = if (giant) baseline + metrics.descent + emojiPaint.textSize else emojiBaseline + (j - (icons.size - 1) / 2f) * fontPx * .52f
-                                c.drawText(icon, iconX, iconY, emojiPaint)
+                                val motion = emojiMotion(icon)
+                                val dy = when (motion) { 1 -> effect * 10.dp.toPx(); 2 -> -effect * 16.dp.toPx(); else -> 0f }
+                                c.save(); c.translate(0f, dy)
+                                if (motion == 3) c.rotate(effect * 9f, iconX, iconY)
+                                c.drawText(icon, iconX, iconY, emojiPaint); c.restore()
                             }
                         }
                         c.restore()

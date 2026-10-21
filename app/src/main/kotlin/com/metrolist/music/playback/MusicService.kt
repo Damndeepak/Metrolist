@@ -324,6 +324,7 @@ class MusicService :
         }
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    internal val lyricsLoop = DeeplistLoop(scope) { player }
     private var floatingLyrics: com.metrolist.music.lyrics.FloatingLyricsController? = null
 
     private val binder = MusicBinder()
@@ -4254,6 +4255,7 @@ class MusicService :
         }
 
     override fun onDestroy() {
+        lyricsLoop.clear()
         floatingLyrics?.close()
         floatingLyrics = null
         isRunning = false

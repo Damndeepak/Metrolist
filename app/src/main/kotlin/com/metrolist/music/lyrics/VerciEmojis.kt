@@ -113,11 +113,8 @@ private val extraEmojis = buildMap {
 }
 
 internal fun verciEmoji(text: String, advanced: Boolean = false, basic: Boolean = true): String {
-    val word = text.lowercase(Locale.ROOT).filter {
-        it.isLetter() || Character.getType(it) == Character.NON_SPACING_MARK.toInt() ||
-            Character.getType(it) == Character.COMBINING_SPACING_MARK.toInt()
-    }
-    fun lookup(value: String) = (if (advanced) advancedEmojis[value] else null) ?: (if (basic) hindiEmojis[value] ?: verciEmojis[value] ?: extraEmojis[value] else null)
+    val word = emojiToken(text)
+    fun lookup(value: String) = (if (advanced) advancedEmojis[value] ?: deeplistVocabulary[value] ?: hindiEmojis[value] ?: verciEmojis[value] ?: extraEmojis[value] else null) ?: (if (basic) hindiEmojis[value] ?: verciEmojis[value] ?: extraEmojis[value] else null)
     lookup(word)?.let { return it }
     val candidates = buildList {
         if (word.endsWith("ies")) add(word.dropLast(3) + "y")
@@ -212,7 +209,7 @@ private val advancedEmojis = buildMap {
 
 internal fun verciEmojiBundle(text: String, advanced: Boolean, basic: Boolean, mega: Boolean): List<String> {
     if (!basic && !advanced) return emptyList()
-    val key = text.lowercase(Locale.ROOT).filter { it.isLetter() || Character.getType(it) == Character.NON_SPACING_MARK.toInt() }
+    val key = emojiToken(text)
     val variants = if (mega) verciMegaVocabulary[key] else null
     val first = verciEmoji(text, advanced, basic).ifEmpty { if (mega && basic) variants?.firstOrNull().orEmpty() else "" }
     if (first.isEmpty()) return emptyList()

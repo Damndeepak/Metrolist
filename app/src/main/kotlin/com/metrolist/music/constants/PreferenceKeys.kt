@@ -765,7 +765,7 @@ val DeeplistSavedStyleKey = stringPreferencesKey("deeplistSavedStyle")
 val DeeplistSavedLyricsKey = stringPreferencesKey("deeplistSavedLyrics")
 
 
-enum class VerciStyle { FISHEYE, SHIP, VISUAL, FISHEYE_VISUAL }
+enum class VerciStyle { FISHEYE, SHIP, VISUAL, FISHEYE_VISUAL, APPLE }
 val VerciLyricsKey = booleanPreferencesKey("verciLyrics")
 val VerciStyleKey = stringPreferencesKey("verciStyle")
 val VerciNeonKey = booleanPreferencesKey("verciNeon")
@@ -796,3 +796,14 @@ val VerciCameraXKey = floatPreferencesKey("verciCameraX")
 val VerciCameraYKey = floatPreferencesKey("verciCameraY")
 val VerciCameraGapKey = floatPreferencesKey("verciCameraGap")
 val VerciCameraThicknessKey = floatPreferencesKey("verciCameraThickness")
+
+val DeeplistEmojiCorrectionsKey = stringPreferencesKey("deeplistEmojiCorrections")
+val DeeplistEmojiDensityKey = intPreferencesKey("deeplistEmojiDensity")
+val DeeplistEmojiPackKey = intPreferencesKey("deeplistEmojiPack")
+val DeeplistSoftBlurKey = floatPreferencesKey("deeplistSoftBlur")
+val DeeplistAnimationKey = floatPreferencesKey("deeplistAnimation")
+val DeeplistArtworkBackgroundKey = booleanPreferencesKey("deeplistArtworkBackground")
+val DeeplistSongStylesKey = stringPreferencesKey("deeplistSongStyles")
+val DeeplistImportUndoKey = stringPreferencesKey("deeplistImportUndo")
+val DeeplistTouchLockKey = booleanPreferencesKey("deeplistTouchLock")
+val DeeplistRomanHindiKey = booleanPreferencesKey("deeplistRomanHindi")

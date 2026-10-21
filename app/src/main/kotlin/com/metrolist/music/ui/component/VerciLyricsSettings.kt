@@ -117,4 +117,5 @@ private fun verciStyleName(style: VerciStyle): String = stringResource(when (sty
     VerciStyle.SHIP -> R.string.verci_ship
     VerciStyle.VISUAL -> R.string.verci_visual
     VerciStyle.FISHEYE_VISUAL -> R.string.verci_fisheye_visual
+    VerciStyle.APPLE -> R.string.deeplist_apple_style
 })

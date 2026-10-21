@@ -77,6 +77,10 @@ internal fun verciStudioItems(): List<Material3SettingsItem> {
     var permission by remember { mutableStateOf(false) }
     var permissionError by remember { mutableStateOf(false) }
     val presets = remember(saved) { runCatching { JSONObject(saved) }.getOrDefault(JSONObject()) }
+    if (dialog == "setup") DeeplistSetupDialog { dialog = "" }
+    if (dialog == "tools") DeeplistTools { dialog = "" }
+    val metadata = connection?.mediaMetadata?.collectAsStateWithLifecycle()?.value
+    if (dialog == "corrections") DeeplistEmojiEditor(metadata?.id) { dialog = "" }
     if (dialog == "camera") VerciCameraFit { dialog = "" }
     if (dialog == "font") EnumDialog(
         onDismiss = { dialog = "" }, onSelect = { setFont(it); dialog = "" },
@@ -139,6 +143,9 @@ internal fun verciStudioItems(): List<Material3SettingsItem> {
         dismissButton = { TextButton(onClick = { permission = false }) { Text(stringResource(android.R.string.cancel)) } },
     )
     return buildList {
+        add(Material3SettingsItem(title = { Text(stringResource(R.string.deeplist_tools)) }, onClick = { dialog = "tools" }))
+        add(Material3SettingsItem(title = { Text(stringResource(R.string.deeplist_setup_share)) }, onClick = { dialog = "setup" }))
+        add(Material3SettingsItem(title = { Text(stringResource(R.string.deeplist_emoji_corrections)) }, onClick = { dialog = "corrections" }))
         add(Material3SettingsItem(title = { Text(stringResource(R.string.verci_beat_lift)) }, trailingContent = { Switch(beatLift, setBeatLift) }, onClick = { setBeatLift(!beatLift) }))
         add(Material3SettingsItem(title = { Text(stringResource(R.string.verci_mega_emojis)) }, trailingContent = { Switch(mega, setMega) }, onClick = { setMega(!mega) }))
         add(Material3SettingsItem(title = { Text(stringResource(R.string.verci_camera_fit)) }, onClick = { dialog = "camera" }))
