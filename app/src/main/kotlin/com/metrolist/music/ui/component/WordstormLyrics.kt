@@ -251,6 +251,7 @@ internal fun WordstormLyrics(
     BoxWithConstraints(modifier.fillMaxSize().background(Color(0xFF05040C)).then(gestureModifier)) {
         val lineHeightLimit = maxHeight * (if (showContext && (!immersive || controls)) 0.4f else 0.7f)
         DeeplistAtmosphere(rainWords, playing && motion, accent, backgroundMode, density, rainSpeed, wordBrightness, rings, glow, effectivePerformance)
+        DeeplistBackdrop(metadata?.id, metadata?.thumbnailUrl, metadata?.title.orEmpty(), metadata?.artists?.joinToString { it.name }.orEmpty(), playing)
         if (immersive) VerciEdgeNeon(playing, true)
         Box(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 12.dp)) {
         Column(

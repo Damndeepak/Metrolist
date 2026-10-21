@@ -10,6 +10,10 @@ internal data class SetupField(val key: String, val default: Any, val min: Doubl
 internal object DeeplistSetup {
     private const val MAX_LENGTH = 240_000
     val fields = listOf(
+        SetupField(DeeplistAppleNeonKey.name, false), SetupField(DeeplistAppleSizeKey.name, 32f, 24.0, 64.0),
+        SetupField(DeeplistBackdropModeKey.name, 2, 0.0, 2.0), SetupField(DeeplistBackdropBlurKey.name, .55f), SetupField(DeeplistBackdropDimKey.name, .48f, .15, .85),
+        SetupField(DeeplistTapSeekKey.name, false), SetupField(DeeplistDuetEnabledKey.name, false), SetupField(DeeplistInstrumentalKey.name, true),
+        *VerciStyle.entries.filter { it != VerciStyle.APPLE }.map { SetupField(deeplistSizeKey(it).name, 52f, 24.0, 160.0) }.toTypedArray(),
         SetupField(WordstormEnabledKey.name, true), SetupField(VerciLyricsKey.name, false),
         SetupField(VerciStyleKey.name, VerciStyle.FISHEYE.name, choices = VerciStyle.entries.map { it.name }.toSet()),
         SetupField(VerciFontKey.name, VerciFont.BOLD.name, choices = VerciFont.entries.map { it.name }.toSet()),

@@ -33,6 +33,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -314,6 +315,8 @@ fun LibraryPlaylistsScreen(
         }
     }
 
+    var deeplistImport by rememberSaveable { mutableStateOf(false) }
+    if (deeplistImport) com.metrolist.music.ui.menu.DeeplistPlaylistImportDialog(onDismiss = { deeplistImport = false }, onSaved = { navController.navigate("local_playlist/$it") })
     var showCreatePlaylistDialog by rememberSaveable { mutableStateOf(false) }
 
     if (showCreatePlaylistDialog) {
@@ -540,6 +543,9 @@ fun LibraryPlaylistsScreen(
             }
         }
 
+        TextButton(onClick = { deeplistImport = true }, modifier = Modifier.align(Alignment.BottomStart).windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Bottom)).padding(16.dp)) {
+            Text(stringResource(R.string.deeplist_playlist_import))
+        }
         // Always visible + button (no scroll hiding)
         FloatingActionButton(
             onClick = { showCreatePlaylistDialog = true },

@@ -56,9 +56,10 @@ internal fun verciStudioItems(): List<Material3SettingsItem> {
     val (font, setFont) = rememberEnumPreference(VerciFontKey, VerciFont.BOLD)
     val (spacing, setSpacing) = rememberPreference(VerciSpacingKey, 1f)
     val (color, setColor) = rememberPreference(VerciColorKey, 0)
-    val (size, _) = rememberPreference(VerciTextSizeKey, 52f)
     val (style, _) = rememberEnumPreference(VerciStyleKey, VerciStyle.FISHEYE)
-    val (neon, _) = rememberPreference(VerciNeonKey, true)
+    val (legacySize, _) = rememberPreference(VerciTextSizeKey, 52f)
+    val (size, _) = rememberPreference(deeplistSizeKey(style), if (style == VerciStyle.APPLE) 32f else legacySize)
+    val (neon, _) = rememberPreference(if (style == VerciStyle.APPLE) DeeplistAppleNeonKey else VerciNeonKey, style != VerciStyle.APPLE)
     val (emojis, _) = rememberPreference(VerciEmojiKey, true)
     val (saved, setSaved) = rememberPreference(VerciPresetsKey, "{}")
     val (floating, setFloating) = rememberPreference(FloatingLyricsKey, false)
@@ -116,12 +117,12 @@ internal fun verciStudioItems(): List<Material3SettingsItem> {
                             VerciPreset.decode(presets.optString(label))?.let { p -> scope.launch {
                                 context.dataStore.edit { v ->
                                     v[VerciStyleKey] = p.style.name; v[VerciFontKey] = p.font.name
-                                    v[VerciTextSizeKey] = p.size; v[VerciSpacingKey] = p.spacing
+                                    v[deeplistSizeKey(p.style)] = p.size; v[VerciSpacingKey] = p.spacing
                                     v[VerciBrightnessKey] = p.brightness; v[VerciColorKey] = p.color
                                     v[VerciAdvancedEmojiKey] = p.advanced; v[VerciCameraRingKey] = p.ring
                                     v[VerciBeatLiftKey] = p.beatLift; v[VerciMegaEmojiKey] = p.mega
                                     v[VerciParticlesKey] = p.particles; v[VerciClockKey] = p.clock
-                                    v[VerciNeonKey] = p.neon; v[VerciEmojiKey] = p.emojis; v[VerciAudioReactiveKey] = p.reactive
+                                    v[if (p.style == VerciStyle.APPLE) DeeplistAppleNeonKey else VerciNeonKey] = p.neon; v[VerciEmojiKey] = p.emojis; v[VerciAudioReactiveKey] = p.reactive
                                 }
                             } }
                         }, modifier = Modifier.weight(1f)) { Text(label) }

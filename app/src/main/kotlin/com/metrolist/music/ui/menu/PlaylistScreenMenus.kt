@@ -195,20 +195,9 @@ fun LocalPlaylistMenu(
                         )
                     },
                     onClick = {
-                        val shareText =
-                            if (isYouTubePlaylist) {
-                                "https://music.youtube.com/playlist?list=${playlist.playlist.browseId}"
-                            } else {
-                                songs.joinToString("\n") { it.song.song.title }
-                            }
-                        val sendIntent: Intent =
-                            Intent().apply {
-                                action = Intent.ACTION_SEND
-                                putExtra(Intent.EXTRA_TEXT, shareText)
-                                type = "text/plain"
-                            }
-                        val shareIntent = Intent.createChooser(sendIntent, null)
-                        context.startActivity(shareIntent)
+                        com.metrolist.music.deeplist.deeplistSharePlaylist(context, com.metrolist.music.deeplist.DeeplistSharedPlaylist(playlist.playlist.name, songs.map { item ->
+                            com.metrolist.music.deeplist.DeeplistImportTrack(item.song.song.title, item.song.artists.joinToString { it.name }, item.song.id, item.song.song.duration, item.song.song.thumbnailUrl)
+                        }))
                         onDismiss()
                     },
                 ),

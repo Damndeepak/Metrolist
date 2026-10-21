@@ -82,7 +82,7 @@ internal fun neonContours(path: Path): List<Path> {
 }
 
 @Composable
-internal fun VerciEdgeNeon(playing: Boolean, physicalEdges: Boolean, preview: CameraFit? = null) {
+internal fun VerciEdgeNeon(playing: Boolean, physicalEdges: Boolean, preview: CameraFit? = null, enabledOverride: Boolean? = null) {
     val enabled by rememberPreference(VerciNeonKey, true)
     val brightness by rememberPreference(VerciBrightnessKey, .8f)
     val reactive by rememberPreference(VerciAudioReactiveKey, true)
@@ -94,7 +94,7 @@ internal fun VerciEdgeNeon(playing: Boolean, physicalEdges: Boolean, preview: Ca
     val cameraThickness by rememberPreference(com.metrolist.music.constants.VerciCameraThicknessKey, 1.5f)
     val fit = preview ?: CameraFit(cameraSize, cameraX, cameraY, cameraGap, cameraThickness)
     val connection = LocalPlayerConnection.current ?: return
-    if (preview == null && (!enabled || brightness <= 0f)) return
+    if (preview == null && (!(enabledOverride ?: enabled) || brightness <= 0f)) return
     val owner = LocalLifecycleOwner.current
     val view = LocalView.current
     var cutouts by remember { mutableStateOf(emptyList<RectF>()) }

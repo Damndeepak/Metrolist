@@ -1,1 +1,1 @@
-<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@color/ic_launcher_background"/><foreground android:drawable="@drawable/deeplist_icon_foreground"/><monochrome android:drawable="@drawable/deeplist_monochrome"/></adaptive-icon>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@color/deeplist_logo_background"/><foreground android:drawable="@drawable/deeplist_approved_icon"/><monochrome android:drawable="@drawable/deeplist_logo"/></adaptive-icon>

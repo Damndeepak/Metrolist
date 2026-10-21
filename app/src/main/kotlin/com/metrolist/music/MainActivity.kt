@@ -1585,6 +1585,11 @@ class MainActivity : FragmentActivity() {
         intent.removeExtra(Intent.EXTRA_TEXT)
         val coroutineScope = lifecycle.coroutineScope
 
+        if ((uri.scheme == "deeplist" && uri.host == "playlist") || (uri.scheme == "https" && uri.host == "deeplist-playlists.cherrybard2.chatgpt.site" && uri.path?.startsWith("/playlist") == true)) {
+            startActivity(Intent(this, com.metrolist.music.deeplist.DeeplistPlaylistActivity::class.java).setData(uri))
+            return
+        }
+
         val listenCode =
             uri.getQueryParameter("code")
                 ?: uri.getQueryParameter("room")

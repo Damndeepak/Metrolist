@@ -47,26 +47,29 @@ jobs:
           path: .wordstorm-signing
           key: wordstorm-test-signing-${{ github.repository }}-v1
 
-      - name: Prepare test-app signing
+      - name: Verify existing Deeplist update signing key
         shell: bash
         run: |
-          mkdir -p .wordstorm-signing
           if [ ! -f "$METROLIST_DEBUG_KEYSTORE_PATH" ]; then
-            keytool -genkeypair -noprompt -keystore "$METROLIST_DEBUG_KEYSTORE_PATH" -storepass android -keypass android -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Deepu Wordstorm Debug,O=Android,C=IN"
+            echo "Existing Deeplist signing key is missing. Restore its backup; generating a new key would prevent updating the installed app."
+            exit 1
           fi
+          CERT=$(keytool -exportcert -keystore "$METROLIST_DEBUG_KEYSTORE_PATH" -storepass android -alias androiddebugkey | sha256sum | cut -d ' ' -f1)
+          test "$CERT" = "1c73c95916d7e14bac0533d0a4a20a3c01be78f066fcc0c1102254712c4bcd5d" || { echo "Signing certificate differs from the existing Deeplist app."; exit 1; }
 
       - name: Install Android SDK components
         shell: bash
         run: |
           SDK_MANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           "$SDK_MANAGER" --licenses < <(yes) >/dev/null
-          "$SDK_MANAGER" --channel=3 "platforms;android-37.0" "build-tools;37.0.0"
+          "$SDK_MANAGER" --channel=3 "platforms;android-37.0" "build-tools;36.0.0"
 
       - name: Build APK and run unit tests
         shell: bash
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon --max-workers=2 :app:assembleFossDebug :app:assembleFossRelease :app:testFossDebugUnitTest
+          ./gradlew --no-daemon --max-workers=1 --no-parallel -Pkotlin.compiler.execution.strategy=in-process -Dorg.gradle.jvmargs="-Xmx3g -XX:ActiveProcessorCount=2" :app:assembleFossDebug :app:testFossDebugUnitTest
+          ./gradlew --no-daemon --max-workers=1 --no-parallel -Pkotlin.compiler.execution.strategy=in-process -Dorg.gradle.jvmargs="-Xmx3g -XX:ActiveProcessorCount=2" :app:assembleFossRelease
 
       - name: Upload installable APK
         uses: actions/upload-artifact@v4

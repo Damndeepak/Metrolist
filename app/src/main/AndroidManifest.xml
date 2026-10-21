@@ -54,6 +54,13 @@
             android:excludeFromRecents="true"
             android:process=":crash" />
 
+        <activity android:name=".deeplist.DeeplistPlaylistActivity" android:exported="true" android:theme="@style/Theme.Metrolist">
+            <intent-filter android:autoVerify="true"><action android:name="android.intent.action.VIEW"/><category android:name="android.intent.category.DEFAULT"/><category android:name="android.intent.category.BROWSABLE"/><data android:scheme="https" android:host="deeplist-playlists.cherrybard2.chatgpt.site" android:pathPrefix="/playlist"/></intent-filter>
+            <intent-filter><action android:name="android.intent.action.VIEW"/><category android:name="android.intent.category.DEFAULT"/><category android:name="android.intent.category.BROWSABLE"/><data android:scheme="deeplist" android:host="playlist"/></intent-filter>
+        </activity>
+        <activity android:name=".deeplist.DeeplistSpotifyActivity" android:exported="true" android:launchMode="singleTask" android:theme="@style/Theme.Metrolist">
+            <intent-filter><action android:name="android.intent.action.VIEW"/><category android:name="android.intent.category.DEFAULT"/><category android:name="android.intent.category.BROWSABLE"/><data android:scheme="${applicationId}.spotify" android:host="callback"/></intent-filter>
+        </activity>
         <activity android:name=".deeplist.DeeplistConnectActivity" android:exported="true" android:excludeFromRecents="true" android:theme="@android:style/Theme.Material.Dialog.Alert">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />

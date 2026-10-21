@@ -53,7 +53,7 @@ internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Bo
     val metadata by connection.mediaMetadata.collectAsStateWithLifecycle()
     val song by connection.currentSong.collectAsStateWithLifecycle(initialValue = null)
     val playing by connection.isPlaying.collectAsStateWithLifecycle()
-    val textSize by rememberPreference(VerciTextSizeKey, 52f)
+    val textSize by rememberPreference(DeeplistAppleSizeKey, 32f)
     val blur by rememberPreference(DeeplistSoftBlurKey, .35f)
     val intensity by rememberPreference(DeeplistAnimationKey, 1f)
     val artwork by rememberPreference(DeeplistArtworkBackgroundKey, true)
@@ -68,6 +68,8 @@ internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Bo
     val colorIndex by rememberPreference(VerciColorKey, 0)
     val roman by rememberPreference(DeeplistRomanHindiKey, false)
     val chorusBoost by rememberPreference(DeeplistChorusBoostKey, true)
+    val duet by rememberPreference(DeeplistDuetEnabledKey, false)
+    val duetTags by rememberPreference(DeeplistDuetTagsKey, "{}")
     val marksRaw by rememberPreference(DeeplistChorusMarksKey, "{}")
     val economy = rememberDeeplistEconomy(playing, auto, metadata?.id) || reduce
     val lines by produceState(emptyList<LyricsEntry>(), source) {
@@ -89,7 +91,9 @@ internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Bo
     val active by remember(times) { derivedStateOf { wordstormLineIndex(times, time) } }
     val activeText by remember(displayLines) { derivedStateOf { displayLines.getOrNull(active)?.text.orEmpty() } }
     val manager = LocalListenTogetherManager.current
-    val canSeek = !locked && (manager?.isInRoom != true || manager.isHost)
+    val tapSeek by rememberPreference(DeeplistTapSeekKey, false)
+    val recording by rememberPreference(VerciRecordingKey, false)
+    val canSeek = tapSeek && !recording && !locked && (manager?.isInRoom != true || manager.isHost)
     val hitLines = remember { mutableListOf<Triple<Int, Float, Float>>() }
     LaunchedEffect(connection, source, playing, owner, economy, intensity) {
         owner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -100,23 +104,18 @@ internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Bo
                 val preview = latestSlider()
                 time = (preview ?: if (playing) clock.position(connection.player.currentPosition, frame, connection.player.playbackParameters.speed) else connection.player.currentPosition) + offset
                 if (preview != null) clock.reset()
-                val target = active.coerceAtLeast(0).toFloat()
+                val target = wordstormLineIndex(times, time).coerceAtLeast(0).toFloat()
                 val dt = if (previous == 0L) .016f else ((frame - previous) / 1e9f).coerceIn(0f, .1f)
                 scroll = if (preview != null || intensity == 0f || abs(target - scroll) > 4f) target
-                    else scroll + (target - scroll) * (1f - exp(-dt * (8f + 8f * (1f - intensity))))
+                    else scroll + (target - scroll) * (1f - exp(-dt * (4f + 4f * (1f - intensity))))
                 previous = frame
             }
             if (!playing) delay(80)
             }
         }
     }
-    Box(Modifier.fillMaxSize().background(Color(0xFF101018)).clipToBounds()) {
-        if (artwork && !economy) AsyncImage(metadata?.thumbnailUrl, null, contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize().blur(70.dp).graphicsLayer {
-                alpha = .3f; scaleX = 1.18f; scaleY = 1.18f
-                translationX = if (playing && intensity > 0f) sin(time / 14000f) * 15.dp.toPx() else 0f
-            })
-        Canvas(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 30.dp, vertical = 85.dp)
+    Box(Modifier.fillMaxSize().clipToBounds()) {
+        Canvas(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 24.dp, vertical = 24.dp)
             .semantics { contentDescription = activeText }
             .pointerInput(displayLines, canSeek, offset) {
                 detectTapGestures(onTap = { point ->
@@ -131,11 +130,11 @@ internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Bo
             }.drawWithCache {
                 val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
                     color = android.graphics.Color.WHITE
-                    this.textSize = textSize.coerceIn(28f, 160f).sp.toPx() * .72f
+                    this.textSize = textSize.coerceIn(24f, 64f).sp.toPx()
                     typeface = Typeface.create("sans-serif", Typeface.BOLD)
                 }
-                val layouts = displayLines.map { line -> StaticLayout.Builder.obtain(line.text, 0, line.text.length, paint, size.width.toInt().coerceAtLeast(1))
-                    .setAlignment(Layout.Alignment.ALIGN_NORMAL).setIncludePad(false).setLineSpacing(0f, 1.12f).build() }
+                val layouts = displayLines.mapIndexed { i, line -> StaticLayout.Builder.obtain(line.text, 0, line.text.length, paint, (size.width * if (duet) .86f else 1f).toInt().coerceAtLeast(1))
+                    .setAlignment(if (duet && deeplistSinger(duetTags, metadata?.id.orEmpty(), lines[i].time) == 1) Layout.Alignment.ALIGN_OPPOSITE else if (duet && deeplistSinger(duetTags, metadata?.id.orEmpty(), lines[i].time) == 2) Layout.Alignment.ALIGN_CENTER else Layout.Alignment.ALIGN_NORMAL).setIncludePad(false).setLineSpacing(0f, 1.12f).build() }
                 val starts = FloatArray(layouts.size + 1)
                 layouts.forEachIndexed { i, layout -> starts[i + 1] = starts[i] + layout.height + 30.dp.toPx() }
                 val nodes = if (Build.VERSION.SDK_INT >= 31 && blur > 0 && !economy) layouts.mapIndexed { i, layout ->
@@ -159,16 +158,18 @@ internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Bo
                     val fraction = position - index
                     val base = starts[index] + (starts[minOf(index + 1, layouts.lastIndex)] - starts[index]) * fraction
                     val current = active
+                    val rowHeight = layouts[index].height + (layouts[minOf(index + 1, layouts.lastIndex)].height - layouts[index].height) * fraction
                     val canvas = drawContext.canvas.nativeCanvas
                     hitLines.clear()
                     for (i in (index - 3).coerceAtLeast(0)..(index + 4).coerceAtMost(layouts.lastIndex)) {
                         val layout = layouts[i]
-                        val y = size.height * .38f + starts[i] - base
+                        val y = size.height * .40f - rowHeight * .5f + starts[i] - base
                         if (y + layout.height < 0 || y > size.height) continue
                         hitLines.add(Triple(i, y, y + layout.height))
                         val focused = i == current
                         val scale = if (focused && chorusBoost && lines[i].time in chorusTimes && intensity > 0f) 1.02f else if (focused) 1f else .96f
-                        canvas.save(); canvas.translate(0f, y); canvas.scale(scale, scale)
+                        val singer = if (duet) deeplistSinger(duetTags, metadata?.id.orEmpty(), lines[i].time) else 0
+                        canvas.save(); canvas.translate(if (duet && singer == 1) size.width * .14f else if (duet && singer == 2) size.width * .07f else 0f, y); canvas.scale(scale, scale)
                         paint.alpha = if (focused) 255 else (90 - abs(i - position) * 14).toInt().coerceIn(25, 100)
                         if (!focused && Build.VERSION.SDK_INT >= 31 && canvas.isHardwareAccelerated && nodes.isNotEmpty()) {
                             nodes[i].setAlpha(paint.alpha / 255f)

@@ -119,18 +119,20 @@ fun VerciLyrics(
     val metadata by connection.mediaMetadata.collectAsStateWithLifecycle()
     var verciEnabled by rememberPreference(VerciLyricsKey, false)
     var settings by remember { mutableStateOf(false) }
-    val settingsItems = verciLyricsSettingsItems()
     val playing by connection.isPlaying.collectAsStateWithLifecycle()
     val recording by rememberPreference(VerciRecordingKey, false)
     var locked by rememberPreference(DeeplistTouchLockKey, false)
-    val renderer by rememberEnumPreference(VerciStyleKey, VerciStyle.FISHEYE)
+    val selectedRenderer by rememberEnumPreference(VerciStyleKey, VerciStyle.FISHEYE)
+    val journey = rememberDeeplistJourney(metadata?.id, selectedRenderer)
+    val renderer = journey
+    val appleNeon by rememberPreference(DeeplistAppleNeonKey, false)
     var saved by rememberPreference(DeeplistSavedLyricsKey, "[]")
     var correctPhrase by remember { mutableStateOf<String?>(null) }
     var actions by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
     fun saveLine(text: String) {
         val track = metadata ?: return
-        saved = deeplistSaveLyric(saved, DeeplistSavedLyric(text, track.title, track.artists.joinToString { it.name }))
+        saved = deeplistSaveLyric(saved, DeeplistSavedLyric(text, track.title, track.artists.joinToString { it.name }, track.id, connection.player.currentPosition))
     }
     LaunchedEffect(metadata?.id) {
         val id = metadata?.id ?: return@LaunchedEffect
@@ -181,9 +183,11 @@ fun VerciLyrics(
     }
     Box(modifier.fillMaxSize().background(Color.Black).then(gestures)) {
         BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        val stage = if (recording) Modifier.fillMaxWidth().aspectRatio(9f / 16f, matchHeightConstraintsFirst = maxWidth / maxHeight > 9f / 16f) else Modifier.fillMaxSize()
+        val stage = Modifier.fillMaxSize()
         Box(stage) {
-        if (renderer == VerciStyle.APPLE) {
+        DeeplistBackdrop(metadata?.id, metadata?.thumbnailUrl, metadata?.title.orEmpty(), metadata?.artists?.joinToString { it.name }.orEmpty(), playing)
+        androidx.compose.animation.Crossfade(targetState = renderer, animationSpec = androidx.compose.animation.core.tween(450), label = "Lyrics style") { currentRenderer ->
+        if (currentRenderer == VerciStyle.APPLE) {
             key(metadata?.id, source) {
                 DeeplistAppleLyrics(source.orEmpty(), previewProvider, locked, { saveLine(it) }, { correctPhrase = it }, { controls = !controls })
             }
@@ -201,8 +205,9 @@ fun VerciLyrics(
                     if (timeline != null) Text(stringResource(R.string.lyrics_not_found))
                 }
             } else {
-                VerciWordCanvas(timeline, gaps, previewProvider, Modifier, !recording && (!immersive || controls))
+                VerciWordCanvas(timeline, gaps, previewProvider, Modifier, !recording && (!immersive || controls), currentRenderer)
             }
+        }
         }
         }
         }
@@ -215,7 +220,8 @@ fun VerciLyrics(
         }
         if (locked && (controls || !immersive)) TextButton(onClick = { locked = false }, modifier = Modifier.align(Alignment.TopStart).safeDrawingPadding()) { Text(stringResource(R.string.deeplist_unlock)) }
         if (immersive && controls && !locked) VerciTransport(seekPreview, { seekPreview = it }, Modifier.align(Alignment.BottomCenter).safeDrawingPadding())
-        VerciEdgeNeon(playing, immersive)
+        DeeplistStageEffects(source.orEmpty(), previewProvider, playing, renderer)
+        VerciEdgeNeon(playing, immersive, enabledOverride = if (renderer == VerciStyle.APPLE) appleNeon else null)
 
     }
     correctPhrase?.let { phrase -> DeeplistEmojiEditor(metadata?.id, phrase) { correctPhrase = null } }
@@ -233,25 +239,17 @@ fun VerciLyrics(
             }
         }, confirmButton = { TextButton(onClick = { actions = false }) { Text(stringResource(R.string.wordstorm_done)) } })
     }
-    if (settings) {
-        AlertDialog(
-            onDismissRequest = { settings = false },
-            title = { Text(stringResource(R.string.verci_lyrics)) },
-            text = { Box(Modifier.verticalScroll(rememberScrollState())) { Material3SettingsGroup(items = settingsItems) } },
-            confirmButton = { TextButton(onClick = { settings = false }) { Text(stringResource(R.string.wordstorm_done)) } },
-        )
-    }
+    if (settings) DeeplistQuickSettings { settings = false }
 }
 
 @Composable
-private fun VerciWordCanvas(words: List<VerciWord>, gaps: List<VerciGap>, sliderPositionProvider: () -> Long?, modifier: Modifier, showTiming: Boolean) {
+private fun VerciWordCanvas(words: List<VerciWord>, gaps: List<VerciGap>, sliderPositionProvider: () -> Long?, modifier: Modifier, showTiming: Boolean, style: VerciStyle) {
     val connection = LocalPlayerConnection.current ?: return
     val player = connection.player
     val owner = LocalLifecycleOwner.current
     val song by connection.currentSong.collectAsStateWithLifecycle(initialValue = null)
     val offset by rememberUpdatedState(song?.song?.lyricsOffset ?: 0)
     val slider by rememberUpdatedState(sliderPositionProvider)
-    val style by rememberEnumPreference(VerciStyleKey, VerciStyle.FISHEYE)
     val emojis by rememberPreference(VerciEmojiKey, true)
     val advanced by rememberPreference(com.metrolist.music.constants.VerciAdvancedEmojiKey, false)
     val beatLift by rememberPreference(com.metrolist.music.constants.VerciBeatLiftKey, true)
@@ -276,6 +274,13 @@ private fun VerciWordCanvas(words: List<VerciWord>, gaps: List<VerciGap>, slider
         val times = lines.map { it.time }
         words.map { word -> lines.getOrNull(wordstormLineIndex(times, word.start))?.time?.let { it in chorus } == true }
     }
+    val duet by rememberPreference(DeeplistDuetEnabledKey, false)
+    val duetTags by rememberPreference(DeeplistDuetTagsKey, "{}")
+    val singers = remember(words, lyricsEntity, duetTags, duet) {
+        val lines = LyricsUtils.parseLyrics(lyricsEntity?.takeIf { it.id == song?.song?.id }?.lyrics.orEmpty()).filter { !it.isBackground }.sortedBy { it.time }
+        val times = lines.map { it.time }
+        words.map { word -> if (!duet) 2 else lines.getOrNull(wordstormLineIndex(times, word.start))?.let { deeplistSinger(duetTags, song?.song?.id.orEmpty(), it.time) } ?: 2 }
+    }
     val moods = remember(words) { words.indices.map { i -> deeplistLyricMood(words.subList((i - 4).coerceAtLeast(0), (i + 5).coerceAtMost(words.size)).joinToString(" ") { it.text }) } }
     val heartbeat = remember { VerciHeartbeat() }
     var pulse by remember { mutableFloatStateOf(0f) }
@@ -284,7 +289,8 @@ private fun VerciWordCanvas(words: List<VerciWord>, gaps: List<VerciGap>, slider
     val wallTime by produceState(System.currentTimeMillis(), clockVisible) {
         if (clockVisible) while (isActive) { value = System.currentTimeMillis(); delay(1000) }
     }
-    val textSize by rememberPreference(VerciTextSizeKey, 52f)
+    val legacySize by rememberPreference(VerciTextSizeKey, 52f)
+    val textSize by rememberPreference(deeplistSizeKey(style), legacySize)
     val font by rememberEnumPreference(VerciFontKey, VerciFont.BOLD)
     val spacing by rememberPreference(VerciSpacingKey, 1f)
     val colorIndex by rememberPreference(VerciColorKey, 0)
@@ -454,12 +460,13 @@ private fun VerciWordCanvas(words: List<VerciWord>, gaps: List<VerciGap>, slider
                         val giant = textSize > 80f
                         val hasIcons = displayIcons[i].isNotEmpty()
                         val iconWidth = if (hasIcons && !giant) emojiWidths[i] + fontPx * .18f else 0f
-                        val fit = min(1f, (size.width * (if (giant) .90f else .84f) - abs(drift) * 2).coerceAtLeast(size.width * .35f) / (widths[i] + iconWidth))
+                        val singerShift = if (!duet || singers[i] == 2) 0f else if (singers[i] == 1) size.width * .1f else -size.width * .1f
+                        val fit = min(1f, (size.width * (if (duet) .72f else if (giant) .90f else .84f) - abs(drift) * 2).coerceAtLeast(size.width * .35f) / (widths[i] + iconWidth))
                         val progress = ((now - word.start).toFloat() / (word.end - word.start)).coerceIn(0f, 1f)
                         val pop = if (i == active && animation > 0f) sin(progress * Math.PI).toFloat() * (if (chorusBoost && chorusFlags[i]) .1f else .07f) * animation else 0f
                         val alpha = ((1 - .22f * distance).coerceIn(0f, 1f) * 255).toInt()
                         c.save()
-                        c.translate(size.width / 2 + drift, size.height / 2 + y)
+                        c.translate(size.width / 2 + drift + singerShift, size.height / 2 + y)
                         c.scale(scale * fit * (1 + pop), scale * fit * (1 + pop))
                         if (style == VerciStyle.SHIP && animation > 0f && !economy) {
                             camera.save()

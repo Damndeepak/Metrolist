@@ -36,10 +36,11 @@ fun verciLyricsSettingsItems(): List<Material3SettingsItem> {
         if (value) setWordstorm(true)
         setEnabled(value)
     }
-    val (neon, setNeon) = rememberPreference(VerciNeonKey, true)
-    val (emojis, setEmojis) = rememberPreference(VerciEmojiKey, true)
     val (style, setStyle) = rememberEnumPreference(VerciStyleKey, VerciStyle.FISHEYE)
-    val (fontSize, setFontSize) = rememberPreference(VerciTextSizeKey, 52f)
+    val (neon, setNeon) = rememberPreference(if (style == VerciStyle.APPLE) com.metrolist.music.constants.DeeplistAppleNeonKey else VerciNeonKey, style != VerciStyle.APPLE)
+    val (emojis, setEmojis) = rememberPreference(VerciEmojiKey, true)
+    val (legacySize, _) = rememberPreference(VerciTextSizeKey, 52f)
+    val (fontSize, setFontSize) = rememberPreference(com.metrolist.music.constants.deeplistSizeKey(style), if (style == VerciStyle.APPLE) 32f else legacySize)
     var styleDialog by remember { mutableStateOf(false) }
     var sizeDialog by remember { mutableStateOf(false) }
     if (styleDialog) {
@@ -57,7 +58,7 @@ fun verciLyricsSettingsItems(): List<Material3SettingsItem> {
         DefaultDialog(
             onDismiss = { sizeDialog = false },
             buttons = {
-                TextButton(onClick = { size = 52f }) { Text(stringResource(R.string.reset)) }
+                TextButton(onClick = { size = if (style == VerciStyle.APPLE) 32f else 52f }) { Text(stringResource(R.string.reset)) }
                 TextButton(onClick = { sizeDialog = false }) { Text(stringResource(android.R.string.cancel)) }
                 TextButton(onClick = { setFontSize(size); sizeDialog = false }) { Text(stringResource(android.R.string.ok)) }
             },
@@ -65,7 +66,7 @@ fun verciLyricsSettingsItems(): List<Material3SettingsItem> {
             Column(Modifier.padding(20.dp)) {
                 Text(stringResource(R.string.verci_text_size))
                 Text("${size.roundToInt()} sp")
-                Slider(value = size, onValueChange = { size = it }, valueRange = 28f..160f)
+                Slider(value = size, onValueChange = { size = it }, valueRange = if (style == VerciStyle.APPLE) 24f..64f else 28f..160f)
             }
         }
     }

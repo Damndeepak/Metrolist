@@ -377,16 +377,7 @@ fun PlaylistMenu(
                             text = stringResource(R.string.share),
                             onClick = {
                                 onDismiss()
-                                val intent =
-                                    Intent().apply {
-                                        action = Intent.ACTION_SEND
-                                        type = "text/plain"
-                                        putExtra(
-                                            Intent.EXTRA_TEXT,
-                                            "https://music.youtube.com/playlist?list=${dbPlaylist?.playlist?.browseId}",
-                                        )
-                                    }
-                                context.startActivity(Intent.createChooser(intent, null))
+                                com.metrolist.music.deeplist.deeplistSharePlaylist(context, com.metrolist.music.deeplist.DeeplistSharedPlaylist(playlist.playlist.name, songs.map { song -> com.metrolist.music.deeplist.DeeplistImportTrack(song.song.title, song.artists.joinToString { it.name }, song.id, song.song.duration, song.song.thumbnailUrl) }))
                             },
                         ),
                     ),
@@ -611,7 +602,8 @@ fun PlaylistMenu(
                                 ),
                             )
                         }
-                        playlist.playlist.shareLink?.let { shareLink ->
+                        run {
+
                             add(
                                 Material3MenuItemData(
                                     title = { Text(text = stringResource(R.string.share)) },
@@ -623,13 +615,7 @@ fun PlaylistMenu(
                                         )
                                     },
                                     onClick = {
-                                        val intent =
-                                            Intent().apply {
-                                                action = Intent.ACTION_SEND
-                                                type = "text/plain"
-                                                putExtra(Intent.EXTRA_TEXT, shareLink)
-                                            }
-                                        context.startActivity(Intent.createChooser(intent, null))
+                                        com.metrolist.music.deeplist.deeplistSharePlaylist(context, com.metrolist.music.deeplist.DeeplistSharedPlaylist(playlist.playlist.name, songs.map { song -> com.metrolist.music.deeplist.DeeplistImportTrack(song.song.title, song.artists.joinToString { it.name }, song.id, song.song.duration, song.song.thumbnailUrl) }))
                                         onDismiss()
                                     },
                                 ),

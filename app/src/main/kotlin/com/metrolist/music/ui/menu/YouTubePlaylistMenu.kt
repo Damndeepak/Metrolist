@@ -674,7 +674,7 @@ fun YouTubePlaylistMenu(
                                         Intent().apply {
                                             action = Intent.ACTION_SEND
                                             type = "text/plain"
-                                            putExtra(Intent.EXTRA_TEXT, playlist.shareLink)
+                                            putExtra(Intent.EXTRA_TEXT, "deeplist://playlist?list=${android.net.Uri.encode(playlist.id.removePrefix("VL"))}")
                                         }
                                     context.startActivity(Intent.createChooser(intent, null))
                                     onDismiss()

@@ -19,6 +19,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.metrolist.music.LocalDatabase
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.LocalListenTogetherManager
+import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.R
 import com.metrolist.music.constants.*
 import com.metrolist.music.db.entities.LyricsEntity
@@ -53,6 +54,7 @@ internal fun DeeplistTools(onDismiss: () -> Unit) {
     var roman by rememberPreference(DeeplistRomanHindiKey, false)
     var chorus by rememberPreference(DeeplistChorusBoostKey, true)
     var marksRaw by rememberPreference(DeeplistChorusMarksKey, "{}")
+    var tapSeek by rememberPreference(DeeplistTapSeekKey, false)
     var recording by rememberPreference(VerciRecordingKey, false)
     var touchLock by rememberPreference(DeeplistTouchLockKey, false)
     var status by remember { mutableStateOf<Int?>(null) }
@@ -90,7 +92,7 @@ internal fun DeeplistTools(onDismiss: () -> Unit) {
                         prefs[VerciStyleKey] = if (i == 0) VerciStyle.APPLE.name else if (i == 1) VerciStyle.FISHEYE_VISUAL.name else VerciStyle.VISUAL.name
                         prefs[VerciNeonKey] = i != 0; prefs[VerciParticlesKey] = i == 2
                         prefs[VerciEmojiKey] = i != 0; prefs[VerciAdvancedEmojiKey] = i == 1
-                        prefs[VerciTextSizeKey] = if (i == 0) 46f else 52f
+                        prefs[deeplistSizeKey(if (i == 0) VerciStyle.APPLE else if (i == 1) VerciStyle.FISHEYE_VISUAL else VerciStyle.VISUAL)] = if (i == 0) 32f else 52f
                     } } }) { Text(stringResource(label)) }
                 }
                 Text(stringResource(R.string.deeplist_emoji_density))
@@ -140,6 +142,7 @@ internal fun DeeplistTools(onDismiss: () -> Unit) {
                 }, enabled = trackId != null) { Text(stringResource(R.string.deeplist_remove_song_style)) }
             }
             if (tab == 1) {
+                ToolSwitch(R.string.deeplist_tap_seek, tapSeek) { tapSeek = it }
                 ToolSwitch(R.string.deeplist_touch_lock, touchLock) { touchLock = it }
                 ToolSwitch(R.string.verci_recording, recording) { recording = it }
                 Text(stringResource(R.string.deeplist_reel_hint))
@@ -166,6 +169,22 @@ internal fun DeeplistTools(onDismiss: () -> Unit) {
                 items.forEach { lyric ->
                     Text(lyric.text)
                     Text(lyric.title, style = MaterialTheme.typography.labelSmall)
+                    if (lyric.songId.isNotBlank()) TextButton(onClick = {
+                        val current = connection ?: return@TextButton
+                        if (metadata?.id == lyric.songId) { current.seekTo(lyric.position); current.player.play() }
+                        else scope.launch {
+                            com.metrolist.innertube.YouTube.queue(listOf(lyric.songId)).onSuccess { rows ->
+                                rows.firstOrNull()?.let { item ->
+                                    current.playQueue(com.metrolist.music.playback.queues.YouTubeQueue(com.metrolist.innertube.models.WatchEndpoint(videoId = item.id), item.toMediaMetadata()))
+                                    // Wait for the requested item, so the seek never moves the previous song.
+                                    kotlinx.coroutines.withTimeoutOrNull(10_000) {
+                                        current.mediaMetadata.first { it?.id == lyric.songId }
+                                        current.seekTo(lyric.position)
+                                    }
+                                }
+                            }
+                        }
+                    }) { Text(stringResource(R.string.deeplist_jump_to_lyric)) }
                     Row {
                         TextButton(onClick = { scope.launch {
                             runCatching { withContext(Dispatchers.IO) { deeplistShareCard(context, lyric) } }

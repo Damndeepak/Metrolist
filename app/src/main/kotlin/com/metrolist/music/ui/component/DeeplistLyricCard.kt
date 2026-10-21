@@ -18,19 +18,19 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 
-data class DeeplistSavedLyric(val text: String, val title: String, val artist: String)
+data class DeeplistSavedLyric(val text: String, val title: String, val artist: String, val songId: String = "", val position: Long = 0)
 
 internal fun deeplistSavedLyrics(value: String): List<DeeplistSavedLyric> = runCatching {
     val array = JSONArray(value)
     List(array.length().coerceAtMost(30)) { i ->
         val item = array.getJSONObject(i)
-        DeeplistSavedLyric(item.getString("text"), item.getString("title"), item.getString("artist"))
+        DeeplistSavedLyric(item.getString("text"), item.getString("title"), item.getString("artist"), item.optString("songId"), item.optLong("position"))
     }
 }.getOrDefault(emptyList())
 
 internal fun deeplistSaveLyric(value: String, lyric: DeeplistSavedLyric): String {
     val items = listOf(lyric) + deeplistSavedLyrics(value).filter { it != lyric }
-    return JSONArray().apply { items.take(30).forEach { put(JSONObject().put("text",it.text).put("title",it.title).put("artist",it.artist)) } }.toString()
+    return JSONArray().apply { items.take(30).forEach { put(JSONObject().put("text",it.text).put("title",it.title).put("artist",it.artist).put("songId",it.songId).put("position",it.position)) } }.toString()
 }
 
 internal fun deeplistShareCard(context: Context, lyric: DeeplistSavedLyric): Intent {
