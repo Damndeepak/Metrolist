@@ -41,6 +41,7 @@ internal fun DeeplistLine(entry: LyricsEntry, position: LongState, offset: Long,
     val density = LocalDensity.current
     val measurer = rememberTextMeasurer()
     val clock = rememberDeeplistClock(playing, smooth = !performance)
+    val sparkDirections = remember { List(12) { i -> val angle = i * 6.28318f / 12; Offset(cos(angle), sin(angle)) } }
     val samples = remember(entry) { longArrayOf(Long.MIN_VALUE, 0L) }
     BoxWithConstraints(modifier.fillMaxWidth().semantics { contentDescription = entry.text }) {
         val heightLimit = with(density) { heightBudget.toPx() }.coerceAtLeast(90f)
@@ -122,9 +123,9 @@ internal fun DeeplistLine(entry: LyricsEntry, position: LongState, offset: Long,
                         val bounds = group.bounds.firstOrNull() ?: return@forEach
                         val origin = Offset(bounds.center.x, bounds.center.y + pad)
                         repeat(12) { i ->
-                            val angle = i * 6.28318f / 12
+                            val direction = sparkDirections[i]
                             val radius = age * 55.dp.toPx()
-                            val point = origin + Offset(cos(angle) * radius, sin(angle) * radius - age * 12.dp.toPx())
+                            val point = origin + Offset(direction.x * radius, direction.y * radius - age * 12.dp.toPx())
                             drawCircle(accent.copy(alpha = (1f - age / 1.2f) * sparks.coerceIn(0f, 1f) * 0.65f), 1.4.dp.toPx(), point)
                         }
                     }

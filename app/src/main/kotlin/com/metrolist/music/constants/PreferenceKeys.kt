@@ -765,7 +765,7 @@ val DeeplistSavedStyleKey = stringPreferencesKey("deeplistSavedStyle")
 val DeeplistSavedLyricsKey = stringPreferencesKey("deeplistSavedLyrics")
 
 
-enum class VerciStyle { FISHEYE, SHIP, VISUAL, FISHEYE_VISUAL, APPLE }
+enum class VerciStyle { FISHEYE, SHIP, VISUAL, FISHEYE_VISUAL, APPLE, NEON_STACK }
 val VerciLyricsKey = booleanPreferencesKey("verciLyrics")
 val VerciStyleKey = stringPreferencesKey("verciStyle")
 val VerciNeonKey = booleanPreferencesKey("verciNeon")
@@ -826,3 +826,13 @@ val DeeplistInstrumentalKey = booleanPreferencesKey("deeplistInstrumental")
 val DeeplistSpotifyTracksKey = stringPreferencesKey("deeplistSpotifyTracks")
 
 val DeeplistAppleNeonKey = booleanPreferencesKey("deeplistAppleNeon")
+val DeeplistStackNeonKey = booleanPreferencesKey("deeplistStackNeon")
+fun deeplistNeonKey(style: VerciStyle) = when (style) {
+    VerciStyle.APPLE -> DeeplistAppleNeonKey
+    VerciStyle.NEON_STACK -> DeeplistStackNeonKey
+    else -> VerciNeonKey
+}
+val DeeplistWordZoomKey = floatPreferencesKey("deeplistWordZoom")
+val DeeplistWordSpacingKey = floatPreferencesKey("deeplistWordSpacing")
+val DeeplistWordGlowKey = booleanPreferencesKey("deeplistWordGlow")
+val DeeplistAppleBeatKey = booleanPreferencesKey("deeplistAppleBeat")

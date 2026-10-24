@@ -82,9 +82,10 @@ internal fun neonContours(path: Path): List<Path> {
 }
 
 @Composable
-internal fun VerciEdgeNeon(playing: Boolean, physicalEdges: Boolean, preview: CameraFit? = null, enabledOverride: Boolean? = null) {
+internal fun VerciEdgeNeon(playing: Boolean, physicalEdges: Boolean, preview: CameraFit? = null, enabledOverride: Boolean? = null, fullBorder: Boolean = false) {
     val enabled by rememberPreference(VerciNeonKey, true)
     val brightness by rememberPreference(VerciBrightnessKey, .8f)
+    val reduced by rememberPreference(com.metrolist.music.constants.DeeplistPerformanceKey, false)
     val reactive by rememberPreference(VerciAudioReactiveKey, true)
     val colorIndex by rememberPreference(VerciColorKey, 0)
     val cameraSize by rememberPreference(com.metrolist.music.constants.VerciCameraSizeKey, 0f)
@@ -102,9 +103,10 @@ internal fun VerciEdgeNeon(playing: Boolean, physicalEdges: Boolean, preview: Ca
     var corner by remember { mutableFloatStateOf(0f) }
     var phase by remember { mutableFloatStateOf(0f) }
     var envelope by remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(playing, reactive, owner) {
+    LaunchedEffect(playing, reactive, owner, reduced) {
         owner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             var last = 0L
+            if (reduced) { envelope = .35f; return@repeatOnLifecycle }
             while (isActive && (playing || envelope > .001f)) withFrameNanos { now ->
                 val dt = if (last == 0L) 0.0 else ((now - last) / 1e9).coerceIn(0.0, .05)
                 last = now
@@ -144,7 +146,7 @@ internal fun VerciEdgeNeon(playing: Boolean, physicalEdges: Boolean, preview: Ca
         val paths = listOf(outline)
         val measures = paths.map { PathMeasure(it, true) }
         val comet = Path()
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; this.color = verciColors[colorIndex.coerceIn(0, 4)] }
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; this.color = if (fullBorder) 0xFFDFFF52.toInt() else verciColors[colorIndex.coerceIn(0, 4)] }
         val thin = fit.thickness.dp.toPx()
         val glow = 6.dp.toPx()
         onDrawBehind {
@@ -154,7 +156,15 @@ internal fun VerciEdgeNeon(playing: Boolean, physicalEdges: Boolean, preview: Ca
             paint.strokeWidth = thin; paint.alpha = (180 * brightness).toInt()
             rings.forEach { c.drawPath(it, paint) }
             paths.forEachIndexed { index, path ->
-                paint.strokeWidth = thin; paint.alpha = (45 * brightness).toInt()
+                if (fullBorder) {
+                    for (layer in (if (reduced) 1 else 3) downTo 1) {
+                        paint.strokeWidth = thin + layer * 3.dp.toPx()
+                        paint.alpha = (brightness * (8 + energy * 8)).toInt()
+                        c.drawPath(path, paint)
+                    }
+                    paint.strokeWidth = thin + 1.dp.toPx()
+                    paint.alpha = (brightness * (155 + energy * 100)).toInt()
+                } else { paint.strokeWidth = thin; paint.alpha = (45 * brightness).toInt() }
                 c.drawPath(path, paint)
                 val m = measures[index]
                 for (tail in 0..1) {

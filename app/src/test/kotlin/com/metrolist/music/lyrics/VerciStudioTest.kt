@@ -34,7 +34,10 @@ class VerciStudioTest {
         val p = VerciPreset(VerciStyle.SHIP, VerciFont.BOLD, 52f, 1f, .8f, 0, true, false, true, true, true, true, true)
         assertEquals(p, VerciPreset.decode(p.encode()))
         assertEquals(p.copy(size = 160f), VerciPreset.decode(p.copy(size = 160f).encode()))
-        assertNull(VerciPreset.decode(p.copy(size = 161f).encode()))
+        assertEquals(p.copy(size = 200f), VerciPreset.decode(p.copy(size = 200f).encode()))
+        assertNull(VerciPreset.decode(p.copy(size = 201f).encode()))
+        val stack = p.copy(style = VerciStyle.NEON_STACK, spacing = .45f)
+        assertEquals(stack, VerciPreset.decode(stack.encode()))
         assertFalse(VerciPreset.decode(p.encode().split('|').take(9).joinToString("|"))!!.advanced)
     }
     @Test fun `PCM level reads are non destructive and silence stays zero`() {

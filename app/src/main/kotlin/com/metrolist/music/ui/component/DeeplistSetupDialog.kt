@@ -156,7 +156,11 @@ internal fun DeeplistEmojiEditor(songId: String?, initialPhrase: String = "", on
 @Composable
 private fun deeplistSetupLabel(key: String): String {
     val label = when (key) {
-        DeeplistAppleNeonKey.name -> R.string.verci_neon
+        DeeplistAppleNeonKey.name, DeeplistStackNeonKey.name -> R.string.verci_neon
+        DeeplistWordZoomKey.name -> R.string.deeplist_word_zoom_label
+        DeeplistWordSpacingKey.name -> R.string.deeplist_word_spacing_label
+        DeeplistWordGlowKey.name -> R.string.deeplist_word_glow
+        DeeplistAppleBeatKey.name -> R.string.deeplist_apple_beat
         DeeplistAppleSizeKey.name -> R.string.verci_text_size
         DeeplistBackdropModeKey.name -> R.string.deeplist_background
         DeeplistBackdropBlurKey.name -> R.string.deeplist_soft_blur

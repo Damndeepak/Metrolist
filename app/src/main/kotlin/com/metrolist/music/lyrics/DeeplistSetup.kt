@@ -10,14 +10,16 @@ internal data class SetupField(val key: String, val default: Any, val min: Doubl
 internal object DeeplistSetup {
     private const val MAX_LENGTH = 240_000
     val fields = listOf(
-        SetupField(DeeplistAppleNeonKey.name, false), SetupField(DeeplistAppleSizeKey.name, 32f, 24.0, 64.0),
+        SetupField(DeeplistAppleNeonKey.name, false), SetupField(DeeplistAppleSizeKey.name, 32f, 24.0, 96.0),
         SetupField(DeeplistBackdropModeKey.name, 2, 0.0, 2.0), SetupField(DeeplistBackdropBlurKey.name, .55f), SetupField(DeeplistBackdropDimKey.name, .48f, .15, .85),
+        SetupField(DeeplistWordZoomKey.name, .18f, 0.0, .35), SetupField(DeeplistWordSpacingKey.name, 1f, .5, 1.4),
+        SetupField(DeeplistWordGlowKey.name, true), SetupField(DeeplistAppleBeatKey.name, false), SetupField(DeeplistStackNeonKey.name, true),
         SetupField(DeeplistTapSeekKey.name, false), SetupField(DeeplistDuetEnabledKey.name, false), SetupField(DeeplistInstrumentalKey.name, true),
-        *VerciStyle.entries.filter { it != VerciStyle.APPLE }.map { SetupField(deeplistSizeKey(it).name, 52f, 24.0, 160.0) }.toTypedArray(),
+        *VerciStyle.entries.filter { it != VerciStyle.APPLE }.map { SetupField(deeplistSizeKey(it).name, 52f, 24.0, 200.0) }.toTypedArray(),
         SetupField(WordstormEnabledKey.name, true), SetupField(VerciLyricsKey.name, false),
         SetupField(VerciStyleKey.name, VerciStyle.FISHEYE.name, choices = VerciStyle.entries.map { it.name }.toSet()),
         SetupField(VerciFontKey.name, VerciFont.BOLD.name, choices = VerciFont.entries.map { it.name }.toSet()),
-        SetupField(VerciTextSizeKey.name, 52f, 28.0, 160.0), SetupField(VerciSpacingKey.name, 1f, .75, 1.35),
+        SetupField(VerciTextSizeKey.name, 52f, 28.0, 200.0), SetupField(VerciSpacingKey.name, 1f, .45, 1.35),
         SetupField(VerciBrightnessKey.name, .8f), SetupField(VerciColorKey.name, 0, 0.0, 4.0),
         SetupField(VerciNeonKey.name, true), SetupField(VerciEmojiKey.name, true), SetupField(VerciAudioReactiveKey.name, true),
         SetupField(VerciAdvancedEmojiKey.name, false), SetupField(VerciMegaEmojiKey.name, true),

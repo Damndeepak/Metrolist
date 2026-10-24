@@ -73,11 +73,11 @@ internal fun DeeplistBackdrop(track: String?, art: String?, title: String, artis
     val spotifyId = remember(track, spotifyTracks) { runCatching { JSONObject(spotifyTracks).optString(track.orEmpty()) }.getOrDefault("") }
     val provider by rememberPreference(DeeplistVideoProviderKey, "")
     val clock = rememberDeeplistClock(playing && !reduced && mode != 0)
-    var resolved by remember(track, overrides, provider, spotifyId) { mutableStateOf<String?>(null) }
+    var resolved by remember(track, overrides, provider, spotifyId, mode, enabled, reduced, title, artist) { mutableStateOf<String?>(null) }
     var failed by remember(track, resolved) { mutableStateOf(false) }
-    LaunchedEffect(track, overrides, provider, mode, enabled, spotifyId) {
+    LaunchedEffect(track, overrides, provider, mode, enabled, spotifyId, reduced, title, artist) {
         resolved = null
-        if (enabled && mode == 2) {
+        if (enabled && mode == 2 && !reduced) {
             resolved = runCatching { JSONObject(overrides).optString(track.orEmpty()).takeIf { it.startsWith("https://") || it.startsWith("content://") } }.getOrNull()
                 ?: if (provider.isNotBlank()) deeplistResolveVideo(provider, title, artist) else deeplistCanvasVideo(spotifyId)
         }
@@ -106,6 +106,7 @@ private fun DeeplistVideo(url: String, playing: Boolean, modifier: Modifier, onF
         setAudioAttributes(androidx.media3.common.AudioAttributes.DEFAULT, false)
         setMediaItem(MediaItem.fromUri(Uri.parse(url))); prepare()
     } }
+    val cropMatrix = remember(player) { android.graphics.Matrix() }
     val latestFailure by rememberUpdatedState(onFailure)
     DisposableEffect(player) {
         val listener = object : Player.Listener { override fun onPlayerError(error: PlaybackException) { latestFailure() } }
@@ -123,7 +124,7 @@ private fun DeeplistVideo(url: String, playing: Boolean, modifier: Modifier, onF
             if (texture.width > 0 && texture.height > 0 && video.width > 0 && video.height > 0) {
                 val viewRatio = texture.width.toFloat() / texture.height
                 val ratio = video.width.toFloat() / video.height
-                texture.setTransform(android.graphics.Matrix().apply {
+                texture.setTransform(cropMatrix.apply {
                     setScale(if (ratio > viewRatio) ratio / viewRatio else 1f, if (ratio < viewRatio) viewRatio / ratio else 1f, texture.width / 2f, texture.height / 2f)
                 })
             }

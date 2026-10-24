@@ -34,7 +34,12 @@ internal fun DeeplistQuickSettings(onDismiss: () -> Unit) {
     var dim by rememberPreference(DeeplistBackdropDimKey, .48f)
     var blur by rememberPreference(DeeplistBackdropBlurKey, .55f)
     var recording by rememberPreference(VerciRecordingKey, false)
-    var neon by rememberPreference(if (style == VerciStyle.APPLE) DeeplistAppleNeonKey else VerciNeonKey, style != VerciStyle.APPLE)
+    var neon by rememberPreference(deeplistNeonKey(style), style != VerciStyle.APPLE)
+    var zoom by rememberPreference(DeeplistWordZoomKey, .18f)
+    var wordSpacing by rememberPreference(DeeplistWordSpacingKey, 1f)
+    var lineSpacing by rememberPreference(VerciSpacingKey, 1f)
+    var wordGlow by rememberPreference(DeeplistWordGlowKey, true)
+    var appleBeat by rememberPreference(DeeplistAppleBeatKey, false)
     var tab by remember { mutableIntStateOf(0) }
     var styleDialog by remember { mutableStateOf(false) }
     var tools by remember { mutableStateOf(false) }
@@ -59,7 +64,17 @@ internal fun DeeplistQuickSettings(onDismiss: () -> Unit) {
                     if (tab == 0) {
                         TextButton(onClick = { styleDialog = true }) { Text(stringResource(R.string.deeplist_style_value, deeplistStyleLabel(style))) }
                         Text(stringResource(R.string.deeplist_mode_size, size.toInt()))
-                        Slider(size.coerceIn(if (style == VerciStyle.APPLE) 24f else 28f, if (style == VerciStyle.APPLE) 64f else 160f), { size = it }, valueRange = if (style == VerciStyle.APPLE) 24f..64f else 28f..160f)
+                        Slider(size.coerceIn(if (style == VerciStyle.APPLE) 24f else 28f, if (style == VerciStyle.APPLE) 96f else 200f), { size = it }, valueRange = if (style == VerciStyle.APPLE) 24f..96f else 28f..200f)
+                        Text(stringResource(R.string.verci_spacing))
+                        Slider(lineSpacing, { lineSpacing = it }, valueRange = .45f..1.35f)
+                        Text(stringResource(R.string.deeplist_word_zoom, (zoom * 100).toInt()))
+                        Slider(zoom, { zoom = it }, valueRange = 0f..0.35f)
+                        if (style == VerciStyle.APPLE) {
+                            Text(stringResource(R.string.deeplist_word_spacing, (wordSpacing * 100).toInt()))
+                            Slider(wordSpacing, { wordSpacing = it }, valueRange = .5f..1.4f)
+                            QuickSwitch(R.string.deeplist_word_glow, wordGlow) { wordGlow = it }
+                            QuickSwitch(R.string.deeplist_apple_beat, appleBeat) { appleBeat = it }
+                        }
                         Text(stringResource(R.string.deeplist_background))
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             listOf(R.string.deeplist_off, R.string.deeplist_cover, R.string.deeplist_auto_video).forEachIndexed { i, label ->
@@ -104,6 +119,7 @@ internal fun DeeplistQuickSettings(onDismiss: () -> Unit) {
 @Composable
 internal fun deeplistStyleLabel(style: VerciStyle): String = stringResource(when (style) {
     VerciStyle.APPLE -> R.string.deeplist_apple_style
+    VerciStyle.NEON_STACK -> R.string.deeplist_neon_stack
     VerciStyle.SHIP -> R.string.verci_ship
     VerciStyle.VISUAL -> R.string.verci_visual
     VerciStyle.FISHEYE -> R.string.verci_fisheye

@@ -59,7 +59,7 @@ internal fun verciStudioItems(): List<Material3SettingsItem> {
     val (style, _) = rememberEnumPreference(VerciStyleKey, VerciStyle.FISHEYE)
     val (legacySize, _) = rememberPreference(VerciTextSizeKey, 52f)
     val (size, _) = rememberPreference(deeplistSizeKey(style), if (style == VerciStyle.APPLE) 32f else legacySize)
-    val (neon, _) = rememberPreference(if (style == VerciStyle.APPLE) DeeplistAppleNeonKey else VerciNeonKey, style != VerciStyle.APPLE)
+    val (neon, _) = rememberPreference(deeplistNeonKey(style), style != VerciStyle.APPLE)
     val (emojis, _) = rememberPreference(VerciEmojiKey, true)
     val (saved, setSaved) = rememberPreference(VerciPresetsKey, "{}")
     val (floating, setFloating) = rememberPreference(FloatingLyricsKey, false)
@@ -97,7 +97,7 @@ internal fun verciStudioItems(): List<Material3SettingsItem> {
             Column(Modifier.padding(20.dp)) {
                 Text(stringResource(if (isBrightness) R.string.verci_brightness else R.string.verci_spacing))
                 Text("${(value * 100).toInt()}%")
-                Slider(value = value, onValueChange = { value = it }, valueRange = if (isBrightness) 0f..1f else .75f..1.35f)
+                Slider(value = value, onValueChange = { value = it }, valueRange = if (isBrightness) 0f..1f else .45f..1.35f)
             }
         }
     }
@@ -122,7 +122,7 @@ internal fun verciStudioItems(): List<Material3SettingsItem> {
                                     v[VerciAdvancedEmojiKey] = p.advanced; v[VerciCameraRingKey] = p.ring
                                     v[VerciBeatLiftKey] = p.beatLift; v[VerciMegaEmojiKey] = p.mega
                                     v[VerciParticlesKey] = p.particles; v[VerciClockKey] = p.clock
-                                    v[if (p.style == VerciStyle.APPLE) DeeplistAppleNeonKey else VerciNeonKey] = p.neon; v[VerciEmojiKey] = p.emojis; v[VerciAudioReactiveKey] = p.reactive
+                                    v[deeplistNeonKey(p.style)] = p.neon; v[VerciEmojiKey] = p.emojis; v[VerciAudioReactiveKey] = p.reactive
                                 }
                             } }
                         }, modifier = Modifier.weight(1f)) { Text(label) }

@@ -125,7 +125,7 @@ fun VerciLyrics(
     val selectedRenderer by rememberEnumPreference(VerciStyleKey, VerciStyle.FISHEYE)
     val journey = rememberDeeplistJourney(metadata?.id, selectedRenderer)
     val renderer = journey
-    val appleNeon by rememberPreference(DeeplistAppleNeonKey, false)
+    val modeNeon by rememberPreference(deeplistNeonKey(renderer), renderer != VerciStyle.APPLE)
     var saved by rememberPreference(DeeplistSavedLyricsKey, "[]")
     var correctPhrase by remember { mutableStateOf<String?>(null) }
     var actions by remember { mutableStateOf(false) }
@@ -221,7 +221,7 @@ fun VerciLyrics(
         if (locked && (controls || !immersive)) TextButton(onClick = { locked = false }, modifier = Modifier.align(Alignment.TopStart).safeDrawingPadding()) { Text(stringResource(R.string.deeplist_unlock)) }
         if (immersive && controls && !locked) VerciTransport(seekPreview, { seekPreview = it }, Modifier.align(Alignment.BottomCenter).safeDrawingPadding())
         DeeplistStageEffects(source.orEmpty(), previewProvider, playing, renderer)
-        VerciEdgeNeon(playing, immersive, enabledOverride = if (renderer == VerciStyle.APPLE) appleNeon else null)
+        VerciEdgeNeon(playing, immersive, enabledOverride = modeNeon, fullBorder = renderer == VerciStyle.NEON_STACK)
 
     }
     correctPhrase?.let { phrase -> DeeplistEmojiEditor(metadata?.id, phrase) { correctPhrase = null } }
@@ -293,9 +293,10 @@ private fun VerciWordCanvas(words: List<VerciWord>, gaps: List<VerciGap>, slider
     val textSize by rememberPreference(deeplistSizeKey(style), legacySize)
     val font by rememberEnumPreference(VerciFontKey, VerciFont.BOLD)
     val spacing by rememberPreference(VerciSpacingKey, 1f)
+    val wordZoom by rememberPreference(DeeplistWordZoomKey, .18f)
     val colorIndex by rememberPreference(VerciColorKey, 0)
     val density = LocalDensity.current
-    val fontPx = with(density) { textSize.coerceIn(28f, 160f).sp.toPx() }
+    val fontPx = with(density) { textSize.coerceIn(28f, 200f).sp.toPx() }
     val accent = verciColors[colorIndex.coerceIn(0, 4)]
     val foreground = MaterialTheme.colorScheme.onSurface.toArgb()
     val background = MaterialTheme.colorScheme.surface.toArgb()
@@ -375,6 +376,9 @@ private fun VerciWordCanvas(words: List<VerciWord>, gaps: List<VerciGap>, slider
                     color = foreground
                 }
                 val widths = words.map { paint.measureText(it.text).coerceAtLeast(1f) }
+                val gapStarts = gaps.map { it.start }
+                val stack = style == VerciStyle.NEON_STACK
+                val stackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFDFFF52.toInt() }
                 val emojiPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                     this.textSize = min(fontPx * .58f, 40.dp.toPx())
                     if (iconPack > 0) colorFilter = android.graphics.PorterDuffColorFilter(if (iconPack == 1) foreground else accent, android.graphics.PorterDuff.Mode.SRC_IN)
@@ -436,7 +440,8 @@ private fun VerciWordCanvas(words: List<VerciWord>, gaps: List<VerciGap>, slider
                         if (minute != clockMinute) { clockMinute = minute; clockText = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date(wallTime)) }
                         c.drawText(clockText, size.width / 2, size.height * .12f, clockPaint)
                     }
-                    val gapIndex = gaps.indexOfFirst { now >= it.start && now < it.end }
+                    val gapCandidate = wordstormLineIndex(gapStarts, now)
+                    val gapIndex = if (gapCandidate >= 0 && now < gaps[gapCandidate].end) gapCandidate else -1
                     val lift = animation * pulse * min(24.dp.toPx(), size.height * .029f) * .75f
                     c.save()
                     c.translate(0f, -lift)
@@ -455,7 +460,7 @@ private fun VerciWordCanvas(words: List<VerciWord>, gaps: List<VerciGap>, slider
                         val fisheye = style == VerciStyle.FISHEYE || style == VerciStyle.FISHEYE_VISUAL
                         val scale = if (fisheye) 1f / (1f + .8f * distance)
                             else (1f - .16f * distance).coerceIn(.35f, 1f)
-                        val y = if (fisheye) tanh(u * .62f) * size.height * .43f * spacing else u * size.height * .14f * spacing
+                        val y = if (fisheye) tanh(u * .62f) * size.height * .43f * spacing else u * size.height * (if (stack) .17f else .14f) * spacing
                         val drift = if (style == VerciStyle.SHIP) sin(i * 127.1f) * size.width * .22f * min(1f, distance) else 0f
                         val giant = textSize > 80f
                         val hasIcons = displayIcons[i].isNotEmpty()
@@ -463,10 +468,11 @@ private fun VerciWordCanvas(words: List<VerciWord>, gaps: List<VerciGap>, slider
                         val singerShift = if (!duet || singers[i] == 2) 0f else if (singers[i] == 1) size.width * .1f else -size.width * .1f
                         val fit = min(1f, (size.width * (if (duet) .72f else if (giant) .90f else .84f) - abs(drift) * 2).coerceAtLeast(size.width * .35f) / (widths[i] + iconWidth))
                         val progress = ((now - word.start).toFloat() / (word.end - word.start)).coerceIn(0f, 1f)
-                        val pop = if (i == active && animation > 0f) sin(progress * Math.PI).toFloat() * (if (chorusBoost && chorusFlags[i]) .1f else .07f) * animation else 0f
+                        val emphasis = if (animation > 0f) deeplistWordEmphasis(now, word.start, word.end) else 0f
+                        val pop = emphasis * (wordZoom.coerceIn(0f, .35f) + if (chorusBoost && chorusFlags[i]) .03f else 0f) * animation
                         val alpha = ((1 - .22f * distance).coerceIn(0f, 1f) * 255).toInt()
                         c.save()
-                        c.translate(size.width / 2 + drift + singerShift, size.height / 2 + y)
+                        c.translate(size.width / 2 + drift + singerShift, size.height / 2 + y - emphasis * 5.dp.toPx() * animation)
                         c.scale(scale * fit * (1 + pop), scale * fit * (1 + pop))
                         if (style == VerciStyle.SHIP && animation > 0f && !economy) {
                             camera.save()
@@ -477,10 +483,15 @@ private fun VerciWordCanvas(words: List<VerciWord>, gaps: List<VerciGap>, slider
                             c.concat(perspective)
                         }
                         val x = -(widths[i] + iconWidth) / 2
-                        paint.color = if (i > active) accent else foreground
-                        paint.alpha = (alpha * if (i == active) .38f else if (i > active) .45f else .72f).toInt()
+                        if (stack && i == active) {
+                            stackPaint.alpha = alpha
+                            c.drawRoundRect(x - 8.dp.toPx(), baseline + metrics.ascent - 3.dp.toPx(),
+                                x + widths[i] + 8.dp.toPx(), baseline + metrics.descent + 3.dp.toPx(), 3.dp.toPx(), 3.dp.toPx(), stackPaint)
+                        }
+                        paint.color = if (stack && i == active) android.graphics.Color.BLACK else if (stack) android.graphics.Color.WHITE else if (i > active) accent else foreground
+                        paint.alpha = if (stack) alpha else (alpha * if (i == active) .38f else if (i > active) .45f else .72f).toInt()
                         c.drawText(word.text, x, baseline, paint)
-                        if (i == active) {
+                        if (i == active && !stack) {
                             c.save()
                             c.clipRect(x, baseline + metrics.top, x + widths[i] * progress, baseline + metrics.bottom)
                             paint.color = accent

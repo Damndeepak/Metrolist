@@ -1079,7 +1079,7 @@
     <string name="verci_ship">Ship</string>
     <string name="verci_visual">Visual</string>
     <string name="verci_fisheye_visual">Fisheye Visual</string>
-    <string name="verci_text_size">Verci word size</string>
+    <string name="verci_text_size">Lyric text size</string>
     <string name="verci_neon">Neon border</string>
     <string name="verci_neon_desc">Moving theme colors around the lyrics</string>
     <string name="verci_emojis">Word emojis</string>
@@ -1090,7 +1090,7 @@
     <string name="verci_audio_reactive">Audio reactive neon</string>
     <string name="verci_audio_hint">Follows local PCM audio energy with smooth attack and release. Hardware offload and casting may not provide PCM levels.</string>
     <string name="verci_font">Lyrics font</string>
-    <string name="verci_spacing">Word spacing</string>
+    <string name="verci_spacing">Vertical spacing</string>
     <string name="verci_colors">Lyrics and neon colour</string>
     <string name="verci_presets">Saved lyric presets</string>
     <string name="verci_preset_name">Preset name</string>
@@ -1236,4 +1236,11 @@
     <string name="deeplist_share_failed">Could not share this playlist. Choose a non-empty playlist with at most 2,000 songs.</string>
     <string name="deeplist_playlist_name">Playlist name</string>
     <string name="deeplist_clear_journey">Clear this song journey</string>
+    <string name="deeplist_neon_stack">Neon stack · video style</string>
+    <string name="deeplist_word_spacing">Space between words: %1$d%%</string>
+    <string name="deeplist_word_zoom">Active word zoom: +%1$d%%</string>
+    <string name="deeplist_word_glow">Soft active-word glow</string>
+    <string name="deeplist_apple_beat">Extra word pulse with the beat</string>
+    <string name="deeplist_word_zoom_label">Active word zoom</string>
+    <string name="deeplist_word_spacing_label">Space between words</string>
 </resources>

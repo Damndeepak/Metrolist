@@ -8,7 +8,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -49,25 +49,31 @@ internal fun DeeplistStageEffects(source: String, slider: () -> Long?, playing: 
     val marks by rememberPreference(DeeplistChorusMarksKey, "{}")
     val lines = remember(source) { LyricsUtils.parseLyrics(source).filter { !it.isBackground && it.text.isNotBlank() }.sortedBy { it.time } }
     val gaps = remember(source) { buildVerciGaps(LyricsUtils.parseLyrics(source)) }
+    val lineTimes = remember(lines) { lines.map { it.time } }
+    val gapTimes = remember(gaps) { gaps.map { it.start } }
+    val singers = remember(lines, tags, metadata?.id) { IntArray(lines.size) { deeplistSinger(tags, metadata?.id.orEmpty(), lines[it].time) } }
     val choruses = remember(lines, marks, metadata?.id) { deeplistChorusLines(lines, deeplistChorusMarks(marks, metadata?.id.orEmpty())) }
     var now by remember(source) { mutableLongStateOf(0) }
     val latestSlider by rememberUpdatedState(slider)
     val offset by rememberUpdatedState(song?.song?.lyricsOffset ?: 0)
     LaunchedEffect(source, playing) { while (true) { now = (latestSlider() ?: connection.player.currentPosition) + offset; delay(if (playing) 50 else 150) } }
-    val line = lines.lastOrNull { it.time <= now }
+    val lineIndex = wordstormLineIndex(lineTimes, now)
+    val line = lines.getOrNull(lineIndex)
     val hot = chorus && line?.time in choruses
     val amount by animateFloatAsState(if (hot && playing) .16f else 0f, tween(700), label = "chorus light")
-    val gap = instrumental && (gaps.any { now in it.start..it.end } || lines.firstOrNull()?.let { now < it.time && it.time > 4000 } == true)
+    val gapIndex = wordstormLineIndex(gapTimes, now)
+    val gap = instrumental && (gaps.getOrNull(gapIndex)?.let { now <= it.end } == true || lines.firstOrNull()?.let { now < it.time && it.time > 4000 } == true)
     val opacity by animateFloatAsState(if (gap) 1f else 0f, tween(700), label = "instrumental scene")
     Box(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxSize().drawWithContent {
-            drawRect(Brush.radialGradient(listOf(Color(0xFFD1B0FF).copy(alpha = amount), Color.Transparent), radius = size.maxDimension * .6f))
+        Box(Modifier.fillMaxSize().drawWithCache {
+            val light = Brush.radialGradient(listOf(Color(0xFFD1B0FF), Color.Transparent), radius = size.maxDimension * .6f)
+            onDrawBehind { drawRect(light, alpha = amount) }
         })
         if (opacity > .01f) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = opacity * .92f)), contentAlignment = Alignment.Center) {
             AsyncImage(metadata?.thumbnailUrl, null, modifier = Modifier.size(200.dp).graphicsLayer { alpha = opacity; scaleX = .94f + opacity * .06f; scaleY = scaleX })
         }
         if (duet && style != VerciStyle.APPLE && line != null) {
-            val singer = deeplistSinger(tags, metadata?.id.orEmpty(), line.time)
+            val singer = singers[lineIndex]
             val label = when (singer) { 1 -> "B"; 2 -> "A + B"; else -> "A" }
             Text(label, color = if (singer == 1) Color(0xFFFFADD7) else Color(0xFFC4B4FF), modifier = Modifier.align(if (singer == 1) Alignment.TopEnd else Alignment.TopStart).safeDrawingPadding().padding(24.dp))
         }

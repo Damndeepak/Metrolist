@@ -37,7 +37,7 @@ fun verciLyricsSettingsItems(): List<Material3SettingsItem> {
         setEnabled(value)
     }
     val (style, setStyle) = rememberEnumPreference(VerciStyleKey, VerciStyle.FISHEYE)
-    val (neon, setNeon) = rememberPreference(if (style == VerciStyle.APPLE) com.metrolist.music.constants.DeeplistAppleNeonKey else VerciNeonKey, style != VerciStyle.APPLE)
+    val (neon, setNeon) = rememberPreference(com.metrolist.music.constants.deeplistNeonKey(style), style != VerciStyle.APPLE)
     val (emojis, setEmojis) = rememberPreference(VerciEmojiKey, true)
     val (legacySize, _) = rememberPreference(VerciTextSizeKey, 52f)
     val (fontSize, setFontSize) = rememberPreference(com.metrolist.music.constants.deeplistSizeKey(style), if (style == VerciStyle.APPLE) 32f else legacySize)
@@ -66,7 +66,7 @@ fun verciLyricsSettingsItems(): List<Material3SettingsItem> {
             Column(Modifier.padding(20.dp)) {
                 Text(stringResource(R.string.verci_text_size))
                 Text("${size.roundToInt()} sp")
-                Slider(value = size, onValueChange = { size = it }, valueRange = if (style == VerciStyle.APPLE) 24f..64f else 28f..160f)
+                Slider(value = size, onValueChange = { size = it }, valueRange = if (style == VerciStyle.APPLE) 24f..96f else 28f..200f)
             }
         }
     }
@@ -119,4 +119,5 @@ private fun verciStyleName(style: VerciStyle): String = stringResource(when (sty
     VerciStyle.VISUAL -> R.string.verci_visual
     VerciStyle.FISHEYE_VISUAL -> R.string.verci_fisheye_visual
     VerciStyle.APPLE -> R.string.deeplist_apple_style
+    VerciStyle.NEON_STACK -> R.string.deeplist_neon_stack
 })

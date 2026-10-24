@@ -41,6 +41,7 @@ internal fun VerciStylePreview() {
                 if (icon.isEmpty()) text else "$text $icon"
             }
             val widths = words.map { paint.measureText(it) }
+            val baseline = -paint.fontMetrics.ascent / 3
             onDrawBehind {
                 val phase = (clock.longValue % 3600L) / 1200f
                 val c = drawContext.canvas.nativeCanvas
@@ -52,7 +53,7 @@ internal fun VerciStylePreview() {
                     val drift = if (movement == VerciStyle.SHIP) kotlin.math.sin(i * 127.1f) * this.size.width * .16f * minOf(1f, abs(distance)) else 0f
                     c.save(); c.translate(this.size.width / 2 + drift, this.size.height / 2 + distance * this.size.height * .32f * spacing)
                     c.scale(scale, scale); paint.alpha = ((1 - .4f * abs(distance)) * 255).toInt().coerceIn(0, 255)
-                    c.drawText(word, -widths[i] / 2, -paint.fontMetrics.ascent / 3, paint); c.restore()
+                    c.drawText(word, -widths[i] / 2, baseline, paint); c.restore()
                 }
             }
         }) {}

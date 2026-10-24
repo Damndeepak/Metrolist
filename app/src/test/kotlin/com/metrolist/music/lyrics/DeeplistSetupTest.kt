@@ -10,6 +10,26 @@ import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
 class DeeplistSetupTest {
+    @Test fun `new lyric controls and neon stack survive setup transfer`() {
+        val prefs = mutablePreferencesOf().apply {
+            this[VerciStyleKey] = "NEON_STACK"
+            this[deeplistSizeKey(VerciStyle.NEON_STACK)] = 190f
+            this[DeeplistAppleSizeKey] = 90f
+            this[DeeplistWordZoomKey] = .3f
+            this[DeeplistWordSpacingKey] = .5f
+            this[VerciSpacingKey] = .45f
+            this[DeeplistAppleBeatKey] = true
+        }
+        val destination = mutablePreferencesOf()
+        DeeplistSetup.apply(destination, DeeplistSetup.decode(DeeplistSetup.snapshot(prefs)), true)
+        assertEquals("NEON_STACK", destination[VerciStyleKey])
+        assertEquals(190f, destination[deeplistSizeKey(VerciStyle.NEON_STACK)])
+        assertEquals(90f, destination[DeeplistAppleSizeKey])
+        assertEquals(.5f, destination[DeeplistWordSpacingKey])
+        assertEquals(.3f, destination[DeeplistWordZoomKey])
+        assertEquals(true, destination[DeeplistAppleBeatKey])
+    }
+
     @Test fun `setup round trip preserves appearance but excludes credentials and history`() {
         val prefs = mutablePreferencesOf().apply { this[VerciTextSizeKey] = 160f; this[VerciStyleKey] = "APPLE"; this[DeeplistTokenKey] = "private-token"; this[DeeplistWebsiteKey] = "https://private.example"; this[DeeplistSavedLyricsKey] = "private history" }
         val json = DeeplistSetup.snapshot(prefs)
