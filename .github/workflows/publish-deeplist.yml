@@ -1,10 +1,19 @@
+<stdin>:15: SyntaxWarning: invalid escape sequence '\d'
 name: Publish verified Deeplist
 
 on:
   workflow_run:
-    workflows: [Deeplist Android APK]
+    workflows: [Deeplist Android APK, Wordstorm Android APK]
     types: [completed]
     branches: [wordstorm-build]
+
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: Successful custom Deeplist build run ID
+        required: true
+        default: "40280663837"
+        type: string
 
 permissions:
   actions: read
@@ -12,22 +21,42 @@ permissions:
 
 jobs:
   publish:
-    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_repository.full_name == github.repository
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
+      - name: Resolve successful custom build
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_RUN: ${{ github.event.workflow_run.id || inputs.build_run_id }}
+        shell: bash
+        run: |
+          python3 - <<'PYTHON'
+          import json, os, re, subprocess
+          run = os.environ['REQUESTED_RUN']
+          assert re.fullmatch(r'\d+', run)
+          repo = os.environ['GITHUB_REPOSITORY']
+          source = json.loads(subprocess.check_output(['gh', 'api', 'repos/' + repo + '/actions/runs/' + run], text=True))
+          assert source['conclusion'] == 'success' and source['head_branch'] == 'wordstorm-build'
+          assert source['head_repository']['full_name'] == repo
+          assert source['path'] == '.github/workflows/wordstorm-android.yml'
+          assert re.fullmatch(r'[0-9a-f]{40}', source['head_sha'])
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              out.write('run_id=' + run + '\nsha=' + source['head_sha'] + '\n')
+          PYTHON
       - name: Download tested APK
         uses: actions/download-artifact@v4
         with:
           name: Deeplist-APK
           path: dist
-          run-id: ${{ github.event.workflow_run.id }}
+          run-id: ${{ steps.source.outputs.run_id }}
           github-token: ${{ github.token }}
 
       - name: Verify public release identity
         id: verify
         env:
-          BUILD_SHA: ${{ github.event.workflow_run.head_sha }}
+          BUILD_SHA: ${{ steps.source.outputs.sha }}
         shell: bash
         run: |
           python3 - <<'PY'
@@ -68,7 +97,7 @@ jobs:
       - name: Publish public binary release
         env:
           GH_TOKEN: ${{ github.token }}
-          BUILD_SHA: ${{ github.event.workflow_run.head_sha }}
+          BUILD_SHA: ${{ steps.source.outputs.sha }}
           TAG: ${{ steps.verify.outputs.tag }}
           TITLE: ${{ steps.verify.outputs.title }}
         shell: bash
