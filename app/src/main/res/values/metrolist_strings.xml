@@ -1248,5 +1248,4 @@
     <string name="deeplist_word_zoom_label">Active word zoom</string>
     <string name="deeplist_word_spacing_label">Space between words</string>
     <string name="deeplist_download_update">Download update</string>
-    <string name="deeplist_apple_ambient">Apple-style moving background</string>
 </resources>

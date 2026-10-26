@@ -40,7 +40,6 @@ internal fun DeeplistQuickSettings(onDismiss: () -> Unit) {
     var lineSpacing by rememberPreference(VerciSpacingKey, 1f)
     var wordGlow by rememberPreference(DeeplistWordGlowKey, true)
     var appleBeat by rememberPreference(DeeplistAppleBeatKey, false)
-    var appleAmbient by rememberPreference(DeeplistAppleAmbientKey, true)
     var tab by remember { mutableIntStateOf(0) }
     var styleDialog by remember { mutableStateOf(false) }
     var tools by remember { mutableStateOf(false) }
@@ -83,7 +82,6 @@ internal fun DeeplistQuickSettings(onDismiss: () -> Unit) {
                             }
                         }
                         Text(stringResource(R.string.deeplist_background_hint), style = MaterialTheme.typography.bodySmall)
-                        if (style == VerciStyle.APPLE) QuickSwitch(R.string.deeplist_apple_ambient, appleAmbient) { appleAmbient = it }
                         DeeplistSongBackground()
                         if (enabled && background > 0) {
                             Text(stringResource(R.string.deeplist_background_brightness)); Slider(1f - dim, { dim = 1f - it }, valueRange = .15f..0.85f)

@@ -185,7 +185,7 @@ fun VerciLyrics(
         BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         val stage = Modifier.fillMaxSize()
         Box(stage) {
-        DeeplistBackdrop(metadata?.id, metadata?.thumbnailUrl, metadata?.title.orEmpty(), metadata?.artists?.joinToString { it.name }.orEmpty(), playing, appleStyle = renderer == VerciStyle.APPLE)
+        DeeplistBackdrop(metadata?.id, metadata?.thumbnailUrl, metadata?.title.orEmpty(), metadata?.artists?.joinToString { it.name }.orEmpty(), playing)
         androidx.compose.animation.Crossfade(targetState = renderer, animationSpec = androidx.compose.animation.core.tween(450), label = "Lyrics style") { currentRenderer ->
         if (currentRenderer == VerciStyle.APPLE) {
             key(metadata?.id, source) {

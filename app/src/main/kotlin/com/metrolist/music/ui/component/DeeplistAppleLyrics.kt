@@ -1,8 +1,5 @@
 package com.metrolist.music.ui.component
 
-import android.graphics.LinearGradient
-import android.graphics.PorterDuff
-import android.graphics.PorterDuffXfermode
 import android.graphics.Path
 import android.graphics.Paint
 import android.graphics.RenderEffect
@@ -101,7 +98,7 @@ internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Bo
     LaunchedEffect(connection, source, times, playing, owner, economy, intensity, beatLink) {
         owner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             val clock = VerciPlaybackClock()
-            val motion = AppleDemoScroll().apply { reset(scroll) }
+            val spring = DeeplistLyricSpring().apply { reset(scroll) }
             val heartbeat = VerciHeartbeat()
             var previous = 0L
             var previousCenters: FloatArray? = hits.centers
@@ -123,9 +120,9 @@ internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Bo
                         val target = centers.getOrElse(wordstormLineIndex(times, time).coerceAtLeast(0)) { 0f }
                         val dt = if (previous == 0L) 0f else ((frame - previous) / 1e9f).coerceIn(0f, .1f)
                         if (snap || preview != null || intensity == 0f || previousCenters !== centers) {
-                            motion.reset(target); snap = false
+                            spring.reset(target); snap = false
                         }
-                        scroll = motion.advance(target, frame, intensity)
+                        scroll = spring.advance(target, dt, 9f / intensity.coerceIn(.5f, 1.5f))
                         previousCenters = centers
                         hits.ready = true
                         pulse = if (beatLink && playing && !economy && preview == null && intensity > 0f)
@@ -151,19 +148,14 @@ internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Bo
                     if (!locked) hits.find(point.y).takeIf { it >= 0 }?.let { onCorrect(lines[it].text) }
                 })
             }.drawWithCache {
-                val paint = deeplistApplePaint(requestedSize.coerceIn(24f, 96f).sp.toPx()).apply {
-                    typeface = if (Build.VERSION.SDK_INT >= 28)
-                        Typeface.create(Typeface.create("sans-serif", Typeface.NORMAL), 800, false)
-                    else Typeface.create("sans-serif", Typeface.BOLD)
-                    letterSpacing = -.04f
-                }
+                val paint = deeplistApplePaint(requestedSize.coerceIn(24f, 96f).sp.toPx())
                 val layouts = displayLines.mapIndexed { i, line ->
                     val text = deeplistSpacedText(line.text, wordSpacing)
                     StaticLayout.Builder.obtain(text, 0, text.length, paint,
                         (size.width * if (duet) .86f else 1f).toInt().coerceAtLeast(1))
                         .setAlignment(if (duet && singers[i] == 1) Layout.Alignment.ALIGN_OPPOSITE
                             else if (duet && singers[i] == 2) Layout.Alignment.ALIGN_CENTER else Layout.Alignment.ALIGN_NORMAL)
-                        .setIncludePad(false).setLineSpacing(0f, 1.22f).build()
+                        .setIncludePad(false).setLineSpacing(0f, 1.12f).build()
                 }
                 val starts = FloatArray(layouts.size + 1)
                 layouts.forEachIndexed { i, layout -> starts[i + 1] = starts[i] + layout.height + 30.dp.toPx() * lineSpacing.coerceIn(.45f, 1.35f) }
@@ -183,13 +175,8 @@ internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Bo
                 val bounds = timed.mapIndexed { i, row -> row.map { deeplistWordBounds(layouts[i], it) } }
                 val emphasis = timed.map { FloatArray(it.size) }
                 val excluded = Path()
+                val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = verciColors[colorIndex.coerceIn(0, 4)] }
                 val iconText = icons.map { it.joinToString("") }
-                val edgeFade = Paint().apply {
-                    shader = LinearGradient(0f, 0f, 0f, size.height,
-                        intArrayOf(0x00FFFFFF, -1, -1, 0x00FFFFFF),
-                        floatArrayOf(0f, .15f, .8f, 1f), Shader.TileMode.CLAMP)
-                    xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
-                }
                 val moods = lines.map { deeplistLyricMood(it.text) }
                 val iconPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                     this.textSize = 30.dp.toPx()
@@ -200,18 +187,16 @@ internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Bo
                     val visualScroll = if (hits.ready) scroll else centers.getOrElse(active.coerceAtLeast(0)) { 0f }
                     val index = deeplistNearestCenter(centers, visualScroll)
                     val canvas = drawContext.canvas.nativeCanvas
-                    val layer = canvas.saveLayer(0f, 0f, size.width, size.height, null)
                     hits.count = 0
                     for (i in (index - 3).coerceAtLeast(0)..(index + 4).coerceAtMost(layouts.lastIndex)) {
                         val layout = layouts[i]
-                        val y = size.height * .44f - layout.height * .5f + centers[i] - visualScroll
+                        val y = size.height * .40f - layout.height * .5f + centers[i] - visualScroll
                         if (y + layout.height < -20.dp.toPx() || y > size.height + 20.dp.toPx()) continue
                         val neighbour = if (visualScroll >= centers[i]) (i + 1).coerceAtMost(centers.lastIndex) else (i - 1).coerceAtLeast(0)
                         val span = abs(centers[neighbour] - centers[i]).coerceAtLeast(layout.height + 1f)
-                        val distance = abs(centers[i] - visualScroll) / span
-                        val focus = deeplistLineFocus(distance)
-                        val scale = 1f + (if (chorusBoost && lines[i].time in chorusTimes) .02f * focus else 0f) * intensity
-                        val lineAlpha = appleDemoLineAlpha(distance)
+                        val focus = deeplistLineFocus((centers[i] - visualScroll) / span)
+                        val scale = .96f + .04f * focus + (if (chorusBoost && lines[i].time in chorusTimes) .02f * focus else 0f) * intensity
+                        val lineAlpha = (.27f + .73f * focus).coerceIn(0f, 1f)
                         val singer = singers[i]
                         hits.add(i, y, y + layout.height * scale)
                         canvas.save()
@@ -220,60 +205,46 @@ internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Bo
                         excluded.rewind()
                         for (j in timed[i].indices) {
                             val word = timed[i][j]
-                            val amount = if (i == active && intensity > 0f && !economy)
-                                deeplistWordEmphasis(time, word.start, word.end) else 0f
+                            val amount = if (intensity > 0f) deeplistWordEmphasis(time, word.start, word.end) else 0f
                             emphasis[i][j] = amount
                             if (amount > 0f) for (box in bounds[i][j]) excluded.addRect(box, Path.Direction.CW)
                         }
-                        val blurred = nodes.isNotEmpty() && distance > 1.05f &&
-                            Build.VERSION.SDK_INT >= 31 && canvas.isHardwareAccelerated
-                        fun drawText(alpha: Float) {
-                            paint.color = android.graphics.Color.WHITE
-                            paint.alpha = (255 * alpha).toInt().coerceIn(0, 255)
-                            if (blurred && Build.VERSION.SDK_INT >= 31) {
-                                nodes[i].setAlpha(alpha)
-                                canvas.drawRenderNode(nodes[i])
-                            } else layout.draw(canvas)
-                        }
                         canvas.save()
                         canvas.clipOutPath(excluded)
-                        drawText(lineAlpha / 3f)
+                        val blurMix = if (nodes.isNotEmpty() && Build.VERSION.SDK_INT >= 31 && canvas.isHardwareAccelerated) (1f - focus) * blur.coerceIn(0f, 1f) else 0f
+                        paint.color = android.graphics.Color.WHITE
+                        paint.alpha = (255 * lineAlpha * (1f - blurMix)).toInt()
+                        layout.draw(canvas)
+                        if (blurMix > 0f && Build.VERSION.SDK_INT >= 31) {
+                            nodes[i].setAlpha(lineAlpha * blurMix)
+                            canvas.drawRenderNode(nodes[i])
+                        }
                         canvas.restore()
                         for (j in timed[i].indices) {
-                            val word = timed[i][j]
-                            val progress = appleDemoWordFill(time, word.start, word.end)
                             val amount = emphasis[i][j]
+                            if (amount <= 0f) continue
                             val extra = if (economy) 0f else pulse.coerceIn(0f, 1f) * .025f
                             val zoom = 1f + amount * (wordZoom.coerceIn(0f, .35f) + extra) * intensity
-                            val lift = amount * (3.dp.toPx() + extra * 40.dp.toPx()) * intensity
-                            val totalWidth = bounds[i][j].sumOf { it.width().toDouble() }.toFloat()
-                            var consumedWidth = 0f
+                            val lift = amount * (7.dp.toPx() + extra * 90.dp.toPx()) * intensity
                             for (box in bounds[i][j]) {
-                                val rtl = layout.getParagraphDirection(layout.getLineForVertical(box.centerY().toInt())) < 0
-                                val filled = (totalWidth * progress - consumedWidth).coerceIn(0f, box.width())
-                                consumedWidth += box.width()
-                                if (amount == 0f && filled == 0f) continue
                                 canvas.save()
                                 canvas.translate(0f, -lift)
                                 canvas.scale(zoom, zoom, box.centerX(), box.centerY())
-                                canvas.save()
-                                canvas.clipRect(box)
-                                if (amount > 0f) drawText(lineAlpha / 3f)
-                                if (filled > 0f) {
-                                    if (rtl) canvas.clipRect(box.right - filled, box.top, box.right, box.bottom)
-                                    else canvas.clipRect(box.left, box.top, box.left + filled, box.bottom)
-                                    if (wordGlow && amount > 0f) paint.setShadowLayer(8.dp.toPx(), 0f, 0f, 0x45FFFFFF)
-                                    drawText(lineAlpha)
-                                    paint.clearShadowLayer()
+                                if (wordGlow && !economy) {
+                                    for (layer in 3 downTo 1) {
+                                        val spread = layer * 2.dp.toPx()
+                                        glowPaint.alpha = (amount * lineAlpha * (12 - layer * 2)).toInt()
+                                        canvas.drawRoundRect(box.left - spread, box.top - spread, box.right + spread, box.bottom + spread, 10.dp.toPx(), 10.dp.toPx(), glowPaint)
+                                    }
                                 }
-                                canvas.restore()
+                                canvas.clipRect(box)
+                                paint.alpha = (255 * lineAlpha).toInt()
+                                layout.draw(canvas)
                                 canvas.restore()
                             }
                         }
                         canvas.restore()
                     }
-                    canvas.drawRect(0f, 0f, size.width, size.height, edgeFade)
-                    canvas.restoreToCount(layer)
                     val wordIndex = verciWordIndex(words, time)
                     val currentWord = words.getOrNull(wordIndex)
                     if (currentWord != null && time in currentWord.start..currentWord.end) {

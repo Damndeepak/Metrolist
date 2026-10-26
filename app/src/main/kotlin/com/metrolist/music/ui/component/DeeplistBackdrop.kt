@@ -63,8 +63,7 @@ internal suspend fun deeplistCanvasVideo(spotifyId: String): String? = withConte
 }
 
 @Composable
-internal fun DeeplistBackdrop(track: String?, art: String?, title: String, artist: String, playing: Boolean, appleStyle: Boolean = false) {
-    val appleAmbient by rememberPreference(DeeplistAppleAmbientKey, true)
+internal fun DeeplistBackdrop(track: String?, art: String?, title: String, artist: String, playing: Boolean) {
     val enabled by rememberPreference(DeeplistArtworkBackgroundKey, true)
     val mode by rememberPreference(DeeplistBackdropModeKey, 2)
     val dim by rememberPreference(DeeplistBackdropDimKey, .48f)
@@ -73,18 +72,17 @@ internal fun DeeplistBackdrop(track: String?, art: String?, title: String, artis
     val overrides by rememberPreference(DeeplistVideoOverridesKey, "{}")
     val songModes by rememberPreference(DeeplistSongBackdropModesKey, "{}")
     val songMode = remember(track, songModes, overrides) { deeplistSongBackdropMode(songModes, overrides, track.orEmpty()) }
-    val ambient = appleStyle && appleAmbient && mode == 2 && songMode == "auto"
     val spotifyTracks by rememberPreference(DeeplistSpotifyTracksKey, "{}")
     val spotifyId = remember(track, spotifyTracks) { runCatching { JSONObject(spotifyTracks).optString(track.orEmpty()) }.getOrDefault("") }
     val provider by rememberPreference(DeeplistVideoProviderKey, "")
-    val clock = rememberDeeplistClock(playing && !reduced && mode != 0 && !ambient)
+    val clock = rememberDeeplistClock(playing && !reduced && mode != 0)
     var resolved by remember(track, overrides, provider, spotifyId, songMode, mode, enabled, reduced, title, artist) { mutableStateOf<String?>(null) }
     var fallback by remember(track, overrides, provider, spotifyId, songMode, mode, enabled, reduced, title, artist) { mutableStateOf<String?>(null) }
     var failed by remember(track, resolved) { mutableStateOf(false) }
-    LaunchedEffect(track, title, artist, overrides, provider, mode, enabled, spotifyId, songMode, reduced, ambient) {
+    LaunchedEffect(track, title, artist, overrides, provider, mode, enabled, spotifyId, songMode, reduced) {
         resolved = null
         fallback = null
-        if (enabled && mode == 2 && !reduced && songMode != "cover" && !ambient) {
+        if (enabled && mode == 2 && !reduced && songMode != "cover") {
             if (songMode == "custom") {
                 resolved = deeplistSongVideo(overrides, track.orEmpty())
             } else {
@@ -99,10 +97,6 @@ internal fun DeeplistBackdrop(track: String?, art: String?, title: String, artis
         }
     }
     if (!enabled || mode == 0) return
-    if (ambient) {
-        DeeplistAppleAmbient(playing && !reduced, blur, dim)
-        return
-    }
     val layer = Modifier.fillMaxSize().graphicsLayer {
         val phase = clock.longValue / 18000f
         scaleX = 1.18f + sin(phase * .6f) * .035f; scaleY = scaleX
