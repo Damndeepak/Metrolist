@@ -125,7 +125,7 @@ internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Bo
                         if (snap || preview != null || intensity == 0f || previousCenters !== centers) {
                             motion.reset(target); snap = false
                         }
-                        scroll = motion.advance(target, frame, if (economy) 0f else intensity)
+                        scroll = motion.advance(target, frame, intensity)
                         previousCenters = centers
                         hits.ready = true
                         pulse = if (beatLink && playing && !economy && preview == null && intensity > 0f)

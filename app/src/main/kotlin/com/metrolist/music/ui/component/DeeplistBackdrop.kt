@@ -77,7 +77,7 @@ internal fun DeeplistBackdrop(track: String?, art: String?, title: String, artis
     val spotifyTracks by rememberPreference(DeeplistSpotifyTracksKey, "{}")
     val spotifyId = remember(track, spotifyTracks) { runCatching { JSONObject(spotifyTracks).optString(track.orEmpty()) }.getOrDefault("") }
     val provider by rememberPreference(DeeplistVideoProviderKey, "")
-    val clock = rememberDeeplistClock(playing && !reduced && mode != 0)
+    val clock = rememberDeeplistClock(playing && !reduced && mode != 0 && !ambient)
     var resolved by remember(track, overrides, provider, spotifyId, songMode, mode, enabled, reduced, title, artist) { mutableStateOf<String?>(null) }
     var fallback by remember(track, overrides, provider, spotifyId, songMode, mode, enabled, reduced, title, artist) { mutableStateOf<String?>(null) }
     var failed by remember(track, resolved) { mutableStateOf(false) }
