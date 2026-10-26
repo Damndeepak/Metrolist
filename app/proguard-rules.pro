@@ -195,7 +195,3 @@
 -keepclasseswithmembers class com.metrolist.shazamkit.models.** {
     kotlinx.serialization.KSerializer serializer(...);
 }
-
--keepclassmembers class com.metrolist.music.ui.component.WastedDemoPlaybackBridge {
-    @android.webkit.JavascriptInterface public *;
-}

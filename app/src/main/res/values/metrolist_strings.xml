@@ -1248,6 +1248,5 @@
     <string name="deeplist_word_zoom_label">Active word zoom</string>
     <string name="deeplist_word_spacing_label">Space between words</string>
     <string name="deeplist_download_update">Download update</string>
-    <string name="deeplist_wasted_demo">Wasted · Apple-style demo</string>
-    <string name="deeplist_wasted_demo_hint">Website animation and controls. Internet is needed for the audio clip.</string>
+    <string name="deeplist_apple_ambient">Apple-style moving background</string>
 </resources>

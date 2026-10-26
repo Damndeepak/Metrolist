@@ -39,10 +39,6 @@ import com.metrolist.music.ui.component.ReleaseNotesCard
 import com.metrolist.music.ui.utils.backToMain
 import com.metrolist.music.utils.Updater
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
-import com.metrolist.music.ui.component.DeeplistWastedDemo
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,8 +46,6 @@ fun SettingsScreen(
     navController: NavController,
     latestVersionName: String,
 ) {
-    var wastedDemo by remember { mutableStateOf(false) }
-    if (wastedDemo) DeeplistWastedDemo { wastedDemo = false }
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
     val isAndroid12OrLater = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
@@ -102,12 +96,6 @@ fun SettingsScreen(
                     icon = painterResource(R.drawable.play),
                     title = { Text(stringResource(R.string.player_and_audio)) },
                     onClick = { navController.navigate("settings/player") }
-                ),
-                Material3SettingsItem(
-                    icon = painterResource(R.drawable.play),
-                    title = { Text(stringResource(R.string.deeplist_wasted_demo)) },
-                    description = { Text(stringResource(R.string.deeplist_wasted_demo_hint)) },
-                    onClick = { wastedDemo = true }
                 ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.language),

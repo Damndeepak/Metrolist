@@ -40,16 +40,15 @@ internal fun DeeplistQuickSettings(onDismiss: () -> Unit) {
     var lineSpacing by rememberPreference(VerciSpacingKey, 1f)
     var wordGlow by rememberPreference(DeeplistWordGlowKey, true)
     var appleBeat by rememberPreference(DeeplistAppleBeatKey, false)
+    var appleAmbient by rememberPreference(DeeplistAppleAmbientKey, true)
     var tab by remember { mutableIntStateOf(0) }
     var styleDialog by remember { mutableStateOf(false) }
-    var wastedDemo by remember { mutableStateOf(false) }
     var tools by remember { mutableStateOf(false) }
     var setup by remember { mutableStateOf(false) }
     var journey by remember { mutableStateOf(false) }
     var playlists by remember { mutableStateOf(false) }
     val advanced = if (tab == 1) verciLyricsSettingsItems() else emptyList()
     if (styleDialog) EnumDialog(onDismiss = { styleDialog = false }, onSelect = { style = it; styleDialog = false }, title = stringResource(R.string.verci_style), current = style, values = VerciStyle.entries, valueText = { deeplistStyleLabel(it) })
-    if (wastedDemo) DeeplistWastedDemo { wastedDemo = false }
     if (tools) DeeplistTools { tools = false }
     if (setup) DeeplistSetupDialog { setup = false }
     if (journey) DeeplistJourneyEditor { journey = false }
@@ -84,6 +83,7 @@ internal fun DeeplistQuickSettings(onDismiss: () -> Unit) {
                             }
                         }
                         Text(stringResource(R.string.deeplist_background_hint), style = MaterialTheme.typography.bodySmall)
+                        if (style == VerciStyle.APPLE) QuickSwitch(R.string.deeplist_apple_ambient, appleAmbient) { appleAmbient = it }
                         DeeplistSongBackground()
                         if (enabled && background > 0) {
                             Text(stringResource(R.string.deeplist_background_brightness)); Slider(1f - dim, { dim = 1f - it }, valueRange = .15f..0.85f)
@@ -104,7 +104,6 @@ internal fun DeeplistQuickSettings(onDismiss: () -> Unit) {
                             }
                         }
                         HorizontalDivider()
-                        TextButton(onClick = { wastedDemo = true }) { Text(stringResource(R.string.deeplist_wasted_demo)) }
                         TextButton(onClick = { journey = true }) { Text(stringResource(R.string.deeplist_song_journey)) }
                         TextButton(onClick = { tools = true }) { Text(stringResource(R.string.deeplist_tools)) }
                         TextButton(onClick = { playlists = true }) { Text(stringResource(R.string.deeplist_playlist_import)) }

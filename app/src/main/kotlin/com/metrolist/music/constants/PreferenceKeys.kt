@@ -836,4 +836,5 @@ fun deeplistNeonKey(style: VerciStyle) = when (style) {
 val DeeplistWordZoomKey = floatPreferencesKey("deeplistWordZoom")
 val DeeplistWordSpacingKey = floatPreferencesKey("deeplistWordSpacing")
 val DeeplistWordGlowKey = booleanPreferencesKey("deeplistWordGlow")
+val DeeplistAppleAmbientKey = booleanPreferencesKey("deeplistAppleAmbient")
 val DeeplistAppleBeatKey = booleanPreferencesKey("deeplistAppleBeat")
