@@ -110,7 +110,7 @@ internal fun DeeplistWastedDemo(onDismiss: () -> Unit) {
         }
     }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(Modifier.fillMaxSize(), color = Color(0xFF100C10)) {
+        Surface(Modifier.fillMaxSize(), color = Color(0xFF100C10), contentColor = Color.White) {
             Column {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
                     Text(stringResource(R.string.deeplist_wasted_demo), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
