@@ -1,0 +1,75 @@
+name: Publish verified Deeplist
+
+on:
+  workflow_run:
+    workflows: [Deeplist Android APK]
+    types: [completed]
+    branches: [wordstorm-build]
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Download tested APK
+        uses: actions/download-artifact@v4
+        with:
+          name: Deeplist-APK
+          path: dist
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Verify public release identity
+        id: verify
+        env:
+          BUILD_SHA: ${{ github.event.workflow_run.head_sha }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import datetime, glob, hashlib, json, os, pathlib, re, shutil, subprocess
+          apks = glob.glob('dist/**/*.apk', recursive=True)
+          assert len(apks) == 1, apks
+          apk = apks[0]
+          tools = sorted(glob.glob(os.environ['ANDROID_HOME'] + '/build-tools/*'))[-1]
+          cert = subprocess.check_output([tools + '/apksigner', 'verify', '--print-certs', apk], text=True)
+          fingerprint = '1c73c95916d7e14bac0533d0a4a20a3c01be78f066fcc0c1102254712c4bcd5d'
+          assert 'Signer #1 certificate SHA-256 digest: ' + fingerprint in cert
+          badging = subprocess.check_output([tools + '/aapt', 'dump', 'badging', apk], text=True)
+          assert "package: name='com.deepu.wordstorm'" in badging
+          assert "application-label:'Deeplist'" in badging
+          assert 'application-debuggable' not in badging
+          code = int(re.search(r"versionCode='(\d+)'", badging).group(1))
+          version = re.search(r"versionName='([^']+)'", badging).group(1)
+          assert code > 153 and re.fullmatch(r'\d+\.\d+\.\d+', version)
+          tag = 'deeplist-' + str(code)
+          shutil.copyfile(apk, 'Deeplist.apk')
+          manifest = dict(packageId='com.deepu.wordstorm', versionName=version, versionCode=code,
+              sizeBytes=os.path.getsize(apk), sha256=hashlib.sha256(pathlib.Path(apk).read_bytes()).hexdigest(),
+              signingCertificateSha256=fingerprint, publishedAt=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              downloadUrl='https://world.damndeepak.workers.dev/downloads/deeplist.apk',
+              assetUrl='https://github.com/' + os.environ['GITHUB_REPOSITORY'] + '/releases/download/' + tag + '/Deeplist.apk',
+              sourceCommit=os.environ['BUILD_SHA'],
+              changelog=['Deeplist Discord branding and website buttons.',
+                  'Retry failed and stale presence after reconnect; ignore stale song artwork.',
+                  'Check for Deeplist updates and download from the public website.',
+                  'Existing Apple, Verci, Neon and video features retained. Google cloud sync is not included.'])
+          pathlib.Path('deeplist-release.json').write_text(json.dumps(manifest, indent=2) + '\n')
+          pathlib.Path('notes.txt').write_text('\n'.join('- ' + line for line in manifest['changelog']) + '\n\nPackage and original signing certificate verified. Android install and another viewer\'s Discord profile still need device testing.\n')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              out.write('tag=' + tag + '\n' + 'title=Deeplist ' + version + '\n')
+          print(json.dumps(manifest, indent=2))
+          PY
+
+      - name: Publish public binary release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_SHA: ${{ github.event.workflow_run.head_sha }}
+          TAG: ${{ steps.verify.outputs.tag }}
+          TITLE: ${{ steps.verify.outputs.title }}
+        shell: bash
+        run: gh release create "$TAG" Deeplist.apk deeplist-release.json --repo "$GITHUB_REPOSITORY" --target "$BUILD_SHA" --title "$TITLE" --notes-file notes.txt
