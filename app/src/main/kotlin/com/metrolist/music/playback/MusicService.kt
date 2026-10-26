@@ -789,8 +789,9 @@ class MusicService :
                 if (isConnected && waitingForNetworkConnection.value) {
                     triggerRetry()
                 }
-                if (isConnected && DiscordRpcManager.isReady()) {
+                if (isConnected) {
                     Timber.tag("DiscordSvc").i("Network reconnected, syncing RPC")
+                    DiscordRpcManager.notifySettingsChanged()
                     syncDiscordState()
                 }
             }
@@ -3710,6 +3711,10 @@ class MusicService :
             else -> PresenceStatus.Online
         }
 
+        if (!withContext(Dispatchers.Main.immediate) {
+                player.currentMetadata?.id == song.song.id && player.isPlaying == isPlaying
+            }) return
+
         DiscordRpcManager.setActivity(
             activity,
             songId = song.song.id,
@@ -3755,6 +3760,10 @@ class MusicService :
                 btn2Label = btn2Label,
                 btn2Url = btn2Url,
             )
+
+            if (!withContext(Dispatchers.Main.immediate) {
+                    player.currentMetadata?.id == song.song.id && player.isPlaying == freshIsPlaying
+                }) return
 
             DiscordRpcManager.setActivity(
                 fetchedActivity,

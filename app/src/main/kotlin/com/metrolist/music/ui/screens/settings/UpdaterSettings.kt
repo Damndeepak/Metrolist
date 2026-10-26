@@ -62,6 +62,7 @@ fun UpdaterScreen(
     val context = LocalContext.current
     var isChecking by remember { mutableStateOf(false) }
     var updateAvailable by remember { mutableStateOf(false) }
+    var downloadUrl by remember { mutableStateOf<String?>(null) }
     var latestVersion by remember { mutableStateOf<String?>(null) }
     var showChangelog by remember { mutableStateOf(false) }
     var changelogContent by remember { mutableStateOf<String?>(null) }
@@ -81,6 +82,7 @@ fun UpdaterScreen(
                         if (releaseInfo != null) {
                             latestVersion = releaseInfo.versionName
                             updateAvailable = hasUpdate
+                            downloadUrl = Updater.getDownloadUrlForCurrentVariant(releaseInfo)
                             changelogContent = releaseInfo.description
                         }
                     }.onFailure {
@@ -215,6 +217,15 @@ fun UpdaterScreen(
         }
 
         if (updateAvailable && latestVersion != null) {
+            downloadUrl?.let { url ->
+                Button(
+                    onClick = { context.startActivity(android.content.Intent(
+                        android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url),
+                    )) },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                ) { Text(stringResource(R.string.deeplist_download_update)) }
+            }
+
             Spacer(Modifier.height(16.dp))
             Button(
                 onClick = { showChangelog = !showChangelog },

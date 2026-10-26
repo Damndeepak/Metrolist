@@ -3,17 +3,17 @@ package com.metrolist.music.discord
 object DiscordDefaults {
     const val YOUTUBE_WATCH_URL = "https://music.youtube.com/watch?v="
 
-    const val BUTTON1_LABEL = "Listen on YouTube Music"
-    const val BUTTON1_URL_TEMPLATE = "https://music.youtube.com/watch?v={song.id}"
+    const val BUTTON1_LABEL = "Listen live"
+    const val BUTTON1_URL_TEMPLATE = "https://world.damndeepak.workers.dev/deeplist.html"
 
-    const val BUTTON2_LABEL = "Visit Metrolist"
-    const val BUTTON2_URL = "https://github.com/MetrolistGroup/Metrolist"
+    const val BUTTON2_LABEL = "Get Deeplist"
+    const val BUTTON2_URL = "https://world.damndeepak.workers.dev/#download"
 
     const val STATE_TEMPLATE = "{artist.name}"
     const val DETAILS_TEMPLATE = "{song.name}"
 
     const val ACTIVITY_TYPE = "2"
-    const val ACTIVITY_NAME = ""
+    const val ACTIVITY_NAME = "Deeplist by damndeepak"
 
     const val USER_STATUS = "online"
     const val STATUS_IDLE = "idle"

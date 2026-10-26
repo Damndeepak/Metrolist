@@ -90,6 +90,9 @@ object DiscordRpcManager {
     fun isReady(): Boolean = _ready
 
     fun isShowingSong(songId: String, isPlaying: Boolean): Boolean {
+        if (!_ready || lastActivitySentAtMs == 0L ||
+            System.currentTimeMillis() - lastActivitySentAtMs >= 60_000L
+        ) return false
         if (currentSongId != songId || currentIsPlaying != isPlaying) {
             return false
         }
@@ -317,10 +320,6 @@ object DiscordRpcManager {
             Timber.tag(TAG).v("setActivity: debounced (<2s since last, stateChanged=%s)", stateChanged)
             return
         }
-        lastActivitySentAtMs = now
-
-        currentSongId = songId
-        currentIsPlaying = isPlaying
         currentActivityId.incrementAndGet()
         currentActivityHadImages = !activity.largeImage.isNullOrEmpty() || !activity.smallImage.isNullOrEmpty()
 
@@ -342,8 +341,6 @@ object DiscordRpcManager {
             buttons = buttons,
         )
 
-        lastActivity = payloadNoImages
-
         try {
             val presenceJson = DiscordPresence.buildPresenceUpdate(
                 status = status,
@@ -352,10 +349,18 @@ object DiscordRpcManager {
             Timber.tag(TAG).i("setActivity: sending (type=%d, name=%s, details=%s, state=%s, songId=%s, isPlaying=%s, buttons=%d)",
                 activity.activityType, activity.name, activity.details, activity.state, songId, isPlaying, buttons.size)
             gateway.presenceUpdate(presenceJson)
+            lastActivity = payloadNoImages
+            currentSongId = songId
+            currentIsPlaying = isPlaying
+            lastActivitySentAtMs = now
         } catch (e: IllegalStateException) {
+            lastActivitySentAtMs = 0L
             Timber.tag(TAG).w(e, "setActivity: gateway not open")
+            return
         } catch (e: Throwable) {
+            lastActivitySentAtMs = 0L
             Timber.tag(TAG).e(e, "setActivity: send failed")
+            return
         }
 
         imageResolutionJob?.cancel()
@@ -410,8 +415,6 @@ object DiscordRpcManager {
                 buttons = buttons,
             )
 
-            lastActivity = payloadWithImages
-
             try {
                 val presenceJson = DiscordPresence.buildPresenceUpdate(
                     status = status,
@@ -419,6 +422,7 @@ object DiscordRpcManager {
                 )
                 Timber.tag(TAG).i("setActivity: re-sending with images for songId=%s", songIdAtLaunch)
                 gateway.presenceUpdate(presenceJson)
+                lastActivity = payloadWithImages
             } catch (e: IllegalStateException) {
                 Timber.tag(TAG).w(e, "setActivity: image re-send gateway not open")
             } catch (e: Throwable) {
@@ -436,10 +440,6 @@ object DiscordRpcManager {
             Timber.tag(TAG).d("clear: already cleared, skipping")
             return
         }
-        lastActivity = null
-        currentSongId = null
-        currentIsPlaying = false
-        currentActivityHadImages = false
         currentActivityId.incrementAndGet()
         imageResolutionJob?.cancel()
         try {
@@ -449,6 +449,11 @@ object DiscordRpcManager {
                     activities = emptyList(),
                 ),
             )
+            lastActivity = null
+            currentSongId = null
+            currentIsPlaying = false
+            currentActivityHadImages = false
+            lastActivitySentAtMs = 0L
         } catch (e: IllegalStateException) {
             Timber.tag(TAG).w(e, "clear: gateway not open")
         } catch (e: Throwable) {
@@ -606,6 +611,8 @@ object DiscordRpcManager {
     private suspend fun handleGatewayEvent(event: GatewayEvent) {
         when (event) {
             is GatewayEvent.Ready -> {
+                currentSongId = null
+                lastActivitySentAtMs = 0L
                 Timber.tag(TAG).i("gateway: READY (sessionId prefix=%s)", event.sessionId.take(8))
                 _ready = true
                 _authorized = true
@@ -621,6 +628,8 @@ object DiscordRpcManager {
                 }
             }
             is GatewayEvent.Resumed -> {
+                currentSongId = null
+                lastActivitySentAtMs = 0L
                 Timber.tag(TAG).i("gateway: RESUMED")
                 _ready = true
                 _authorized = true

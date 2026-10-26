@@ -19,7 +19,8 @@ data class ReleaseInfo(
     val versionName: String,
     val description: String,
     val releaseDate: String,
-    val assets: List<ReleaseAsset>
+    val assets: List<ReleaseAsset>,
+    val versionCode: Int? = null,
 )
 
 data class ReleaseAsset(
@@ -38,6 +39,36 @@ object Updater {
     private var cachedReleaseInfo: ReleaseInfo? = null
     private var cachedAllReleases: List<ReleaseInfo> = emptyList()
     
+    private val isDeeplist get() = BuildConfig.APPLICATION_ID == "com.deepu.wordstorm"
+    private const val DEEPLIST_FEED = "https://world.damndeepak.workers.dev/downloads/deeplist.json"
+
+    internal fun parseDeeplistRelease(response: String): ReleaseInfo {
+        val json = JSONObject(response)
+        require(json.getString("packageId") == "com.deepu.wordstorm")
+        require(json.getString("signingCertificateSha256") ==
+            "1c73c95916d7e14bac0533d0a4a20a3c01be78f066fcc0c1102254712c4bcd5d")
+        val code = json.getInt("versionCode")
+        val size = json.getLong("sizeBytes")
+        require(code > 0 && size > 0)
+        require(json.getString("sha256").matches(Regex("[a-f0-9]{64}")))
+        val url = json.getString("downloadUrl")
+        require(url == "https://world.damndeepak.workers.dev/downloads/deeplist.apk")
+        val version = json.getString("versionName")
+        val changes = json.getJSONArray("changelog")
+        return ReleaseInfo(
+            tagName = "deeplist-$code", versionName = version,
+            description = (0 until changes.length()).joinToString("\n") { changes.getString(it) },
+            releaseDate = json.getString("publishedAt"),
+            assets = listOf(ReleaseAsset("Deeplist.apk", url, size, BuildConfig.ARCHITECTURE,
+                if (BuildConfig.CAST_AVAILABLE) "gms" else "foss")),
+            versionCode = code,
+        )
+    }
+
+    internal fun hasNewerVersion(release: ReleaseInfo, currentCode: Int = BuildConfig.VERSION_CODE): Boolean =
+        release.versionCode?.let { it > currentCode }
+            ?: isUpdateAvailable(BuildConfig.BASE_VERSION_NAME, release.versionName)
+
     private const val CHECK_INTERVAL_MILLIS = 2 * 60 * 60 * 1000L // 2 hours
     private const val GITHUB_API_BASE = "https://api.github.com/repos/MetrolistGroup/Metrolist"
     private const val KMP_LATEST_RELEASE_URL = "https://api.github.com/repos/MetrolistGroup/Metrolist-KMP/releases/latest"
@@ -130,6 +161,13 @@ object Updater {
                     return@runCatching cachedReleaseInfo!!
                 }
                 
+                if (isDeeplist) {
+                    val release = parseDeeplistRelease(client.get(DEEPLIST_FEED).bodyAsText())
+                    cachedReleaseInfo = release
+                    lastCheckTime = System.currentTimeMillis()
+                    return@runCatching release
+                }
+
                 val response = client.get("$GITHUB_API_BASE/releases/latest")
                     .bodyAsText()
                 val json = JSONObject(response)
@@ -154,6 +192,7 @@ object Updater {
     suspend fun getAllReleases(forceRefresh: Boolean = false): Result<List<ReleaseInfo>> =
         withContext(Dispatchers.IO) {
             runCatching {
+                if (isDeeplist) return@runCatching listOf(getLatestRelease(forceRefresh).getOrThrow())
                 if (cachedAllReleases.isNotEmpty() && !forceRefresh) {
                     return@runCatching cachedAllReleases
                 }
@@ -211,7 +250,7 @@ object Updater {
     suspend fun getLatestKmpRelease(): Result<ReleaseInfo?> =
         withContext(Dispatchers.IO) {
             runCatching {
-                parseKmpRelease(client.get(KMP_LATEST_RELEASE_URL).bodyAsText())
+                if (isDeeplist) null else parseKmpRelease(client.get(KMP_LATEST_RELEASE_URL).bodyAsText())
             }
         }
 
@@ -237,20 +276,14 @@ object Updater {
                     (System.currentTimeMillis() - lastCheckTime) > CHECK_INTERVAL_MILLIS
                 
                 if (!shouldFetch && cachedReleaseInfo != null) {
-                    val hasUpdate = isUpdateAvailable(
-                        BuildConfig.BASE_VERSION_NAME,
-                        cachedReleaseInfo!!.versionName
-                    )
+                    val hasUpdate = hasNewerVersion(cachedReleaseInfo!!)
                     return@runCatching cachedReleaseInfo!! to hasUpdate
                 }
                 
                 val result = getLatestRelease(forceRefresh = true)
                 if (result.isSuccess) {
                     val releaseInfo = result.getOrThrow()
-                    val hasUpdate = isUpdateAvailable(
-                        BuildConfig.BASE_VERSION_NAME,
-                        releaseInfo.versionName
-                    )
+                    val hasUpdate = hasNewerVersion(releaseInfo)
                     releaseInfo to hasUpdate
                 } else {
                     throw result.exceptionOrNull() ?: Exception("Unknown error")
