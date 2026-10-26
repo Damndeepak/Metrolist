@@ -1,4 +1,3 @@
-<stdin>:15: SyntaxWarning: invalid escape sequence '\d'
 name: Publish verified Deeplist
 
 on:
