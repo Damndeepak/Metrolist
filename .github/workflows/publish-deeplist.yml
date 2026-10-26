@@ -79,10 +79,10 @@ jobs:
           manifest = dict(packageId='com.deepu.wordstorm', versionName=version, versionCode=code,
               sizeBytes=os.path.getsize(apk), sha256=hashlib.sha256(pathlib.Path(apk).read_bytes()).hexdigest(),
               signingCertificateSha256=fingerprint, publishedAt=datetime.datetime.now(datetime.timezone.utc).isoformat(),
-              downloadUrl='https://world.damndeepak.workers.dev/downloads/deeplist.apk',
+              downloadUrl='https://github.com/' + os.environ['GITHUB_REPOSITORY'] + '/releases/download/' + tag + '/Deeplist.apk',
               assetUrl='https://github.com/' + os.environ['GITHUB_REPOSITORY'] + '/releases/download/' + tag + '/Deeplist.apk',
               sourceCommit=os.environ['BUILD_SHA'],
-              changelog=(['Removed the separate Wasted demo entry. Existing Apple Music and Verci lyrics styles are unchanged.'] if code >= 156 else ['Added the website-style Wasted demo inside the app with the same scrolling, word highlight, moving blur and controls.'] if code == 155 else []) + ['Deeplist Discord branding and website buttons.',
+              changelog=(['Faster live sharing: song changes, pause and seek wake the uploader immediately; remote-control requests no longer block state uploads.', 'Requires the matching website deployment. Sub-2-second phone-to-website latency has not been verified on a device.'] if code >= 157 else []) + (['Removed the separate Wasted demo entry. Existing Apple Music and Verci lyrics styles are unchanged.'] if code >= 156 else ['Added the website-style Wasted demo inside the app with the same scrolling, word highlight, moving blur and controls.'] if code == 155 else []) + ['Deeplist Discord branding and website buttons.',
                   'Retry failed and stale presence after reconnect; ignore stale song artwork.',
                   'Check for Deeplist updates and download from the public website.',
                   'Existing Apple, Verci, Neon and video features retained. Google cloud sync is not included.'])
