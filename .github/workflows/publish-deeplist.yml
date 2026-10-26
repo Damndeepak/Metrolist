@@ -82,7 +82,7 @@ jobs:
               downloadUrl='https://world.damndeepak.workers.dev/downloads/deeplist.apk',
               assetUrl='https://github.com/' + os.environ['GITHUB_REPOSITORY'] + '/releases/download/' + tag + '/Deeplist.apk',
               sourceCommit=os.environ['BUILD_SHA'],
-              changelog=(['Updated the live Apple Music lyrics style with demo-style word fill, lift, smooth scrolling and moving blur. Removed the separate Wasted demo entry.'] if code >= 156 else ['Added the website-style Wasted demo inside the app with the same scrolling, word highlight, moving blur and controls.'] if code == 155 else []) + ['Deeplist Discord branding and website buttons.',
+              changelog=(['Removed the separate Wasted demo entry. Existing Apple Music and Verci lyrics styles are unchanged.'] if code >= 156 else ['Added the website-style Wasted demo inside the app with the same scrolling, word highlight, moving blur and controls.'] if code == 155 else []) + ['Deeplist Discord branding and website buttons.',
                   'Retry failed and stale presence after reconnect; ignore stale song artwork.',
                   'Check for Deeplist updates and download from the public website.',
                   'Existing Apple, Verci, Neon and video features retained. Google cloud sync is not included.'])
