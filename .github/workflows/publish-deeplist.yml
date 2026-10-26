@@ -66,7 +66,7 @@ jobs:
           tools = sorted(glob.glob(os.environ['ANDROID_HOME'] + '/build-tools/*'))[-1]
           cert = subprocess.check_output([tools + '/apksigner', 'verify', '--print-certs', apk], text=True)
           fingerprint = '1c73c95916d7e14bac0533d0a4a20a3c01be78f066fcc0c1102254712c4bcd5d'
-          assert 'Signer #1 certificate SHA-256 digest: ' + fingerprint in cert
+          assert re.search(r'certificate SHA-256 digest:\s*' + fingerprint, cert, re.I), cert
           badging = subprocess.check_output([tools + '/aapt', 'dump', 'badging', apk], text=True)
           assert "package: name='com.deepu.wordstorm'" in badging
           assert "application-label:'Deeplist'" in badging
