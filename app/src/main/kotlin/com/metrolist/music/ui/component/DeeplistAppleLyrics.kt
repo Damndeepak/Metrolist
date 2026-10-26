@@ -244,7 +244,7 @@ internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Bo
                             val progress = appleDemoWordFill(time, word.start, word.end)
                             val amount = emphasis[i][j]
                             val extra = if (economy) 0f else pulse.coerceIn(0f, 1f) * .025f
-                            val zoom = 1f + amount * (wordZoom.coerceIn(0f, .35f) * .12f + extra) * intensity
+                            val zoom = 1f + amount * (wordZoom.coerceIn(0f, .35f) + extra) * intensity
                             val lift = amount * (3.dp.toPx() + extra * 40.dp.toPx()) * intensity
                             val totalWidth = bounds[i][j].sumOf { it.width().toDouble() }.toFloat()
                             var consumedWidth = 0f
