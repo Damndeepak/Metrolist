@@ -42,12 +42,14 @@ internal fun DeeplistQuickSettings(onDismiss: () -> Unit) {
     var appleBeat by rememberPreference(DeeplistAppleBeatKey, false)
     var tab by remember { mutableIntStateOf(0) }
     var styleDialog by remember { mutableStateOf(false) }
+    var wastedDemo by remember { mutableStateOf(false) }
     var tools by remember { mutableStateOf(false) }
     var setup by remember { mutableStateOf(false) }
     var journey by remember { mutableStateOf(false) }
     var playlists by remember { mutableStateOf(false) }
     val advanced = if (tab == 1) verciLyricsSettingsItems() else emptyList()
     if (styleDialog) EnumDialog(onDismiss = { styleDialog = false }, onSelect = { style = it; styleDialog = false }, title = stringResource(R.string.verci_style), current = style, values = VerciStyle.entries, valueText = { deeplistStyleLabel(it) })
+    if (wastedDemo) DeeplistWastedDemo { wastedDemo = false }
     if (tools) DeeplistTools { tools = false }
     if (setup) DeeplistSetupDialog { setup = false }
     if (journey) DeeplistJourneyEditor { journey = false }
@@ -102,6 +104,7 @@ internal fun DeeplistQuickSettings(onDismiss: () -> Unit) {
                             }
                         }
                         HorizontalDivider()
+                        TextButton(onClick = { wastedDemo = true }) { Text(stringResource(R.string.deeplist_wasted_demo)) }
                         TextButton(onClick = { journey = true }) { Text(stringResource(R.string.deeplist_song_journey)) }
                         TextButton(onClick = { tools = true }) { Text(stringResource(R.string.deeplist_tools)) }
                         TextButton(onClick = { playlists = true }) { Text(stringResource(R.string.deeplist_playlist_import)) }
