@@ -1,0 +1,133 @@
+name: Sync Metrolist into Deeplist
+
+on:
+  schedule:
+    - cron: '17 */12 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/sync-metrolist.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deeplist-upstream-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.repository == 'Damndeepak/Metrolist'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    outputs:
+      changed: ${{ steps.upstream.outputs.changed }}
+      base: ${{ steps.upstream.outputs.base }}
+      upstream: ${{ steps.upstream.outputs.upstream }}
+      tree: ${{ steps.upstream.outputs.tree }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: wordstorm-build
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve latest stable Metrolist release
+        id: upstream
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag=$(gh api repos/MetrolistGroup/Metrolist/releases/latest --jq .tag_name)
+          git remote add upstream https://github.com/MetrolistGroup/Metrolist.git
+          git fetch --no-tags upstream "refs/tags/$tag"
+          sha=$(git rev-parse 'FETCH_HEAD^{commit}')
+          if git merge-base --is-ancestor "$sha" HEAD; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Never resolve a conflict by overwriting Deeplist customizations.
+          base=$(git rev-parse HEAD)
+          git merge --no-edit "$sha"
+          # Keep Deeplist CI and publishing rules unchanged by upstream releases.
+          git restore --source="$base" --staged --worktree -- .github
+          git diff --cached --quiet || git commit -m "fix(ci): preserve Deeplist workflows during upstream sync"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "upstream=$sha" >> "$GITHUB_OUTPUT"
+          echo "tree=$(git rev-parse 'HEAD^{tree}')" >> "$GITHUB_OUTPUT"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-java@v5
+        if: steps.upstream.outputs.changed == 'true'
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install Android SDK components
+        if: steps.upstream.outputs.changed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_MANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          "$SDK_MANAGER" --licenses < <(yes) >/dev/null
+          "$SDK_MANAGER" --channel=3 "platforms;android-37.0" "build-tools;36.0.0"
+
+      - name: Build and test merged source
+        if: steps.upstream.outputs.changed == 'true'
+        env:
+          METROLIST_APPLICATION_ID: com.deepu.wordstorm
+          METROLIST_APP_NAME: Deeplist
+          METROLIST_ABI_FILTERS: arm64-v8a
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon --max-workers=1 --no-parallel -Pkotlin.compiler.execution.strategy=in-process -Dorg.gradle.jvmargs="-Xmx3g -XX:ActiveProcessorCount=2" :app:assembleFossDebug :app:testFossDebugUnitTest
+
+      - name: Report result
+        if: always()
+        env:
+          RESULT: ${{ job.status }}
+          CHANGED: ${{ steps.upstream.outputs.changed }}
+        run: |
+          echo "Sync check: $RESULT; new stable release: ${CHANGED:-unresolved}. Conflicts and failing tests block promotion." >> "$GITHUB_STEP_SUMMARY"
+
+  promote:
+    needs: sync
+    if: needs.sync.outputs.changed == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.sync.outputs.base }}
+          fetch-depth: 0
+      - name: Reproduce tested tree and promote
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE: ${{ needs.sync.outputs.base }}
+          UPSTREAM: ${{ needs.sync.outputs.upstream }}
+          TESTED_TREE: ${{ needs.sync.outputs.tree }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$BASE" =~ ^[0-9a-f]{40}$ && "$UPSTREAM" =~ ^[0-9a-f]{40}$ && "$TESTED_TREE" =~ ^[0-9a-f]{40}$ ]]
+          git fetch origin wordstorm-build
+          test "$(git rev-parse FETCH_HEAD)" = "$BASE"
+          git remote add upstream https://github.com/MetrolistGroup/Metrolist.git
+          git fetch --no-tags upstream "$UPSTREAM"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git merge --no-edit "$UPSTREAM"
+          git restore --source="$BASE" --staged --worktree -- .github
+          git diff --cached --quiet || git commit -m "fix(ci): preserve Deeplist workflows during upstream sync"
+          test "$(git rev-parse 'HEAD^{tree}')" = "$TESTED_TREE"
+          git push origin HEAD:wordstorm-build
+          # GITHUB_TOKEN pushes do not trigger push workflows.
+          gh workflow run wordstorm-android.yml --ref wordstorm-build
+          echo "Metrolist merged after build/tests. Signed APK build requested." >> "$GITHUB_STEP_SUMMARY"
+          echo "Publication requires the original signing key and a reviewed, increasing Deeplist version. Version numbers are never changed here." >> "$GITHUB_STEP_SUMMARY"
