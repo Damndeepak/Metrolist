@@ -203,6 +203,7 @@ fun Thumbnail(
     isPlayerExpanded: () -> Boolean = { true },
     isLandscape: Boolean = false,
     isListenTogetherGuest: Boolean = false,
+    onArtworkHold: (() -> Unit)? = null,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val context = LocalContext.current
@@ -403,6 +404,7 @@ fun Thumbnail(
                                 context = context,
                                 isLandscape = isLandscape,
                                 isListenTogetherGuest = isListenTogetherGuest,
+                                onArtworkHold = onArtworkHold,
                                 currentMediaId = mediaMetadata?.id,
                                 currentMediaThumbnail = mediaMetadata?.thumbnailUrl
                             )
@@ -503,7 +505,9 @@ private fun ThumbnailItem(
     currentMediaId: String? = null,
     currentMediaThumbnail: String? = null,
     modifier: Modifier = Modifier,
+    onArtworkHold: (() -> Unit)? = null,
 ) {
+    val currentOnHold by androidx.compose.runtime.rememberUpdatedState(onArtworkHold)
     val incrementalSeekSkipEnabled by rememberPreference(SeekExtraSeconds, defaultValue = false)
     var skipMultiplier by remember { mutableIntStateOf(1) }
     var lastTapTime by remember { mutableLongStateOf(0L) }
@@ -524,8 +528,9 @@ private fun ThumbnailItem(
                 // Render entire thumbnail item on separate hardware layer for smooth animations
                 compositingStrategy = CompositingStrategy.Offscreen
             }
-            .pointerInput(Unit) {
+            .pointerInput(onArtworkHold != null) {
                 detectTapGestures(
+                    onLongPress = if (onArtworkHold != null) ({ currentOnHold?.invoke() }) else null,
                     onDoubleTap = { offset ->
                         if (isListenTogetherGuest) return@detectTapGestures
 
