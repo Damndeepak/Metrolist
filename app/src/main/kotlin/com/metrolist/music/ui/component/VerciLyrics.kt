@@ -120,6 +120,7 @@ fun VerciLyrics(
     var verciEnabled by rememberPreference(VerciLyricsKey, false)
     var settings by remember { mutableStateOf(false) }
     val playing by connection.isPlaying.collectAsStateWithLifecycle()
+    val night by rememberPreference(com.metrolist.music.constants.DeeplistNightKey, false)
     val recording by rememberPreference(VerciRecordingKey, false)
     var locked by rememberPreference(DeeplistTouchLockKey, false)
     val selectedRenderer by rememberEnumPreference(VerciStyleKey, VerciStyle.FISHEYE)
@@ -146,7 +147,7 @@ fun VerciLyrics(
     val swipe by rememberPreference(VerciSwipeKey, true)
     val manager = com.metrolist.music.LocalListenTogetherManager.current
     val canControl = manager?.isInRoom != true || manager.isHost
-    var controls by remember(immersive, recording) { mutableStateOf(!immersive && !recording) }
+    var controls by remember(immersive, recording, night) { mutableStateOf(!immersive && !recording && !night) }
     var seekPreview by remember { mutableStateOf<Long?>(null) }
     val latestSlider by rememberUpdatedState(sliderPositionProvider)
     val previewProvider = remember { { seekPreview ?: latestSlider() } }
@@ -156,13 +157,13 @@ fun VerciLyrics(
         if (immersive) view.keepScreenOn = true
         onDispose { view.keepScreenOn = before }
     }
-    LaunchedEffect(controls, settings, seekPreview, immersive, recording) {
-        if ((immersive || recording) && controls && !settings && seekPreview == null) { delay(4000); controls = false }
+    LaunchedEffect(controls, settings, seekPreview, immersive, recording, night) {
+        if ((immersive || recording || night) && controls && !settings && seekPreview == null) { delay(4000); controls = false }
     }
     val dragThreshold = with(LocalDensity.current) { 64.dp.toPx() }
-    val gestures = Modifier.pointerInput(immersive, recording, doubleTap, canControl, locked) {
+    val gestures = Modifier.pointerInput(immersive, recording, doubleTap, canControl, locked, night) {
         detectTapGestures(
-            onTap = { if (immersive || recording || locked) controls = !controls },
+            onTap = { if (immersive || recording || locked || night) controls = !controls },
             onLongPress = { if (!locked) actions = true },
             onDoubleTap = if (doubleTap && canControl && !locked) ({ _: androidx.compose.ui.geometry.Offset -> if (connection.player.isPlaying) connection.player.pause() else connection.player.play() }) else null,
         )
@@ -211,7 +212,8 @@ fun VerciLyrics(
         }
         }
         }
-        if (controls || (!immersive && !recording)) Row(Modifier.align(Alignment.TopEnd).safeDrawingPadding(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (night) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .23f)))
+        if (controls || (!immersive && !recording && !night)) Row(Modifier.align(Alignment.TopEnd).safeDrawingPadding(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             TextButton(onClick = { verciEnabled = false }, enabled = !locked) { Text(stringResource(R.string.verci_original)) }
             TextButton(onClick = { if (immersive) onExitFullscreen() else onFullscreen() }) {
                 Text(stringResource(if (immersive) R.string.deeplist_exit_fullscreen else R.string.deeplist_fullscreen))

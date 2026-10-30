@@ -33,7 +33,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 @Composable
-internal fun DeeplistTools(onDismiss: () -> Unit) {
+internal fun DeeplistTools(initialTab: Int = 0, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val connection = LocalPlayerConnection.current
@@ -58,7 +58,7 @@ internal fun DeeplistTools(onDismiss: () -> Unit) {
     var recording by rememberPreference(VerciRecordingKey, false)
     var touchLock by rememberPreference(DeeplistTouchLockKey, false)
     var status by remember { mutableStateOf<Int?>(null) }
-    var tab by remember { mutableIntStateOf(0) }
+    var tab by remember { mutableIntStateOf(initialTab) }
     var edit by remember { mutableStateOf(false) }
     var draft by remember(metadata?.id) { mutableStateOf(entity?.takeIf { it.id == metadata?.id }?.lyrics.orEmpty()) }
     var pendingTrack by remember { mutableStateOf<String?>(null) }

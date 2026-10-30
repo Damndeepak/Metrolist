@@ -74,6 +74,10 @@ fun SettingsScreen(
             )
         )
 
+        if (BuildConfig.APPLICATION_ID == "com.deepu.wordstorm") {
+            FilledTonalButton(onClick = { navController.navigate("deeplist/profile") }, modifier = Modifier.padding(bottom = 16.dp)) { Text(stringResource(R.string.dp_profile)) }
+        }
+
         // User Interface Section
         Material3SettingsGroup(
             title = stringResource(R.string.settings_section_ui),

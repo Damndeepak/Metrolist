@@ -121,6 +121,10 @@ fun NavGraphBuilder.navigationBuilder(
         MoodAndGenresScreen(navController)
     }
 
+    composable("deeplist/profile") {
+        com.metrolist.music.deeplist.DeeplistProfileScreen(navController)
+    }
+
     composable("account") {
         AccountScreen(navController)
     }

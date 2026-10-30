@@ -40,6 +40,23 @@ internal fun DeeplistQuickSettings(onDismiss: () -> Unit) {
     var lineSpacing by rememberPreference(VerciSpacingKey, 1f)
     var wordGlow by rememberPreference(DeeplistWordGlowKey, true)
     var appleBeat by rememberPreference(DeeplistAppleBeatKey, false)
+    val connection = LocalPlayerConnection.current
+    val metadata = connection?.mediaMetadata?.collectAsStateWithLifecycle()?.value
+    var night by rememberPreference(DeeplistNightKey, false)
+    fun chooseStyle(value: VerciStyle) {
+        val id = metadata?.id
+        scope.launch { context.dataStore.edit { prefs ->
+            prefs[VerciStyleKey] = value.name
+            prefs[VerciLyricsKey] = true
+            prefs[WordstormEnabledKey] = true
+            if (id != null) {
+                val styles = runCatching { JSONObject(prefs[DeeplistSongStylesKey] ?: "{}") }.getOrDefault(JSONObject())
+                if (styles.length() >= 300 && !styles.has(id)) styles.keys().asSequence().firstOrNull()?.let { styles.remove(it) }
+                styles.put(id, DeeplistSetup.snapshot(prefs, false))
+                prefs[DeeplistSongStylesKey] = styles.toString()
+            }
+        } }
+    }
     var tab by remember { mutableIntStateOf(0) }
     var styleDialog by remember { mutableStateOf(false) }
     var tools by remember { mutableStateOf(false) }
@@ -47,7 +64,7 @@ internal fun DeeplistQuickSettings(onDismiss: () -> Unit) {
     var journey by remember { mutableStateOf(false) }
     var playlists by remember { mutableStateOf(false) }
     val advanced = if (tab == 1) verciLyricsSettingsItems() else emptyList()
-    if (styleDialog) EnumDialog(onDismiss = { styleDialog = false }, onSelect = { style = it; styleDialog = false }, title = stringResource(R.string.verci_style), current = style, values = VerciStyle.entries, valueText = { deeplistStyleLabel(it) })
+    if (styleDialog) EnumDialog(onDismiss = { styleDialog = false }, onSelect = { chooseStyle(it); styleDialog = false }, title = stringResource(R.string.verci_style), current = style, values = VerciStyle.entries, valueText = { deeplistStyleLabel(it) })
     if (tools) DeeplistTools { tools = false }
     if (setup) DeeplistSetupDialog { setup = false }
     if (journey) DeeplistJourneyEditor { journey = false }
@@ -62,6 +79,14 @@ internal fun DeeplistQuickSettings(onDismiss: () -> Unit) {
                 }
                 Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (tab == 0) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf(VerciStyle.APPLE to R.string.dp_style_apple, VerciStyle.FISHEYE to R.string.dp_style_verci, VerciStyle.VISUAL to R.string.dp_style_creative).forEach { (value, label) ->
+                                val selected = when(value) { VerciStyle.APPLE -> style == value; VerciStyle.FISHEYE -> style in listOf(VerciStyle.FISHEYE,VerciStyle.SHIP,VerciStyle.FISHEYE_VISUAL); else -> style in listOf(VerciStyle.VISUAL,VerciStyle.NEON_STACK) }
+                                FilterChip(selected, { chooseStyle(value) }, label = { Text(stringResource(label)) })
+                            }
+                        }
+                        QuickSwitch(R.string.dp_night, night) { night = it }
+                        Text(stringResource(R.string.dp_night_hint), style = MaterialTheme.typography.bodySmall)
                         TextButton(onClick = { styleDialog = true }) { Text(stringResource(R.string.deeplist_style_value, deeplistStyleLabel(style))) }
                         Text(stringResource(R.string.deeplist_mode_size, size.toInt()))
                         Slider(size.coerceIn(if (style == VerciStyle.APPLE) 24f else 28f, if (style == VerciStyle.APPLE) 96f else 200f), { size = it }, valueRange = if (style == VerciStyle.APPLE) 24f..96f else 28f..200f)

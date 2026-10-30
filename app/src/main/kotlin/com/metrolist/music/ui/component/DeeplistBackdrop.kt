@@ -21,6 +21,8 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.PlaybackException
 import androidx.media3.exoplayer.ExoPlayer
+import coil3.request.crossfade
+import coil3.request.ImageRequest
 import coil3.compose.AsyncImage
 import com.metrolist.music.constants.*
 import com.metrolist.music.lyrics.canvas.DeeplistCanvasResolver
@@ -64,9 +66,12 @@ internal suspend fun deeplistCanvasVideo(spotifyId: String): String? = withConte
 
 @Composable
 internal fun DeeplistBackdrop(track: String?, art: String?, title: String, artist: String, playing: Boolean) {
+    val context = LocalContext.current
     val enabled by rememberPreference(DeeplistArtworkBackgroundKey, true)
     val mode by rememberPreference(DeeplistBackdropModeKey, 2)
-    val dim by rememberPreference(DeeplistBackdropDimKey, .48f)
+    val configuredDim by rememberPreference(DeeplistBackdropDimKey, .48f)
+    val night by rememberPreference(DeeplistNightKey, false)
+    val dim = if (night) maxOf(configuredDim, .8f) else configuredDim
     val blur by rememberPreference(DeeplistBackdropBlurKey, .55f)
     val reduced by rememberPreference(DeeplistPerformanceKey, false)
     val overrides by rememberPreference(DeeplistVideoOverridesKey, "{}")
@@ -75,14 +80,14 @@ internal fun DeeplistBackdrop(track: String?, art: String?, title: String, artis
     val spotifyTracks by rememberPreference(DeeplistSpotifyTracksKey, "{}")
     val spotifyId = remember(track, spotifyTracks) { runCatching { JSONObject(spotifyTracks).optString(track.orEmpty()) }.getOrDefault("") }
     val provider by rememberPreference(DeeplistVideoProviderKey, "")
-    val clock = rememberDeeplistClock(playing && !reduced && mode != 0)
+    val clock = rememberDeeplistClock(playing && !reduced && !night && mode != 0)
     var resolved by remember(track, overrides, provider, spotifyId, songMode, mode, enabled, reduced, title, artist) { mutableStateOf<String?>(null) }
     var fallback by remember(track, overrides, provider, spotifyId, songMode, mode, enabled, reduced, title, artist) { mutableStateOf<String?>(null) }
     var failed by remember(track, resolved) { mutableStateOf(false) }
-    LaunchedEffect(track, title, artist, overrides, provider, mode, enabled, spotifyId, songMode, reduced) {
+    LaunchedEffect(track, title, artist, overrides, provider, mode, enabled, spotifyId, songMode, reduced, night) {
         resolved = null
         fallback = null
-        if (enabled && mode == 2 && !reduced && songMode != "cover") {
+        if (enabled && mode == 2 && !reduced && !night && songMode != "cover") {
             if (songMode == "custom") {
                 resolved = deeplistSongVideo(overrides, track.orEmpty())
             } else {
@@ -103,8 +108,8 @@ internal fun DeeplistBackdrop(track: String?, art: String?, title: String, artis
         translationX = sin(phase) * 18.dp.toPx(); translationY = sin(phase * .73f) * 14.dp.toPx()
     }.blur((blur.coerceIn(0f, 1f) * 35f).dp)
     Box(Modifier.fillMaxSize().clipToBounds()) {
-        AsyncImage(art, null, contentScale = ContentScale.Crop, modifier = layer)
-        if (mode == 2 && resolved != null && !failed && !reduced) {
+        AsyncImage(ImageRequest.Builder(context).data(art).crossfade(450).build(), null, contentScale = ContentScale.Crop, modifier = layer)
+        if (mode == 2 && resolved != null && !failed && !reduced && !night) {
             key(resolved) {
                 DeeplistVideo(resolved!!, playing, layer) {
                     if (fallback != null) { resolved = fallback; fallback = null } else failed = true

@@ -469,6 +469,7 @@ class MainActivity : FragmentActivity() {
         }
 
         setContent {
+            com.metrolist.music.deeplist.DeeplistAccountGate(playerConnectionSnapshot) {
             MetrolistApp(
                 latestVersionName = latestVersionName,
                 onLatestVersionNameChange = { latestVersionName = it },
@@ -477,6 +478,7 @@ class MainActivity : FragmentActivity() {
                 downloadUtil = downloadUtil,
                 syncUtils = syncUtils,
             )
+            }
         }
     }
 
@@ -730,7 +732,7 @@ class MainActivity : FragmentActivity() {
                 val (listenTogetherInTopBar) = rememberPreference(ListenTogetherInTopBarKey, defaultValue = true)
                 val navigationItems =
                     remember(listenTogetherInTopBar) {
-                        if (listenTogetherInTopBar) {
+                        if (listenTogetherInTopBar || BuildConfig.APPLICATION_ID == "com.deepu.wordstorm") {
                             Screens.MainScreens.filter { it != Screens.ListenTogether }
                         } else {
                             Screens.MainScreens

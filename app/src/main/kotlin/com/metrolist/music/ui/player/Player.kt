@@ -13,6 +13,7 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.view.WindowManager
 import android.widget.Toast
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -1973,7 +1974,9 @@ fun BottomSheetPlayer(
                             } else {
                                 Thumbnail(
                                     sliderPositionProvider = sliderPositionProvider,
-                                    modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection),
+                                    modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection).pointerInput(deeplistEnabled) {
+                                        if (deeplistEnabled) detectTapGestures(onLongPress = { showInlineLyrics = true; isFullScreen = true })
+                                    },
                                     isPlayerExpanded = isExpandedProvider,
                                     isListenTogetherGuest = isListenTogetherGuest,
                                 )

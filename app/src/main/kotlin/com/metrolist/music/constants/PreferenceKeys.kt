@@ -762,6 +762,7 @@ val DeeplistAutoPerformanceKey = booleanPreferencesKey("deeplistAutoPerformance"
 
 val DeeplistSavedStyleKey = stringPreferencesKey("deeplistSavedStyle")
 
+val DeeplistNightKey = booleanPreferencesKey("deeplistNightListening")
 val DeeplistSavedLyricsKey = stringPreferencesKey("deeplistSavedLyrics")
 
 

@@ -632,6 +632,20 @@ class MusicService :
         // Read ALL startup preferences in one shot so that subsequent code
         // never calls dataStore.get() (which does runBlocking internally).
         // This consolidates ~15 main-thread-blocking DataStore reads into 1.
+        if (BuildConfig.APPLICATION_ID == "com.deepu.wordstorm") {
+            com.metrolist.music.deeplist.DeeplistAccount.initialize(this)
+            scope.launch {
+                com.metrolist.music.deeplist.DeeplistAccount.state.collect { account ->
+                    if (account.ready && !com.metrolist.music.deeplist.DeeplistAccount.permitted && playerInitialized.value) player.pause()
+                }
+            }
+            scope.launch {
+                while (true) {
+                    if (playerInitialized.value && player.isPlaying) com.metrolist.music.deeplist.DeeplistAccount.refresh()
+                    kotlinx.coroutines.delay(300_000)
+                }
+            }
+        }
         startupPrefs = runBlocking(Dispatchers.IO) { dataStore.data.first() }
         historyPaused = startupPrefs!![PauseListenHistoryKey] ?: false
         historyDurationMs = ((startupPrefs!![HistoryDuration] ?: 30f) * 1000).toLong()
@@ -2710,6 +2724,10 @@ class MusicService :
         playWhenReady: Boolean,
         reason: Int,
     ) {
+        if (playWhenReady && !com.metrolist.music.deeplist.DeeplistAccount.permitted) {
+            player.pause()
+            return
+        }
         // Safety net: if local player tries to start while casting, immediately pause it
         if (playWhenReady && castConnectionHandler?.isCasting?.value == true) {
             player.pause()
