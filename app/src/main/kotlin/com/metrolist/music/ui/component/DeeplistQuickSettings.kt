@@ -64,7 +64,7 @@ internal fun DeeplistQuickSettings(onDismiss: () -> Unit) {
                 Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (tab == 0) {
                         Text(stringResource(R.string.deeplist_global_look_hint), style = MaterialTheme.typography.bodySmall)
-                        TextButton(onClick = { verciEnabled = false; onDismiss() }) { Text(stringResource(R.string.wordstorm_enable)) }
+                        TextButton(onClick = { scope.launch { context.dataStore.edit { it[VerciLyricsKey] = false }; onDismiss() } }) { Text(stringResource(R.string.wordstorm_enable)) }
                         TextButton(onClick = { styleDialog = true }) { Text(stringResource(R.string.deeplist_style_value, deeplistStyleLabel(style))) }
                         Text(stringResource(R.string.deeplist_mode_size, size.toInt()))
                         Slider(size.coerceIn(if (style == VerciStyle.APPLE) 24f else 28f, if (style == VerciStyle.APPLE) 96f else 200f), { size = it }, valueRange = if (style == VerciStyle.APPLE) 24f..96f else 28f..200f)
