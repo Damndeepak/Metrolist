@@ -17,7 +17,7 @@ internal object DeeplistSetup {
         SetupField(DeeplistTapSeekKey.name, false), SetupField(DeeplistDuetEnabledKey.name, false), SetupField(DeeplistInstrumentalKey.name, true),
         *VerciStyle.entries.filter { it != VerciStyle.APPLE }.map { SetupField(deeplistSizeKey(it).name, 52f, 24.0, 200.0) }.toTypedArray(),
         SetupField(WordstormEnabledKey.name, true), SetupField(VerciLyricsKey.name, false),
-        SetupField(VerciStyleKey.name, VerciStyle.FISHEYE.name, choices = VerciStyle.entries.map { it.name }.toSet()),
+        SetupField(VerciStyleKey.name, VerciStyle.SHIP.name, choices = VerciStyle.entries.map { it.name }.toSet()),
         SetupField(VerciFontKey.name, VerciFont.BOLD.name, choices = VerciFont.entries.map { it.name }.toSet()),
         SetupField(VerciTextSizeKey.name, 52f, 28.0, 200.0), SetupField(VerciSpacingKey.name, 1f, .45, 1.35),
         SetupField(VerciBrightnessKey.name, .8f), SetupField(VerciColorKey.name, 0, 0.0, 4.0),

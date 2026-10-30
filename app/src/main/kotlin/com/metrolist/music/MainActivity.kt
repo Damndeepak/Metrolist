@@ -426,6 +426,9 @@ class MainActivity : FragmentActivity() {
 
         // Defer migration and version tracking to avoid blocking first frame
         lifecycleScope.launch(Dispatchers.IO) {
+            if (BuildConfig.APPLICATION_ID == "com.deepu.wordstorm") {
+                safeDataStoreEdit { com.metrolist.music.lyrics.initializeDeeplistLook(it) }
+            }
             val preferences = dataStore.data.first()
             val currentVersion = BuildConfig.BASE_VERSION_NAME
 

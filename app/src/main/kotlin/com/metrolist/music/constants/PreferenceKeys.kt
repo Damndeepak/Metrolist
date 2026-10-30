@@ -838,3 +838,6 @@ val DeeplistWordZoomKey = floatPreferencesKey("deeplistWordZoom")
 val DeeplistWordSpacingKey = floatPreferencesKey("deeplistWordSpacing")
 val DeeplistWordGlowKey = booleanPreferencesKey("deeplistWordGlow")
 val DeeplistAppleBeatKey = booleanPreferencesKey("deeplistAppleBeat")
+
+val DeeplistGlobalLookInitializedKey = booleanPreferencesKey("deeplistGlobalLookInitialized")
+val DeeplistPerSongLookKey = booleanPreferencesKey("deeplistPerSongLook")

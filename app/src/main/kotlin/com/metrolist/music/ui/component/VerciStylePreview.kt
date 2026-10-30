@@ -21,7 +21,7 @@ import kotlin.math.abs
 @Composable
 internal fun VerciStylePreview() {
     val clock = rememberDeeplistClock(true, smooth = true)
-    val movement by rememberEnumPreference(VerciStyleKey, VerciStyle.FISHEYE)
+    val movement by rememberEnumPreference(VerciStyleKey, VerciStyle.SHIP)
     val font by rememberEnumPreference(VerciFontKey, VerciFont.BOLD)
     val legacySize by rememberPreference(VerciTextSizeKey, 52f)
     val sampleFontSize by rememberPreference(deeplistSizeKey(movement), if (movement == VerciStyle.APPLE) 32f else legacySize)

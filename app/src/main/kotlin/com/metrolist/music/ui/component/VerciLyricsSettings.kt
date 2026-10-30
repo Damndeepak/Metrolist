@@ -36,7 +36,7 @@ fun verciLyricsSettingsItems(): List<Material3SettingsItem> {
         if (value) setWordstorm(true)
         setEnabled(value)
     }
-    val (style, setStyle) = rememberEnumPreference(VerciStyleKey, VerciStyle.FISHEYE)
+    val (style, setStyle) = rememberEnumPreference(VerciStyleKey, VerciStyle.SHIP)
     val (neon, setNeon) = rememberPreference(com.metrolist.music.constants.deeplistNeonKey(style), style != VerciStyle.APPLE)
     val (emojis, setEmojis) = rememberPreference(VerciEmojiKey, true)
     val (legacySize, _) = rememberPreference(VerciTextSizeKey, 52f)

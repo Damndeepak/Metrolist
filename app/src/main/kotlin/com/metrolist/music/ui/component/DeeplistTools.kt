@@ -44,6 +44,7 @@ internal fun DeeplistTools(initialTab: Int = 0, onDismiss: () -> Unit) {
     val canControl = manager?.isInRoom != true || manager.isHost
     var saved by rememberPreference(DeeplistSavedLyricsKey, "[]")
     var songStyles by rememberPreference(DeeplistSongStylesKey, "{}")
+    var perSong by rememberPreference(DeeplistPerSongLookKey, false)
     var density by rememberPreference(DeeplistEmojiDensityKey, 1)
     var pack by rememberPreference(DeeplistEmojiPackKey, 0)
     var blur by rememberPreference(DeeplistSoftBlurKey, .35f)
@@ -129,6 +130,9 @@ internal fun DeeplistTools(initialTab: Int = 0, onDismiss: () -> Unit) {
                 ToolSwitch(R.string.deeplist_auto_performance, automatic) { automatic = it }
                 ToolSwitch(R.string.deeplist_reduce_effects, reduced) { reduced = it }
                 if (Build.VERSION.SDK_INT >= 29) ToolSwitch(R.string.deeplist_roman_hindi, roman) { roman = it }
+                ToolSwitch(R.string.deeplist_per_song_look, perSong) { perSong = it }
+                Text(stringResource(R.string.deeplist_global_look_hint), style = MaterialTheme.typography.bodySmall)
+                if (perSong) {
                 TextButton(onClick = { scope.launch {
                     val id = trackId ?: return@launch
                     val json = DeeplistSetup.snapshot(context.dataStore.data.first(), false)
@@ -140,6 +144,7 @@ internal fun DeeplistTools(initialTab: Int = 0, onDismiss: () -> Unit) {
                     val styles = runCatching { JSONObject(songStyles) }.getOrDefault(JSONObject())
                     styles.remove(trackId.orEmpty()); songStyles = styles.toString()
                 }, enabled = trackId != null) { Text(stringResource(R.string.deeplist_remove_song_style)) }
+                }
             }
             if (tab == 1) {
                 ToolSwitch(R.string.deeplist_tap_seek, tapSeek) { tapSeek = it }

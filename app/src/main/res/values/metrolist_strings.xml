@@ -1287,4 +1287,6 @@ Your little world.</string>
     <string name="dp_night_hint">Dims the lyrics stage. Tap to reveal controls.</string>
     <string name="dp_styles_more">More styles</string>
     <string name="dp_moments_saved">Saved moments</string>
+    <string name="deeplist_per_song_look">Use song-specific looks</string>
+    <string name="deeplist_global_look_hint">Your look is saved automatically for all songs. Enable song-specific looks only to use saved song styles and journeys.</string>
 </resources>

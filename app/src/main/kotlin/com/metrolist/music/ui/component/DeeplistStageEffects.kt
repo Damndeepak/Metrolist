@@ -24,7 +24,8 @@ import coil3.compose.AsyncImage
 @Composable
 internal fun rememberDeeplistJourney(track: String?, base: VerciStyle): VerciStyle {
     val raw by rememberPreference(DeeplistJourneysKey, "{}")
-    val cues = remember(raw, track) { deeplistCues(raw, track.orEmpty()) }
+    val perSong by rememberPreference(DeeplistPerSongLookKey, false)
+    val cues = remember(raw, track, perSong) { if (perSong) deeplistCues(raw, track.orEmpty()) else emptyList() }
     val connection = LocalPlayerConnection.current
     var selected by remember(track, base) { mutableStateOf(base) }
     LaunchedEffect(track, cues, base) {
