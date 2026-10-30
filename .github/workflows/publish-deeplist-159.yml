@@ -1,0 +1,50 @@
+name: Publish reviewed Deeplist 159
+on:
+  push:
+    branches: [wordstorm-build]
+    paths: [.github/workflows/publish-deeplist-159.yml]
+permissions:
+  contents: read
+jobs:
+  publish:
+    if: github.event.head_commit.message == 'release(deeplist): publish approved verified 13.7.6 APK'
+    name: Publish reviewed Deeplist 159
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Deeplist-APK
+          path: apk
+          run-id: 41084659431
+          github-token: ${{ github.token }}
+      - name: Publish versioned APK after successful checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          python3 - <<'PYCODE'
+          import glob, hashlib, json, os, shutil, subprocess, datetime
+          paths = glob.glob('apk/**/*.apk', recursive=True)
+          assert len(paths) == 1, paths
+          apk = paths[0]
+          tools = os.path.join(os.environ['ANDROID_HOME'], 'build-tools')
+          aapt = tools + '/36.0.0/aapt'
+          signer = tools + '/36.0.0/apksigner'
+          badging = subprocess.check_output([aapt, 'dump', 'badging', apk], text=True)
+          assert "package: name='com.deepu.wordstorm' versionCode='159' versionName='13.7.6'" in badging
+          cert = subprocess.check_output([signer, 'verify', '--print-certs', apk], text=True)
+          fingerprint = '1c73c95916d7e14bac0533d0a4a20a3c01be78f066fcc0c1102254712c4bcd5d'
+          print(cert)
+          assert 'Signer #1 certificate SHA-256 digest: ' + fingerprint in cert
+          assert hashlib.sha256(open(apk, 'rb').read()).hexdigest() == '88f7d21c61e8a27ff63755ebb7467c29c129a5df1098d9a587744241af82c06a'
+          shutil.copyfile(apk, 'Deeplist.apk')
+          changes = ['Restored the previous lyrics appearance and controls. Verci Ship is the default.', 'Your selected lyrics look stays global across songs and restarts.', 'Apple, Wordstorm and all Verci styles remain available. Song-specific looks and journeys are optional.']
+          manifest = dict(packageId='com.deepu.wordstorm', versionName='13.7.6', versionCode=159, sizeBytes=os.path.getsize(apk), sha256=hashlib.sha256(open(apk,'rb').read()).hexdigest(), signingCertificateSha256=fingerprint, publishedAt=datetime.datetime.now(datetime.timezone.utc).isoformat(), downloadUrl='https://world.damndeepak.workers.dev/downloads/deeplist.apk', assetUrl='https://github.com/Damndeepak/Metrolist/releases/download/deeplist-159/Deeplist.apk', sourceCommit='c74529956f7308875becb9b78ab8b63d3b93d72f', changelog=changes)
+          open('deeplist.json','w').write(json.dumps(manifest, indent=2) + '\n')
+          open('release-notes.txt','w').write('\n'.join(changes))
+          PYCODE
+          gh release create deeplist-159 Deeplist.apk deeplist.json --target "$GITHUB_SHA" --title "Deeplist 13.7.6" --notes-file release-notes.txt
