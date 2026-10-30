@@ -98,6 +98,7 @@ private fun DeeplistWelcome(blocked: Boolean) {
 internal fun DeeplistProfileScreen(navController: NavController) {
     val state by DeeplistAccount.state.collectAsStateWithLifecycle()
     val user = state.user ?: return
+    val collections=user.optJSONObject("collections")?:JSONObject()
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     val scope = rememberCoroutineScope()
@@ -140,7 +141,6 @@ internal fun DeeplistProfileScreen(navController: NavController) {
         TextButton(onClick={moments=true}) { Text(stringResource(R.string.dp_moments)) }
         TextButton(onClick={publish=true},enabled=!state.busy) { Text(stringResource(R.string.dp_public_collections)) }
         Text(stringResource(R.string.dp_history_private),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-        val collections=user.optJSONObject("collections")?:JSONObject()
         for(type in listOf("playlists","favourites")) {
             val rows=collections.optJSONArray(type)?:JSONArray()
             if(rows.length()>0) {

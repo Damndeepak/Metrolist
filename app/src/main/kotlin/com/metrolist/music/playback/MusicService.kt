@@ -632,7 +632,7 @@ class MusicService :
         // Read ALL startup preferences in one shot so that subsequent code
         // never calls dataStore.get() (which does runBlocking internally).
         // This consolidates ~15 main-thread-blocking DataStore reads into 1.
-        if (BuildConfig.APPLICATION_ID == "com.deepu.wordstorm") {
+        if (com.metrolist.music.BuildConfig.APPLICATION_ID == "com.deepu.wordstorm") {
             com.metrolist.music.deeplist.DeeplistAccount.initialize(this)
             scope.launch {
                 com.metrolist.music.deeplist.DeeplistAccount.state.collect { account ->
