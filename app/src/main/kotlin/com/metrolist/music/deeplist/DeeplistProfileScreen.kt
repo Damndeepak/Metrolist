@@ -51,7 +51,7 @@ internal fun DeeplistAccountGate(connection: PlayerConnection?, content: @Compos
     remember { DeeplistAccount.initialize(context); true }
     val state by DeeplistAccount.state.collectAsStateWithLifecycle()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    LaunchedEffect(lifecycle) {
+    LaunchedEffect(lifecycle, state.user?.optString("id")) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             var first = true
             while (true) { DeeplistAccount.refresh(first); first = false; delay(300_000) }
