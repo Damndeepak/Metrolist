@@ -1,0 +1,48 @@
+name: Publish reviewed Deeplist 158
+on:
+  push:
+    branches: [wordstorm-build]
+    paths: [.github/workflows/publish-deeplist-158.yml]
+permissions:
+  contents: read
+jobs:
+  publish:
+    name: Publish reviewed Deeplist 158
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Deeplist-APK
+          path: apk
+          run-id: 41049838299
+          github-token: ${{ github.token }}
+      - name: Publish versioned APK after successful checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          python3 - <<'PYCODE'
+          import glob, hashlib, json, os, shutil, subprocess, datetime
+          paths = glob.glob('apk/**/*.apk', recursive=True)
+          assert len(paths) == 1, paths
+          apk = paths[0]
+          tools = os.path.join(os.environ['ANDROID_HOME'], 'build-tools')
+          aapt = tools + '/36.0.0/aapt'
+          signer = tools + '/36.0.0/apksigner'
+          badging = subprocess.check_output([aapt, 'dump', 'badging', apk], text=True)
+          assert "package: name='com.deepu.wordstorm' versionCode='158' versionName='13.7.5'" in badging
+          cert = subprocess.check_output([signer, 'verify', '--print-certs', apk], text=True)
+          fingerprint = '1c73c95916d7e14bac0533d0a4a20a3c01be78f066fcc0c1102254712c4bcd5d'
+          print(cert)
+          assert 'Signer #1 certificate SHA-256 digest: ' + fingerprint in cert
+          shutil.copyfile(apk, 'Deeplist.apk')
+          changes = ['Google or Guest welcome and Spotify-style profiles. Google sign-in awaits server configuration.', 'App-user dashboard with approximate city/country, last active, app opens and admin block/unblock.', 'Profile editing, selected public collections, saved lyric moments and player fixes.']
+          manifest = dict(packageId='com.deepu.wordstorm', versionName='13.7.5', versionCode=158, sizeBytes=os.path.getsize(apk), sha256=hashlib.sha256(open(apk,'rb').read()).hexdigest(), signingCertificateSha256=fingerprint, publishedAt=datetime.datetime.now(datetime.timezone.utc).isoformat(), downloadUrl='https://world.damndeepak.workers.dev/downloads/deeplist.apk', assetUrl='https://github.com/Damndeepak/Metrolist/releases/download/deeplist-158/Deeplist.apk', sourceCommit='edc3d7891230a7c6acaaf9fa22b543aa56a36791', changelog=changes)
+          open('deeplist.json','w').write(json.dumps(manifest, indent=2) + '\n')
+          open('release-notes.txt','w').write('\n'.join(changes))
+          PYCODE
+          gh release create deeplist-158 Deeplist.apk deeplist.json --target edc3d7891230a7c6acaaf9fa22b543aa56a36791 --title "Deeplist 13.7.5" --notes-file release-notes.txt
