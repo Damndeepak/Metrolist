@@ -45,4 +45,4 @@ jobs:
           open('deeplist.json','w').write(json.dumps(manifest, indent=2) + '\n')
           open('release-notes.txt','w').write('\n'.join(changes))
           PYCODE
-          gh release create deeplist-158 Deeplist.apk deeplist.json --target edc3d7891230a7c6acaaf9fa22b543aa56a36791 --title "Deeplist 13.7.5" --notes-file release-notes.txt
+          gh release create deeplist-158 Deeplist.apk deeplist.json --target "$GITHUB_SHA" --title "Deeplist 13.7.5" --notes-file release-notes.txt
