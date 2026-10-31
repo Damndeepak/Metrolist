@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="https://damndeepak.dev/deeplisttv" version="0.1.0" viewmodes="maximized">
+  <tizen:application id="DeepListTV.Player" package="DeepListTV" required_version="6.0"/>
+  <content src="index.html"/>
+  <name>Deeplist TV</name>
+  <icon src="icon.png"/>
+  <tizen:profile name="tv-samsung"/>
+  <tizen:privilege name="http://tizen.org/privilege/internet"/>
+  <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
+  <access origin="https://world.damndeepak.workers.dev" subdomains="false"/>
+  <access origin="https://www.youtube.com" subdomains="true"/>
+  <access origin="https://www.youtube-nocookie.com" subdomains="true"/>
+  <access origin="https://i.ytimg.com" subdomains="true"/>
+  <access origin="https://s.ytimg.com" subdomains="true"/>
+  <tizen:setting screen-orientation="landscape" context-menu="disable" background-support="disable" encryption="disable" install-location="auto" hwkey-event="enable"/>
+</widget>

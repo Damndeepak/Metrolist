@@ -1,0 +1,29 @@
+DEEPLIST TV - FIRST DEVICE TEST
+
+1. Extract this ZIP completely on the Windows laptop.
+2. Keep TV and laptop on the same home network.
+3. Keep the TV connected in Tizen Device Manager.
+4. Double-click install-tv.cmd.
+   It builds the TV app, signs it using the certificate profile you enter,
+   installs it on the TV IP you enter and launches it.
+5. Send the installer error screen if it stops. Do not share certificate passwords.
+
+If certificate profile cannot be found, open Tizen Studio Certificate Manager
+and confirm your chosen profile is active. Web CLI may need installation in Package Manager.
+Enter the current TV IP when prompted by the installer.
+
+USING THE APP
+Choose player -> select your existing Deeplist website player.
+Start music on the phone with website sharing enabled.
+Lyrics and cover art follow that phone. Select Listen on TV for YouTube audio.
+The embedded video stays visible. Some tracks, ads, or TV firmware can prevent
+playback or affect sync. This version does not transfer raw audio from the phone.
+Use the phone for changing songs. TV audio button controls TV audio only.
+Back closes the player list; Back on the main screen exits the TV app.
+
+TEST STATUS
+Passed: JavaScript syntax; timing, state, player selection and disconnect checks.
+Not tested: Tizen build/signing, actual Samsung TV, YouTube playback, visual layout.
+Browser visual check blocked by unavailable Chromium download.
+No Android APK changes. No website deployment needed for this first device test.
+No passwords or private certificate files are included.
