@@ -116,6 +116,10 @@ android {
         }
     }
 
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
+
     buildTypes {
         release {
             if (applicationIdOverride != null && workflowDebugKeystoreFile != null) {
