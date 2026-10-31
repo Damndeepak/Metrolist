@@ -56,4 +56,13 @@ jobs:
           open('deeplist-release.json','w').write(json.dumps(manifest,indent=2)+'\n')
           open('release-notes.txt','w').write('\n'.join(changes))
           PY
-          gh release create deeplist-160 Deeplist.apk deeplist-release.json --target b1d0913400780129d262a113185b1842bfc35860 --title 'Deeplist 13.7.7 · Startup fix' --notes-file release-notes.txt
+          gh api repos/$GH_REPO/releases/tags/deeplist-160 > existing-release.json
+          python3 - <<'PYRELEASE'
+          import json
+          release=json.load(open('existing-release.json'))
+          assert release['target_commitish']=='b1d0913400780129d262a113185b1842bfc35860'
+          apk=next(a for a in release['assets'] if a['name']=='Deeplist.apk')
+          assert apk['digest']=='sha256:021d62393fceaddccb694c74856f0564aabaf0e361f068953f3cb4f95adb78ce'
+          PYRELEASE
+          gh release edit deeplist-160 --title 'Deeplist 13.7.7 · Startup fix' --notes-file release-notes.txt
+          gh release upload deeplist-160 deeplist-release.json --clobber
