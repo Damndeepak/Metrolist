@@ -641,7 +641,7 @@ class MusicService :
             }
             scope.launch {
                 while (true) {
-                    if (playerInitialized.value && player.isPlaying) com.metrolist.music.deeplist.DeeplistListenInbox.poll(this@MusicService)
+                    if (playerInitialized.value && player.isPlaying) com.metrolist.music.deeplist.DeeplistListenInbox.poll(this@MusicService, notify = true)
                     kotlinx.coroutines.delay(30_000)
                 }
             }

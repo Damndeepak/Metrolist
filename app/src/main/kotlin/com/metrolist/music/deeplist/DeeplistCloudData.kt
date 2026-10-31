@@ -25,7 +25,8 @@ internal object DeeplistCloudData {
         Table("search_history", "query", listOf("query")),
     )
     private val playlist = Table("playlist", "id,name,browseId,createdAt,lastUpdateTime,isEditable,bookmarkedAt,remoteSongCount,thumbnailUrl,isLocal,isAutoSync", listOf("id"), "WHERE id NOT IN ('LP_LIKED','LP_DOWNLOADED','LP_WEEKLY_MOST','LP_MONTHLY_MOST')")
-    private val extraSettings = mapOf("dynamicTheme" to false, "selectedThemeColor" to 0, "darkMode" to "AUTO", "pureBlack" to false, "pureBlackMiniPlayer" to false, "defaultOpenTab" to "HOME", "gridItemSize" to "BIG", "audioQuality" to "AUTO", "skipSilence" to false, "audioNormalization" to false, "crossfadeEnabled" to false, "hideExplicit" to false, "hideVideoSongs" to false, "contentLanguage" to "en", "contentCountry" to "IN", "deeplistSavedLyrics" to "[]", "deeplistSavedStyle" to "", "verciPresets" to "[]", "deeplistNightListening" to false)
+    private val longSettings = setOf("deeplistSavedLyrics","deeplistSavedStyle","verciPresets","deeplistSongStyles","deeplistChorusMarks","deeplistSongBackdropModes","deeplistDuetTags","deeplistJourneys","deeplistSpotifyTracks")
+    private val extraSettings = longSettings.associateWith { "" as Any } + mapOf("deeplistPerSongLook" to false, "deeplistTouchLock" to false, "deeplistRomanHindi" to true, "pauseListenHistory" to false, "pauseSearchHistory" to false, "songSortType" to "CREATE_DATE", "songSortDescending" to true, "playlistSongSortType" to "CUSTOM", "playlistSongSortDescending" to false, "artistSortType" to "CREATE_DATE", "artistSortDescending" to true, "albumSortType" to "CREATE_DATE", "albumSortDescending" to true, "playlistSortType" to "CREATE_DATE", "playlistSortDescending" to true, "dynamicTheme" to false, "selectedThemeColor" to 0, "darkMode" to "AUTO", "pureBlack" to false, "pureBlackMiniPlayer" to false, "defaultOpenTab" to "HOME", "gridItemSize" to "BIG", "audioQuality" to "AUTO", "skipSilence" to false, "audioNormalization" to false, "crossfadeEnabled" to false, "hideExplicit" to false, "hideVideoSongs" to false, "contentLanguage" to "en", "contentCountry" to "IN", "deeplistSavedLyrics" to "[]", "deeplistSavedStyle" to "", "verciPresets" to "[]", "deeplistNightListening" to false)
     private fun rows(db: MusicDatabase, table: Table): List<JSONObject> = db.openHelper.readableDatabase.query("SELECT ${table.quoted} FROM ${table.name} ${table.where}").use { cursor ->
         buildList { while (cursor.moveToNext()) add(JSONObject().apply { table.fields.forEachIndexed { i, key -> put(key, when(cursor.getType(i)) { Cursor.FIELD_TYPE_NULL -> JSONObject.NULL; Cursor.FIELD_TYPE_INTEGER -> cursor.getLong(i); Cursor.FIELD_TYPE_FLOAT -> cursor.getDouble(i); else -> cursor.getString(i) }) } }) }
     }
@@ -54,7 +55,7 @@ internal object DeeplistCloudData {
             val default = extraSettings[key]
             if(default == null) lyrics.put(key, value)
             else {
-                require((default is String && value is String && value.length <= (if(key in setOf("deeplistSavedLyrics","deeplistSavedStyle","verciPresets")) 240000 else 200)) || (default is Boolean && value is Boolean) || (default is Int && value is Number))
+                require((default is String && value is String && value.length <= (if(key in longSettings) 240000 else 200)) || (default is Boolean && value is Boolean) || (default is Int && value is Number))
                 extra[key] = if(default is Int) (value as Number).toInt() else value
             }
         }
@@ -106,7 +107,7 @@ internal object DeeplistCloudData {
             val id=row.getString("id")
             db.openHelper.writableDatabase.execSQL("DELETE FROM playlist_song_map WHERE playlistId=? AND songId IN (SELECT id FROM song WHERE isLocal=0 AND isUploaded=0)",arrayOf(id))
             val items=entry.getJSONArray("items")
-            (0 until items.length()).forEach { i -> db.openHelper.writableDatabase.execSQL("INSERT INTO playlist_song_map(playlistId,songId,position) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM song WHERE id=?)",arrayOf(id,items.getString(i),i,items.getString(i))) }
+            (0 until items.length()).forEach { i -> db.openHelper.writableDatabase.execSQL("INSERT INTO playlist_song_map(playlistId,songId,position) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM song WHERE id=?)",arrayOf<Any>(id,items.getString(i),i,items.getString(i))) }
         }
         val old=before.optJSONObject("records") ?: JSONObject()
         old.keys().asSequence().filter { !incoming.has(it) }.forEach { key ->

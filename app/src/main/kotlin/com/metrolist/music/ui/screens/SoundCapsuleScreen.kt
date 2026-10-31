@@ -38,8 +38,8 @@ fun SoundCapsuleScreen(navController: NavController) {
     val end = remember(month) { month.plusMonths(1).atDay(1).atStartOfDay() }
     val events by remember(start, end) { database.capsuleEvents(start, end) }.collectAsStateWithLifecycle(emptyList())
     val previousTime by remember(start) { database.getTotalPlayTimeInRange(start.minusMonths(1), start.minusNanos(1)) }.collectAsStateWithLifecycle(null)
-    val songs by remember(start, end) { database.mostPlayedSongsStats(start, limit = 5, toTimeStamp = end.minusNanos(1)) }.collectAsStateWithLifecycle(emptyList())
-    val artists by remember(start, end) { database.mostPlayedArtists(start, limit = 5, toTimeStamp = end.minusNanos(1)) }.collectAsStateWithLifecycle(emptyList())
+    val songs by remember(start, end) { database.mostPlayedSongsStats(start.minusNanos(1), limit = 5, toTimeStamp = end.minusNanos(1)) }.collectAsStateWithLifecycle(emptyList())
+    val artists by remember(start, end) { database.mostPlayedArtists(start.minusNanos(1), limit = 5, toTimeStamp = end.minusNanos(1)) }.collectAsStateWithLifecycle(emptyList())
     val artistCount by remember(start, end) { database.getUniqueArtistCountInRange(start, end.minusNanos(1)) }.collectAsStateWithLifecycle(0)
     val summary = remember(events, month) { capsuleSummary(month, events.map { it.timestamp.toLocalDate() to it.playTime }) }
     val activeDays = summary.dailyMinutes.count { it > 0 }
