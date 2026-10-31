@@ -65,11 +65,22 @@ jobs:
           "$SDK_MANAGER" --licenses < <(yes) >/dev/null
           "$SDK_MANAGER" --channel=3 "platforms;android-37.0" "build-tools;36.0.0"
 
-      - name: Build APK and run unit tests
+      - name: Build debug APK and run unit tests
         shell: bash
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon --max-workers=1 --no-parallel -Pkotlin.compiler.execution.strategy=in-process -Dorg.gradle.jvmargs="-Xmx3g -XX:ActiveProcessorCount=2" :app:assembleFossDebug :app:testFossDebugUnitTest
+          python3 - <<'PYTEST'
+          import xml.etree.ElementTree as ET
+          result = ET.parse('app/build/test-results/testFossDebugUnitTest/TEST-com.metrolist.music.deeplist.DeeplistAccountGateStartupTest.xml').getroot()
+          assert int(result.get('tests', 0)) > 0
+          assert all(int(result.get(key, 0)) == 0 for key in ('failures', 'errors', 'skipped'))
+          print('Real startup gate regression passed without a database composition provider.')
+          PYTEST
+
+      - name: Build verified release APK
+        shell: bash
+        run: |
           ./gradlew --no-daemon --max-workers=1 --no-parallel -Pkotlin.compiler.execution.strategy=in-process -Dorg.gradle.jvmargs="-Xmx3g -XX:ActiveProcessorCount=2" :app:assembleFossRelease
 
       - name: Verify release identity and report tests

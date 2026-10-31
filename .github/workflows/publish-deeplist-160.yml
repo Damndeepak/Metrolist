@@ -1,0 +1,59 @@
+name: Publish verified Deeplist 160
+on:
+  push:
+    branches: [wordstorm-build]
+    paths: [.github/workflows/publish-deeplist-160.yml]
+permissions:
+  contents: read
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Require successful build of the reviewed source
+        run: |
+          gh api repos/$GH_REPO/actions/runs/41208756744 > run.json
+          python3 - <<'PY'
+          import json
+          run=json.load(open('run.json'))
+          assert run['status']=='completed' and run['conclusion']=='success'
+          assert run['head_sha']=='b1d0913400780129d262a113185b1842bfc35860'
+          PY
+      - uses: actions/download-artifact@v4
+        with:
+          name: Deeplist-APK
+          path: apk
+          run-id: 41208756744
+          github-token: ${{ github.token }}
+      - name: Install APK verification tools
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses < <(yes) >/dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "build-tools;36.0.0"
+      - name: Verify exact APK and create immutable release
+        run: |
+          python3 - <<'PY'
+          import glob,hashlib,json,os,shutil,subprocess,datetime
+          paths=glob.glob('apk/**/*.apk',recursive=True)
+          assert len(paths)==1,paths
+          apk=paths[0]
+          digest=hashlib.sha256(open(apk,'rb').read()).hexdigest()
+          assert digest=='021d62393fceaddccb694c74856f0564aabaf0e361f068953f3cb4f95adb78ce'
+          tools=os.path.join(os.environ['ANDROID_HOME'],'build-tools','36.0.0')
+          badging=subprocess.check_output([tools+'/aapt','dump','badging',apk],text=True)
+          assert "package: name='com.deepu.wordstorm' versionCode='160' versionName='13.7.7'" in badging
+          cert=subprocess.check_output([tools+'/apksigner','verify','--print-certs',apk],text=True)
+          fingerprint='1c73c95916d7e14bac0533d0a4a20a3c01be78f066fcc0c1102254712c4bcd5d'
+          assert 'Signer #1 certificate SHA-256 digest: '+fingerprint in cert
+          changes=['Fixes the startup crash caused by reading the database before its composition provider exists.','Google profile menu, JSON playlist import and integrations.','Sound Capsule and Listen Together requests with accept, reject and five-minute mute.','Private Google account sync and saved Apple lyrics appearance.']
+          manifest=dict(packageId='com.deepu.wordstorm',versionName='13.7.7',versionCode=160,sizeBytes=os.path.getsize(apk),sha256=digest,signingCertificateSha256=fingerprint,publishedAt=datetime.datetime.now(datetime.timezone.utc).isoformat(),downloadUrl='https://world.damndeepak.workers.dev/downloads/deeplist.apk',assetUrl='https://github.com/Damndeepak/Metrolist/releases/download/deeplist-160/Deeplist.apk',sourceCommit='b1d0913400780129d262a113185b1842bfc35860',changelog=changes)
+          shutil.copyfile(apk,'Deeplist.apk')
+          open('deeplist-release.json','w').write(json.dumps(manifest,indent=2)+'\n')
+          open('release-notes.txt','w').write('\n'.join(changes))
+          PY
+          gh release create deeplist-160 Deeplist.apk deeplist-release.json --target b1d0913400780129d262a113185b1842bfc35860 --title 'Deeplist 13.7.7 · Startup fix' --notes-file release-notes.txt
