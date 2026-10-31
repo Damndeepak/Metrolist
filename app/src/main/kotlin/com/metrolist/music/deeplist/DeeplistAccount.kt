@@ -77,12 +77,12 @@ internal object DeeplistAccount {
             value
         }
     }
-    private suspend fun action(block: suspend () -> Unit) = mutex.withLock {
+    private suspend fun action(clearSessionOnUnauthorized: Boolean = true, block: suspend () -> Unit) = mutex.withLock {
         mutable.value = mutable.value.copy(busy = true, error = null)
         try { block() }
         catch (e: CancellationException) { throw e }
         catch (e: Exception) {
-            if (e is ApiError && e.status == 401) { saved = JSONObject(); persist(); mutable.value = mutable.value.copy(user = null) }
+            if (clearSessionOnUnauthorized && e is ApiError && e.status == 401) { saved = JSONObject(); persist(); mutable.value = mutable.value.copy(user = null) }
             if (e is ApiError && e.status == 403 && mutable.value.user != null) {
                 val user = JSONObject(mutable.value.user.toString()).put("blocked",true)
                 saved.put("user",user); persist(); mutable.value = mutable.value.copy(user = user)
@@ -107,9 +107,15 @@ internal object DeeplistAccount {
         val verifier = ByteArray(32).also { SecureRandom().nextBytes(it) }.let { Base64.encodeToString(it,Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING) }
         saved.put("verifier",verifier).put("signInAt",System.currentTimeMillis());persist()
         val challenge = Base64.encodeToString(MessageDigest.getInstance("SHA-256").digest(verifier.toByteArray(Charsets.US_ASCII)),Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
-        context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse("$WEBSITE/api/app/auth/google?challenge=$challenge")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        val address = if (mutable.value.user?.optString("provider") == "guest") {
+            val link = request("auth/link/google", "POST", JSONObject().put("challenge", challenge)).getString("url")
+            val uri = Uri.parse(link)
+            require(uri.scheme == "https" && uri.host == "world.damndeepak.workers.dev" && uri.path == "/api/app/auth/google" && uri.getQueryParameter("link").orEmpty().matches(Regex("[a-f0-9]{64}")))
+            uri
+        } else Uri.parse("$WEBSITE/api/app/auth/google?challenge=$challenge")
+        context.startActivity(Intent(Intent.ACTION_VIEW,address).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
-    suspend fun claim(uri: Uri) = action {
+    suspend fun claim(uri: Uri) = action(clearSessionOnUnauthorized = false) {
         require(uri.scheme == "deeplist" && uri.host == "account")
         val code = uri.getQueryParameter("code").orEmpty()
         val verifier = saved.optString("verifier")

@@ -56,7 +56,7 @@ internal fun verciStudioItems(): List<Material3SettingsItem> {
     val (font, setFont) = rememberEnumPreference(VerciFontKey, VerciFont.BOLD)
     val (spacing, setSpacing) = rememberPreference(VerciSpacingKey, 1f)
     val (color, setColor) = rememberPreference(VerciColorKey, 0)
-    val (style, _) = rememberEnumPreference(VerciStyleKey, VerciStyle.SHIP)
+    val (style, _) = rememberEnumPreference(VerciStyleKey, VerciStyle.APPLE)
     val (legacySize, _) = rememberPreference(VerciTextSizeKey, 52f)
     val (size, _) = rememberPreference(deeplistSizeKey(style), if (style == VerciStyle.APPLE) 32f else legacySize)
     val (neon, _) = rememberPreference(deeplistNeonKey(style), style != VerciStyle.APPLE)

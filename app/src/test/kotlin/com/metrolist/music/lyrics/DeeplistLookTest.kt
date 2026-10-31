@@ -10,19 +10,23 @@ import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
 class DeeplistLookTest {
-    @Test fun `Ship becomes default once and later choices survive restart`() {
-        val prefs = mutablePreferencesOf().apply { this[VerciStyleKey] = "APPLE"; this[DeeplistTokenKey] = "keep"; this[deeplistSizeKey(VerciStyle.SHIP)] = 140f }
+    @Test fun `Apple becomes default once and later choices survive restart`() {
+        val prefs = mutablePreferencesOf().apply { this[VerciStyleKey] = "SHIP"; this[DeeplistGlobalLookInitializedKey] = true; this[DeeplistTokenKey] = "keep"; this[deeplistSizeKey(VerciStyle.SHIP)] = 140f }
         initializeDeeplistLook(prefs)
-        assertEquals("SHIP", prefs[VerciStyleKey])
+        assertEquals("APPLE", prefs[VerciStyleKey])
         assertEquals(true, prefs[VerciLyricsKey])
         assertEquals(true, prefs[WordstormEnabledKey])
         assertEquals(false, prefs[DeeplistPerSongLookKey])
         assertEquals("keep", prefs[DeeplistTokenKey])
+        assertEquals(34f, prefs[DeeplistAppleSizeKey])
+        assertEquals(false, prefs[DeeplistWordGlowKey])
+        assertEquals(false, prefs[VerciEmojiKey])
+        assertEquals(1, prefs[DeeplistBackdropModeKey])
         assertEquals(140f, prefs[deeplistSizeKey(VerciStyle.SHIP)])
-        prefs[VerciStyleKey] = "APPLE"
+        prefs[VerciStyleKey] = "SHIP"
         prefs[VerciLyricsKey] = false
         initializeDeeplistLook(prefs)
-        assertEquals("APPLE", prefs[VerciStyleKey])
+        assertEquals("SHIP", prefs[VerciStyleKey])
         assertEquals(false, prefs[VerciLyricsKey])
     }
 
@@ -32,7 +36,7 @@ class DeeplistLookTest {
         initializeDeeplistLook(prefs)
         prefs[VerciTextSizeKey] = 150f
         listOf("song", "other", "song").forEach { applyDeeplistSongLook(prefs, it) }
-        assertEquals("SHIP", prefs[VerciStyleKey])
+        assertEquals("APPLE", prefs[VerciStyleKey])
         assertEquals(150f, prefs[VerciTextSizeKey])
         prefs[DeeplistPerSongLookKey] = true
         applyDeeplistSongLook(prefs, "song")

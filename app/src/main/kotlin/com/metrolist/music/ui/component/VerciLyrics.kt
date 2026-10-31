@@ -122,7 +122,7 @@ fun VerciLyrics(
     val playing by connection.isPlaying.collectAsStateWithLifecycle()
     val recording by rememberPreference(VerciRecordingKey, false)
     var locked by rememberPreference(DeeplistTouchLockKey, false)
-    val selectedRenderer by rememberEnumPreference(VerciStyleKey, VerciStyle.SHIP)
+    val selectedRenderer by rememberEnumPreference(VerciStyleKey, VerciStyle.APPLE)
     val journey = rememberDeeplistJourney(metadata?.id, selectedRenderer)
     val renderer = journey
     val modeNeon by rememberPreference(deeplistNeonKey(renderer), renderer != VerciStyle.APPLE)

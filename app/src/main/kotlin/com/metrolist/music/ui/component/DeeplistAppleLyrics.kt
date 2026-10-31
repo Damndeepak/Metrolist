@@ -196,7 +196,8 @@ internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Bo
                         val span = abs(centers[neighbour] - centers[i]).coerceAtLeast(layout.height + 1f)
                         val focus = deeplistLineFocus((centers[i] - visualScroll) / span)
                         val scale = .96f + .04f * focus + (if (chorusBoost && lines[i].time in chorusTimes) .02f * focus else 0f) * intensity
-                        val lineAlpha = (.27f + .73f * focus).coerceIn(0f, 1f)
+                        val edge = minOf((y + layout.height) / 80.dp.toPx(), (size.height - y) / 80.dp.toPx()).coerceIn(0f, 1f)
+                        val lineAlpha = (.32f + .68f * focus).coerceIn(0f, 1f) * edge
                         val singer = singers[i]
                         hits.add(i, y, y + layout.height * scale)
                         canvas.save()
@@ -225,7 +226,7 @@ internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Bo
                             if (amount <= 0f) continue
                             val extra = if (economy) 0f else pulse.coerceIn(0f, 1f) * .025f
                             val zoom = 1f + amount * (wordZoom.coerceIn(0f, .35f) + extra) * intensity
-                            val lift = amount * (7.dp.toPx() + extra * 90.dp.toPx()) * intensity
+                            val lift = amount * (4.dp.toPx() + extra * 90.dp.toPx()) * intensity
                             for (box in bounds[i][j]) {
                                 canvas.save()
                                 canvas.translate(0f, -lift)

@@ -150,7 +150,10 @@ internal fun DeeplistProfileScreen(navController: NavController) {
         }
         HorizontalDivider()
         if(user.optBoolean("admin")) Button(onClick={uriHandler.openUri(DeeplistAccount.WEBSITE+"/app-admin.html")}) { Text(stringResource(R.string.dp_admin)) }
-        if(user.optString("provider")=="guest") TextButton(onClick={scope.launch { DeeplistAccount.google() }},enabled=!state.busy) { Text(stringResource(R.string.dp_google)) }
+        if(user.optString("provider")=="guest") {
+            OutlinedButton(onClick={scope.launch { DeeplistAccount.google() }},enabled=!state.busy) { Text(stringResource(R.string.dp_connect_google)) }
+            Text(stringResource(R.string.dp_connect_google_hint),style=MaterialTheme.typography.bodySmall)
+        }
         TextButton(onClick={uriHandler.openUri(DeeplistAccount.WEBSITE+"/app-privacy.html")}) { Text(stringResource(R.string.dp_privacy)) }
         TextButton(onClick={scope.launch { DeeplistAccount.signOut() }},enabled=!state.busy) { Text(stringResource(R.string.dp_sign_out)) }
         if(!user.optBoolean("admin")) TextButton(onClick={deleting=true},enabled=!state.busy) { Text(stringResource(R.string.dp_delete_account),color=MaterialTheme.colorScheme.error) }

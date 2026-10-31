@@ -26,7 +26,7 @@ import org.json.JSONObject
 internal fun DeeplistQuickSettings(onDismiss: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var style by rememberEnumPreference(VerciStyleKey, VerciStyle.SHIP)
+    var style by rememberEnumPreference(VerciStyleKey, VerciStyle.APPLE)
     val legacy by rememberPreference(VerciTextSizeKey, 52f)
     var size by rememberPreference(deeplistSizeKey(style), if (style == VerciStyle.APPLE) 32f else legacy)
     var background by rememberPreference(DeeplistBackdropModeKey, 2)
