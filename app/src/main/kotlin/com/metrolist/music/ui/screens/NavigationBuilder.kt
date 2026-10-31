@@ -113,6 +113,9 @@ fun NavGraphBuilder.navigationBuilder(
         HistoryScreen(navController)
     }
 
+    composable("sound_capsule") {
+        SoundCapsuleScreen(navController)
+    }
     composable("stats") {
         StatsScreen(navController)
     }

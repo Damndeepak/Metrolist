@@ -77,6 +77,7 @@ internal object DeeplistAccount {
             value
         }
     }
+    internal suspend fun authenticatedRequest(path: String, method: String = "GET", body: JSONObject? = null): JSONObject = mutex.withLock { request(path, method, body) }
     private suspend fun action(clearSessionOnUnauthorized: Boolean = true, block: suspend () -> Unit) = mutex.withLock {
         mutable.value = mutable.value.copy(busy = true, error = null)
         try { block() }

@@ -50,6 +50,7 @@ internal fun DeeplistAccountGate(connection: PlayerConnection?, content: @Compos
     val context = LocalContext.current
     remember { DeeplistAccount.initialize(context); true }
     val state by DeeplistAccount.state.collectAsStateWithLifecycle()
+    val database = LocalDatabase.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(lifecycle, state.user?.optString("id")) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -60,7 +61,20 @@ internal fun DeeplistAccountGate(connection: PlayerConnection?, content: @Compos
     LaunchedEffect(state.user?.optBoolean("blocked"),state.user?.optString("id"),connection) {
         if (!DeeplistAccount.permitted) connection?.player?.pause()
     }
-    if (state.user != null && !state.user!!.optBoolean("blocked")) content()
+    LaunchedEffect(lifecycle, state.user?.optString("id")) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) { DeeplistListenInbox.poll(context); delay(10_000) }
+        }
+    }
+    LaunchedEffect(lifecycle, state.user?.optString("id"), state.user?.optString("provider")) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) { DeeplistCloudSync.sync(context, database); delay(180_000) }
+        }
+    }
+    if (state.user != null && !state.user!!.optBoolean("blocked")) {
+        content()
+        com.metrolist.music.ui.component.DeeplistListenRequestPrompt()
+    }
     else MaterialTheme(colorScheme = darkColorScheme(primary=Color(0xFFD8F3AB), background=Color(0xFF090C0B), surface=Color(0xFF101813))) {
         DeeplistWelcome(blocked = state.user?.optBoolean("blocked") == true)
     }

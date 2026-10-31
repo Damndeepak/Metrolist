@@ -641,6 +641,12 @@ class MusicService :
             }
             scope.launch {
                 while (true) {
+                    if (playerInitialized.value && player.isPlaying) com.metrolist.music.deeplist.DeeplistListenInbox.poll(this@MusicService)
+                    kotlinx.coroutines.delay(30_000)
+                }
+            }
+            scope.launch {
+                while (true) {
                     if (playerInitialized.value && player.isPlaying) com.metrolist.music.deeplist.DeeplistAccount.refresh()
                     kotlinx.coroutines.delay(300_000)
                 }
@@ -709,6 +715,12 @@ class MusicService :
             }
         player.addListener(sleepTimer!!)
 
+        if (com.metrolist.music.BuildConfig.APPLICATION_ID == "com.deepu.wordstorm") scope.launch {
+            while (true) {
+                if (playerInitialized.value && player.isPlaying) com.metrolist.music.deeplist.DeeplistCloudSync.sync(this@MusicService, database)
+                delay(180_000)
+            }
+        }
         startDeeplistBridge(this, scope, database, { player }, { currentMediaMetadata.value })
         playerInitialized.value = true
         floatingLyrics = com.metrolist.music.lyrics.FloatingLyricsController(this, scope, database, playerFlow) { lyricsAudioEnergy }

@@ -110,6 +110,13 @@ fun ListenTogetherScreen(
     navController: NavController,
     showTopBar: Boolean = false,
 ) {
+    if (com.metrolist.music.BuildConfig.APPLICATION_ID == "com.deepu.wordstorm") {
+        var rooms by remember { mutableStateOf(false) }
+        if (!rooms) {
+            com.metrolist.music.ui.component.DeeplistListenTogetherScreen(navController) { rooms = true }
+            return
+        }
+    }
     val context = LocalContext.current
     val listenTogetherManager = LocalListenTogetherManager.current
     val windowInsets = LocalPlayerAwareWindowInsets.current

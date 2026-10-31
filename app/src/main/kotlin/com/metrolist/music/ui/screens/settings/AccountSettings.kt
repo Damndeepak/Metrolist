@@ -79,6 +79,10 @@ fun AccountSettings(
     onClose: () -> Unit,
     latestVersionName: String
 ) {
+    if (BuildConfig.APPLICATION_ID == "com.deepu.wordstorm") {
+        com.metrolist.music.ui.component.DeeplistAccountMenu(navController, onClose)
+        return
+    }
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
 

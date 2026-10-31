@@ -1069,10 +1069,10 @@ class MainActivity : FragmentActivity() {
                                                     )
                                                 }
                                             }
-                                            IconButton(onClick = { navController.navigate("stats") }) {
+                                            IconButton(onClick = { navController.navigate(if (BuildConfig.APPLICATION_ID == "com.deepu.wordstorm") "sound_capsule" else "stats") }) {
                                                 Icon(
                                                     painter = painterResource(R.drawable.stats),
-                                                    contentDescription = stringResource(R.string.stats),
+                                                    contentDescription = stringResource(if (BuildConfig.APPLICATION_ID == "com.deepu.wordstorm") R.string.dp_sound_capsule else R.string.stats),
                                                 )
                                             }
                                             if (listenTogetherInTopBar) {
