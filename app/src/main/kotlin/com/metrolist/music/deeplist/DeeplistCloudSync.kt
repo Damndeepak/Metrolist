@@ -3,7 +3,6 @@ package com.metrolist.music.deeplist
 import android.content.Context
 import android.util.AtomicFile
 import com.metrolist.music.db.MusicDatabase
-import com.metrolist.music.lyrics.DeeplistSetup
 import com.metrolist.music.utils.dataStore
 import androidx.datastore.preferences.core.edit
 import kotlinx.coroutines.CancellationException
@@ -35,7 +34,7 @@ internal object DeeplistCloudSync {
                 if(!ownership.exists()) ownership.writeText(owner)
                 val file=AtomicFile(File(context.noBackupFilesDir,"deeplist-cloud-$owner.json"))
                 val baseline=try { file.openRead().use { JSONObject(it.readBytes().toString(Charsets.UTF_8)) } } catch(_: java.io.FileNotFoundException) { null }
-                val remote=DeeplistAccount.authenticatedRequest("cloud")
+                val remote=DeeplistAccount.authenticatedRequest("cloud", expectedUserId=owner)
                 check(DeeplistAccount.state.value.user?.optString("id") == owner)
                 val previous=baseline?.optJSONObject("data")
                 val preferences=context.dataStore.data.first()
@@ -44,10 +43,10 @@ internal object DeeplistCloudSync {
                 val cloud=remote.optJSONObject("data")
                 val merged=if(cloud == null) local!! else mergeCloud(previous,local,cloud,baseline == null) as JSONObject
                 // Validate settings before publishing or applying a snapshot from another device.
-                DeeplistCloudData.settings(merged)
+                DeeplistCloudData.validate(merged)
                 val bytes=merged.toString().toByteArray(Charsets.UTF_8)
                 require(bytes.size <= 15*1024*1024) { "Account data exceeds the 15 MB sync limit. Your local data is safe." }
-                val revision=if(cloudEqual(merged,cloud)) remote.getLong("revision") else DeeplistAccount.authenticatedRequest("cloud","PUT",JSONObject().put("revision",remote.getLong("revision")).put("data",merged)).getLong("revision")
+                val revision=if(cloudEqual(merged,cloud)) remote.getLong("revision") else DeeplistAccount.authenticatedRequest("cloud","PUT",JSONObject().put("revision",remote.getLong("revision")).put("data",merged),expectedUserId=owner).getLong("revision")
                 check(DeeplistAccount.state.value.user?.optString("id") == owner)
                 // Rebase edits made during the network request rather than replacing a live library.
                 val latestPrefs=context.dataStore.data.first()
@@ -63,8 +62,9 @@ internal object DeeplistCloudSync {
                     check(DeeplistAccount.state.value.user?.optString("id") == owner)
                     val current=DeeplistCloudData.snapshotSettings(prefs)
                     val finalSettings=mergeCloud(DeeplistCloudData.snapshotSettings(latestPrefs),current,applied.optJSONObject("settings")) as JSONObject
-                    DeeplistSetup.apply(prefs,DeeplistCloudData.settings(JSONObject().put("settings",finalSettings)),false)
+                    DeeplistCloudData.applySettings(prefs,JSONObject().put("settings",finalSettings))
                 }
+                check(DeeplistAccount.state.value.user?.optString("id") == owner)
                 val output=file.startWrite()
                 try { output.write(JSONObject().put("revision",revision).put("data",merged).toString().toByteArray());file.finishWrite(output) } catch(e: Exception) { file.failWrite(output);throw e }
                 mutable.value=DeeplistCloudState(owner,lastSync=System.currentTimeMillis())

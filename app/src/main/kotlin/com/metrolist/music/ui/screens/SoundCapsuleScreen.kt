@@ -1,6 +1,9 @@
 package com.metrolist.music.ui.screens
 
 import android.content.Intent
+import coil3.compose.AsyncImage
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -39,6 +42,10 @@ fun SoundCapsuleScreen(navController: NavController) {
     val artists by remember(start, end) { database.mostPlayedArtists(start, limit = 5, toTimeStamp = end.minusNanos(1)) }.collectAsStateWithLifecycle(emptyList())
     val artistCount by remember(start, end) { database.getUniqueArtistCountInRange(start, end.minusNanos(1)) }.collectAsStateWithLifecycle(0)
     val summary = remember(events, month) { capsuleSummary(month, events.map { it.timestamp.toLocalDate() to it.playTime }) }
+    val activeDays = summary.dailyMinutes.count { it > 0 }
+    val peakDay = summary.dailyMinutes.withIndex().maxByOrNull { it.value }?.takeIf { it.value > 0 }?.index?.plus(1)
+    val peakPeriod = remember(events) { events.groupBy { it.timestamp.hour / 6 }.mapValues { (_, plays) -> plays.sumOf { it.playTime } }.maxByOrNull { it.value }?.key }
+    val periodLabels = listOf(R.string.dp_capsule_night, R.string.dp_capsule_morning, R.string.dp_capsule_afternoon, R.string.dp_capsule_evening)
     val title = remember(month) { month.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault())) }
     val accent = MaterialTheme.colorScheme.primary
     val dailyDescription = summary.dailyMinutes.mapIndexed { index, minutes -> "${index + 1}: $minutes min" }.joinToString(", ")
@@ -71,6 +78,14 @@ fun SoundCapsuleScreen(navController: NavController) {
             }
         }
         if (events.isEmpty()) item { Text(stringResource(R.string.dp_capsule_empty)) }
+        if (events.isNotEmpty()) item {
+            Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(20.dp), verticalArrangement=Arrangement.spacedBy(10.dp)) {
+                Text(stringResource(R.string.dp_capsule_rhythm),style=MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.dp_capsule_days,activeDays,month.lengthOfMonth()))
+                peakDay?.let { Text(stringResource(R.string.dp_capsule_peak_day, month.atDay(it).format(DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())))) }
+                peakPeriod?.let { Text(stringResource(R.string.dp_capsule_peak_time,stringResource(periodLabels[it]))) }
+            } }
+        }
         item {
             Text(stringResource(R.string.dp_capsule_daily), style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(16.dp))
@@ -85,11 +100,11 @@ fun SoundCapsuleScreen(navController: NavController) {
         }
         item { Text(stringResource(R.string.dp_capsule_top_songs), style = MaterialTheme.typography.titleLarge) }
         itemsIndexed(songs, key = { _, song -> "song-" + song.id }) { index, song ->
-            ListItem(headlineContent = { Text(song.title) }, supportingContent = { Text(song.artists.joinToString { it.name }) }, leadingContent = { Text("${index + 1}") }, trailingContent = { Text("${(song.timeListened ?: 0L) / 60000} min") })
+            ListItem(headlineContent = { Text(song.title) }, supportingContent = { Text(song.artists.joinToString { it.name }) }, leadingContent = { Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) { Text("${index + 1}"); AsyncImage(model=song.thumbnailUrl,contentDescription=null,modifier=Modifier.size(48.dp).clip(RoundedCornerShape(12.dp))) } }, trailingContent = { Text("${(song.timeListened ?: 0L) / 60000} min") })
         }
         item { Text(stringResource(R.string.dp_capsule_top_artists), style = MaterialTheme.typography.titleLarge) }
         itemsIndexed(artists, key = { _, artist -> "artist-" + artist.artist.id }) { index, artist ->
-            ListItem(headlineContent = { Text(artist.artist.name) }, leadingContent = { Text("${index + 1}") }, trailingContent = { Text("${(artist.timeListened?.toLong() ?: 0L) / 60000} min") })
+            ListItem(headlineContent = { Text(artist.artist.name) }, leadingContent = { Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) { Text("${index + 1}"); AsyncImage(model=artist.artist.thumbnailUrl,contentDescription=null,modifier=Modifier.size(48.dp).clip(RoundedCornerShape(24.dp))) } }, trailingContent = { Text("${(artist.timeListened?.toLong() ?: 0L) / 60000} min") })
         }
         item {
             Button(onClick = {

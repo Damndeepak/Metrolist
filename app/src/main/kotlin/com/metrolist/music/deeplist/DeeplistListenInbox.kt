@@ -35,10 +35,10 @@ internal object DeeplistListenInbox {
             if (!force && now - lastPoll < 9_000 && binding == user.optString("id") + token) return
             lastPoll = now
             if (binding != user.optString("id") + token) {
-                DeeplistAccount.authenticatedRequest("listen/connect", "POST", JSONObject().put("token", token))
+                DeeplistAccount.authenticatedRequest("listen/connect", "POST", JSONObject().put("token", token), expectedUserId = owner)
                 binding = user.optString("id") + token
             }
-            val result = DeeplistAccount.authenticatedRequest("listen/inbox").getJSONArray("requests")
+            val result = DeeplistAccount.authenticatedRequest("listen/inbox", expectedUserId = owner).getJSONArray("requests")
             val requests = List(result.length()) { i -> result.getJSONObject(i).let { DeeplistListenRequest(it.getString("id"), it.getString("label"), it.getLong("expires")) } }
             if (DeeplistAccount.state.value.user?.optString("id") == owner) mutable.value = DeeplistListenState(owner, true, requests)
         } catch (e: CancellationException) { throw e }
@@ -47,7 +47,7 @@ internal object DeeplistListenInbox {
     }
     suspend fun respond(request: DeeplistListenRequest, action: String) {
         require(mutable.value.userId == DeeplistAccount.state.value.user?.optString("id"))
-        DeeplistAccount.authenticatedRequest("listen/respond", "POST", JSONObject().put("id", request.id).put("action", action))
+        DeeplistAccount.authenticatedRequest("listen/respond", "POST", JSONObject().put("id", request.id).put("action", action), expectedUserId = mutable.value.userId)
         mutable.value = mutable.value.copy(requests = mutable.value.requests.filterNot { it.id == request.id }, error = null)
     }
 }

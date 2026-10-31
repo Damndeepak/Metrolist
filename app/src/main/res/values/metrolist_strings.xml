@@ -1317,4 +1317,12 @@ Your little world.</string>
     <string name="dp_cloud_sync">Sync now</string>
     <string name="dp_cloud_syncing">Syncing…</string>
     <string name="dp_cloud_saved">Last synced %1$s</string>
+    <string name="dp_capsule_rhythm">Your listening rhythm</string>
+    <string name="dp_capsule_days">Music on %1$d of %2$d days</string>
+    <string name="dp_capsule_peak_day">Busiest listening day: %1$s</string>
+    <string name="dp_capsule_peak_time">Favourite listening time: %1$s</string>
+    <string name="dp_capsule_night">Night · midnight–6 AM</string>
+    <string name="dp_capsule_morning">Morning · 6 AM–noon</string>
+    <string name="dp_capsule_afternoon">Afternoon · noon–6 PM</string>
+    <string name="dp_capsule_evening">Evening · 6 PM–midnight</string>
 </resources>

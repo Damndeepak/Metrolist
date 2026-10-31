@@ -77,7 +77,10 @@ internal object DeeplistAccount {
             value
         }
     }
-    internal suspend fun authenticatedRequest(path: String, method: String = "GET", body: JSONObject? = null): JSONObject = mutex.withLock { request(path, method, body) }
+    internal suspend fun authenticatedRequest(path: String, method: String = "GET", body: JSONObject? = null, expectedUserId: String? = null): JSONObject = mutex.withLock {
+        check(expectedUserId == null || (mutable.value.user?.optString("id") == expectedUserId && mutable.value.user?.optBoolean("blocked") != true)) { "Account changed. Please try again." }
+        request(path, method, body)
+    }
     private suspend fun action(clearSessionOnUnauthorized: Boolean = true, block: suspend () -> Unit) = mutex.withLock {
         mutable.value = mutable.value.copy(busy = true, error = null)
         try { block() }
@@ -131,6 +134,9 @@ internal object DeeplistAccount {
         request("session","DELETE");saved = JSONObject();persist();mutable.value = mutable.value.copy(user = null)
     }
     suspend fun delete() = action {
+        val owner=mutable.value.user?.optString("id")
         request("me","DELETE");saved = JSONObject();persist();mutable.value = mutable.value.copy(user = null)
+        if(owner != null) { File(context.noBackupFilesDir,"deeplist-cloud-$owner.json").delete(); File(context.noBackupFilesDir,"deeplist-cloud-$owner.json.bak").delete() }
+        File(context.noBackupFilesDir,"deeplist-cloud-owner").delete()
     }
 }

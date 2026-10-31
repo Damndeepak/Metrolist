@@ -1,6 +1,8 @@
 package com.metrolist.music.ui.component
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -27,7 +29,7 @@ internal fun DeeplistAccountMenu(navController: NavController, onClose: () -> Un
     val cloud by DeeplistCloudSync.state.collectAsStateWithLifecycle()
     var importing by remember { mutableStateOf(false) }
     if (importing) DeeplistPlaylistImportDialog(onDismiss = { importing = false })
-    Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(Modifier.verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(user?.optString("name").orEmpty().ifBlank { stringResource(R.string.dp_profile) }, style = MaterialTheme.typography.titleLarge)
             IconButton(onClick = onClose) { Icon(painterResource(R.drawable.close), stringResource(R.string.close)) }

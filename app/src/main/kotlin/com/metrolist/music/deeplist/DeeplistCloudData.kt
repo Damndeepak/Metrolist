@@ -60,7 +60,17 @@ internal object DeeplistCloudData {
         }
         return DeeplistSetup.decode(JSONObject().put("format", "deeplist-setup").put("version", 1).put("settings", lyrics).toString()) + extra
     }
-    fun apply(db: MusicDatabase, before: JSONObject, after: JSONObject) {
+    fun applySettings(preferences: MutablePreferences, root: JSONObject) {
+        val values=settings(root)
+        extraSettings.forEach { (key,default) -> when(default) {
+            is Boolean -> preferences.remove(booleanPreferencesKey(key))
+            is Int -> preferences.remove(intPreferencesKey(key))
+            else -> preferences.remove(stringPreferencesKey(key))
+        } }
+        DeeplistSetup.apply(preferences,values,true)
+    }
+    fun validate(after: JSONObject) {
+        settings(after)
         require(after.optString("format") == "deeplist-cloud" && after.optInt("version") == 1)
         val incoming = after.getJSONObject("records")
         require(incoming.length() <= 200000)
@@ -74,6 +84,10 @@ internal object DeeplistCloudData {
             row.keys().forEach { field -> val value=row.get(field); require(value == JSONObject.NULL || value is String || value is Number); if(value is String) require(value.length <= 16000) }
             if(table == playlist) { val items=entry.getJSONArray("items"); require(items.length() <= 50000); (0 until items.length()).forEach { require(items.get(it) is String) } }
         }
+    }
+    fun apply(db: MusicDatabase, before: JSONObject, after: JSONObject) {
+        validate(after)
+        val incoming=after.getJSONObject("records")
         fun upsert(table: Table, row: JSONObject) {
             val fields=table.fields
             val args=fields.map { if(row.isNull(it)) null else row.get(it) }.toTypedArray()
