@@ -472,7 +472,7 @@ class MainActivity : FragmentActivity() {
         }
 
         setContent {
-            com.metrolist.music.deeplist.DeeplistAccountGate(playerConnectionSnapshot) {
+            com.metrolist.music.deeplist.DeeplistAccountGate(playerConnectionSnapshot, database) {
             MetrolistApp(
                 latestVersionName = latestVersionName,
                 onLatestVersionNameChange = { latestVersionName = it },

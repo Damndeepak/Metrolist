@@ -45,12 +45,11 @@ import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 
 @Composable
-internal fun DeeplistAccountGate(connection: PlayerConnection?, content: @Composable () -> Unit) {
+internal fun DeeplistAccountGate(connection: PlayerConnection?, database: com.metrolist.music.db.MusicDatabase, content: @Composable () -> Unit) {
     if (BuildConfig.APPLICATION_ID != "com.deepu.wordstorm") { content(); return }
     val context = LocalContext.current
     remember { DeeplistAccount.initialize(context); true }
     val state by DeeplistAccount.state.collectAsStateWithLifecycle()
-    val database = LocalDatabase.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(lifecycle, state.user?.optString("id")) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
