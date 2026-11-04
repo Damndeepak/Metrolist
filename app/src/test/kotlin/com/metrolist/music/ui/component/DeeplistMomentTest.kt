@@ -26,6 +26,12 @@ class DeeplistMomentTest {
         assertEquals(updated, remaining)
     }
 
+    @Test fun `repeated chorus can be saved at different timestamps`() {
+        val first = DeeplistSavedLyric("chorus", "song", "artist", "a", 10000)
+        val second = first.copy(position = 60000)
+        assertEquals(2, deeplistSavedLyrics(deeplistSaveLyric(deeplistSaveLyric("[]", first), second)).size)
+    }
+
     @Test fun `saved history remains bounded and negative positions clamp to zero`() {
         var raw = "[]"
         repeat(40) { raw = deeplistSaveLyric(raw, DeeplistSavedLyric("$it", "title", "artist", "$it", -5, note = "x".repeat(200))) }

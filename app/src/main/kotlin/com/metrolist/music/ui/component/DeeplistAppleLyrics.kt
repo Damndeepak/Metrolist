@@ -40,7 +40,7 @@ import kotlin.math.abs
 import kotlin.math.sin
 
 @Composable
-internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Boolean, onSave: (String) -> Unit, onCorrect: (String) -> Unit, onToggleControls: () -> Unit) {
+internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Boolean, onSave: (String, Long) -> Unit, onCorrect: (String) -> Unit, onToggleControls: () -> Unit) {
     val connection = LocalPlayerConnection.current ?: return
     val metadata by connection.mediaMetadata.collectAsStateWithLifecycle()
     val song by connection.currentSong.collectAsStateWithLifecycle(initialValue = null)
@@ -143,7 +143,7 @@ internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Bo
                     if (canSeek && hit >= 0) connection.seekTo((lines[hit].time - offset).coerceAtLeast(0))
                     else onToggleControls()
                 }, onLongPress = { point ->
-                    if (!locked) hits.find(point.y).takeIf { it >= 0 }?.let { onSave(lines[it].text) }
+                    if (!locked) hits.find(point.y).takeIf { it >= 0 }?.let { onSave(lines[it].text, (lines[it].time - offset).coerceAtLeast(0)) }
                 }, onDoubleTap = { point ->
                     if (!locked) hits.find(point.y).takeIf { it >= 0 }?.let { onCorrect(lines[it].text) }
                 })

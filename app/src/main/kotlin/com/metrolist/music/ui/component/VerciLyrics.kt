@@ -137,9 +137,9 @@ fun VerciLyrics(
             pendingMoment = null
         }
     }
-    fun saveLine(text: String) {
+    fun saveLine(text: String, position: Long = connection.player.currentPosition) {
         val track = metadata ?: return
-        pendingMoment = DeeplistSavedLyric(text, track.title, track.artists.joinToString { it.name }, track.id, connection.player.currentPosition)
+        pendingMoment = DeeplistSavedLyric(text, track.title, track.artists.joinToString { it.name }, track.id, position)
     }
     LaunchedEffect(metadata?.id) {
         val id = metadata?.id ?: return@LaunchedEffect
@@ -192,7 +192,7 @@ fun VerciLyrics(
         androidx.compose.animation.Crossfade(targetState = renderer, animationSpec = androidx.compose.animation.core.tween(450), label = "Lyrics style") { currentRenderer ->
         if (currentRenderer == VerciStyle.APPLE) {
             key(metadata?.id, source) {
-                DeeplistAppleLyrics(source.orEmpty(), previewProvider, locked, { saveLine(it) }, { correctPhrase = it }, { controls = !controls })
+                DeeplistAppleLyrics(source.orEmpty(), previewProvider, locked, { text, position -> saveLine(text, position) }, { correctPhrase = it }, { controls = !controls })
             }
         } else
         key(metadata?.id, source) {

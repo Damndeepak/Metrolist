@@ -53,7 +53,7 @@ internal fun deeplistEncodeLyrics(items: List<DeeplistSavedLyric>): String = JSO
 
 internal fun deeplistSaveLyric(value: String, lyric: DeeplistSavedLyric): String =
     deeplistEncodeLyrics(listOf(lyric) + deeplistSavedLyrics(value).filterNot {
-        it.songId == lyric.songId && it.text == lyric.text &&
+        it.songId == lyric.songId && it.text == lyric.text && it.position == lyric.position &&
             (lyric.songId.isNotBlank() || (it.title == lyric.title && it.artist == lyric.artist))
     })
 
