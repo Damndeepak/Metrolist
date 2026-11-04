@@ -1,6 +1,12 @@
 package com.metrolist.music.ui.component
 
+import android.app.Application
+import android.content.Intent
+import android.graphics.BitmapFactory
 import org.junit.Assert.*
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.annotation.Config
+import java.io.File
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -44,4 +50,31 @@ class DeeplistMomentTest {
         assertEquals(30, items.size)
         assertTrue(items.all { it.position == 0L && it.note.length == 160 })
     }
+    @Test fun `normalizing a negative position does not create duplicate bookmarks`() {
+        val moment = DeeplistSavedLyric("line", "song", "artist", "track", -3)
+        val saved = deeplistSaveLyric(deeplistSaveLyric("[]", moment), moment.copy(reason = DeeplistMomentReason.VOICE))
+        assertEquals(1, deeplistSavedLyrics(saved).size)
+        assertEquals(DeeplistMomentReason.VOICE, deeplistSavedLyrics(saved).single().reason)
+    }
+
+    @Test
+    @Config(application = Application::class, sdk = [35])
+    fun `rapid lyric card exports have distinct PNG files and readable share grants`() {
+        val context = RuntimeEnvironment.getApplication()
+        val moment = DeeplistSavedLyric("line\n".repeat(150), "title", "artist")
+        val first = deeplistShareCard(context, moment)
+        val second = deeplistShareCard(context, moment.copy(text = ""))
+        assertEquals("image/png", first.type)
+        assertTrue(first.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0)
+        assertNotEquals(first.clipData?.getItemAt(0)?.uri, second.clipData?.getItemAt(0)?.uri)
+        val files = File(context.cacheDir, "deeplist-lyric-cards").listFiles().orEmpty()
+        assertTrue(files.size >= 2)
+        files.takeLast(2).forEach { file ->
+            val bitmap = requireNotNull(BitmapFactory.decodeFile(file.absolutePath))
+            assertEquals(900, bitmap.width)
+            assertEquals(1200, bitmap.height)
+            bitmap.recycle()
+        }
+    }
+
 }

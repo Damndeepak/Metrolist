@@ -415,7 +415,7 @@ internal fun WordstormLyrics(
                     val track = metadata
                     val current = active
                     if (track != null && current != null) {
-                        val lyric = DeeplistSavedLyric(current.text, track.title, track.artists.joinToString { it.name }, track.id, connection.player.currentPosition)
+                        val lyric = DeeplistSavedLyric(current.text, track.title, track.artists.joinToString { it.name }, track.id, (current.time - offset).coerceAtLeast(0))
                         TextButton(onClick = { pendingMoment = lyric }) { Text(stringResource(R.string.deeplist_save_lyric)) }
                         TextButton(onClick = { shareCard(lyric) }, enabled = !cardBusy) { Text(stringResource(R.string.deeplist_share_card)) }
                     }

@@ -83,7 +83,10 @@ internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Bo
     }
     val owner = LocalLifecycleOwner.current
     val latestSlider by rememberUpdatedState(slider)
-    val offset by rememberUpdatedState(song?.song?.lyricsOffset ?: 0)
+    val latestOnSave by rememberUpdatedState(onSave)
+    val latestOnCorrect by rememberUpdatedState(onCorrect)
+    val latestOnToggleControls by rememberUpdatedState(onToggleControls)
+    val offset by rememberUpdatedState(song?.song?.takeIf { it.id == metadata?.id }?.lyricsOffset ?: 0)
     var time by remember(source) { mutableLongStateOf(connection.player.currentPosition + offset) }
     var scroll by remember(source) { mutableFloatStateOf(0f) }
     val times = remember(lines) { lines.map { it.time } }
@@ -137,15 +140,15 @@ internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Bo
     Box(Modifier.fillMaxSize().clipToBounds()) {
         Canvas(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 24.dp, vertical = 24.dp)
             .semantics { contentDescription = activeText }
-            .pointerInput(displayLines, canSeek, offset) {
+            .pointerInput(displayLines, canSeek, offset, locked) {
                 detectTapGestures(onTap = { point ->
                     val hit = hits.find(point.y)
                     if (canSeek && hit >= 0) connection.seekTo((lines[hit].time - offset).coerceAtLeast(0))
-                    else onToggleControls()
+                    else latestOnToggleControls()
                 }, onLongPress = { point ->
-                    if (!locked) hits.find(point.y).takeIf { it >= 0 }?.let { onSave(lines[it].text, (lines[it].time - offset).coerceAtLeast(0)) }
+                    if (!locked) hits.find(point.y).takeIf { it >= 0 }?.let { latestOnSave(lines[it].text, (lines[it].time - offset).coerceAtLeast(0)) }
                 }, onDoubleTap = { point ->
-                    if (!locked) hits.find(point.y).takeIf { it >= 0 }?.let { onCorrect(lines[it].text) }
+                    if (!locked) hits.find(point.y).takeIf { it >= 0 }?.let { latestOnCorrect(lines[it].text) }
                 })
             }.drawWithCache {
                 val paint = deeplistApplePaint(requestedSize.coerceIn(24f, 96f).sp.toPx())

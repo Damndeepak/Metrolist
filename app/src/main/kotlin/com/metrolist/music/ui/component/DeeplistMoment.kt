@@ -4,6 +4,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -36,7 +39,7 @@ internal fun DeeplistMomentDialog(moment: DeeplistSavedLyric, onDismiss: () -> U
     var note by remember(moment) { mutableStateOf(moment.note) }
     AlertDialog(onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.dp_moment_why)) },
-        text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        text = { Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (moment.text.isNotBlank()) Text(moment.text, style = MaterialTheme.typography.titleMedium)
             Text(moment.title, style = MaterialTheme.typography.bodySmall)
             DeeplistMomentReason.entries.chunked(2).forEach { reasons ->
@@ -67,7 +70,7 @@ internal fun DeeplistMomentActions(moment: DeeplistSavedLyric, canControl: Boole
             failed = false
             scope.launch {
                 try {
-                    val song = YouTube.queue(listOf(moment.songId)).getOrThrow().firstOrNull()
+                    val song = YouTube.queue(listOf(moment.songId)).getOrThrow().firstOrNull { it.id == moment.songId }
                         ?: error("Saved song unavailable")
                     connection?.playQueue(YouTubeQueue.radio(song.toMediaMetadata()))
                 } catch (cancelled: CancellationException) {

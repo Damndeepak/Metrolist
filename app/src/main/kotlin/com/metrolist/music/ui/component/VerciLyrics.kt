@@ -232,12 +232,13 @@ fun VerciLyrics(
         val currentTime = connection.player.currentPosition
         val entries = remember(source) { LyricsUtils.parseLyrics(source.orEmpty()).filter { !it.isBackground && it.text.isNotBlank() }.sortedBy { it.time } }
         val song = connection.currentSong.collectAsStateWithLifecycle(initialValue = null).value
-        val now = currentTime + (song?.song?.lyricsOffset ?: 0)
+        val songOffset = song?.song?.takeIf { it.id == metadata?.id }?.lyricsOffset ?: 0
+        val now = currentTime + songOffset
         val line = entries.lastOrNull { it.time <= now }
         val word = remember(source, now) { buildVerciWords(entries).let { it.getOrNull(verciWordIndex(it, now))?.text.orEmpty() } }
         AlertDialog(onDismissRequest = { actions = false }, title = { Text(line?.text.orEmpty()) }, text = {
             androidx.compose.foundation.layout.Column {
-                TextButton(onClick = { line?.let { saveLine(it.text) }; actions = false }, enabled = line != null) { Text(stringResource(R.string.deeplist_save_lyric)) }
+                TextButton(onClick = { line?.let { saveLine(it.text, (it.time - songOffset).coerceAtLeast(0)) }; actions = false }, enabled = line != null) { Text(stringResource(R.string.deeplist_save_lyric)) }
                 TextButton(onClick = { correctPhrase = word; actions = false }, enabled = word.isNotBlank()) { Text(stringResource(R.string.deeplist_emoji_corrections)) }
             }
         }, confirmButton = { TextButton(onClick = { actions = false }) { Text(stringResource(R.string.wordstorm_done)) } })
@@ -251,7 +252,8 @@ private fun VerciWordCanvas(words: List<VerciWord>, gaps: List<VerciGap>, slider
     val player = connection.player
     val owner = LocalLifecycleOwner.current
     val song by connection.currentSong.collectAsStateWithLifecycle(initialValue = null)
-    val offset by rememberUpdatedState(song?.song?.lyricsOffset ?: 0)
+    val currentMetadata by connection.mediaMetadata.collectAsStateWithLifecycle()
+    val offset by rememberUpdatedState(song?.song?.takeIf { it.id == currentMetadata?.id }?.lyricsOffset ?: 0)
     val slider by rememberUpdatedState(sliderPositionProvider)
     val emojis by rememberPreference(VerciEmojiKey, true)
     val advanced by rememberPreference(com.metrolist.music.constants.VerciAdvancedEmojiKey, false)

@@ -27,10 +27,22 @@ import com.metrolist.music.R
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import com.metrolist.music.db.entities.Artist
+import com.metrolist.music.db.entities.Event
+import com.metrolist.music.db.entities.SongWithStats
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CancellationException
+
+private data class CapsuleMonthData(
+    val events: List<Event>,
+    val previousTime: Long?,
+    val songs: List<SongWithStats>,
+    val artists: List<Artist>,
+    val artistCount: Int,
+)
 
 @Composable
 fun SoundCapsuleScreen(navController: NavController) {
@@ -43,11 +55,24 @@ fun SoundCapsuleScreen(navController: NavController) {
     var month by remember { mutableStateOf(currentMonth) }
     val start = remember(month) { month.atDay(1).atStartOfDay() }
     val end = remember(month) { month.plusMonths(1).atDay(1).atStartOfDay() }
-    val events by key(month) { remember(start, end) { database.capsuleEvents(start, end) }.collectAsStateWithLifecycle(emptyList()) }
-    val previousTime by remember(start) { database.getTotalPlayTimeInRange(start.minusMonths(1), start.minusNanos(1)) }.collectAsStateWithLifecycle(null)
-    val songs by key(month) { remember(start, end) { database.mostPlayedSongsStats(start.minusNanos(1), limit = 5, toTimeStamp = end.minusNanos(1)) }.collectAsStateWithLifecycle(emptyList()) }
-    val artists by key(month) { remember(start, end) { database.mostPlayedArtists(start.minusNanos(1), limit = 5, toTimeStamp = end.minusNanos(1)) }.collectAsStateWithLifecycle(emptyList()) }
-    val artistCount by remember(start, end) { database.getUniqueArtistCountInRange(start, end.minusNanos(1)) }.collectAsStateWithLifecycle(0)
+    val data by key(month) {
+        remember(start, end) {
+            combine(
+                database.capsuleEvents(start, end),
+                database.getTotalPlayTimeInRange(start.minusMonths(1), start.minusNanos(1)),
+                database.mostPlayedSongsStats(start.minusNanos(1), limit = 5, toTimeStamp = end.minusNanos(1)),
+                database.mostPlayedArtists(start.minusNanos(1), limit = 5, toTimeStamp = end.minusNanos(1)),
+                database.getUniqueArtistCountInRange(start, end.minusNanos(1)),
+            ) { events, previousTime, songs, artists, artistCount ->
+                CapsuleMonthData(events, previousTime, songs, artists, artistCount)
+            }
+        }.collectAsStateWithLifecycle(initialValue = null)
+    }
+    val events = data?.events.orEmpty()
+    val previousTime = data?.previousTime
+    val songs = data?.songs.orEmpty()
+    val artists = data?.artists.orEmpty()
+    val artistCount = data?.artistCount ?: 0
     val summary = remember(events, month) { capsuleSummary(month, events.map { it.timestamp.toLocalDate() to it.playTime }) }
     val activeDays = summary.dailyMinutes.count { it > 0 }
     val peakDay = summary.dailyMinutes.withIndex().maxByOrNull { it.value }?.takeIf { it.value > 0 }?.index?.plus(1)
@@ -94,7 +119,8 @@ fun SoundCapsuleScreen(navController: NavController) {
                 }
             }
         }
-        if (events.isEmpty()) item { Text(stringResource(R.string.dp_capsule_empty)) }
+        if (data == null) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+        if (data != null && events.isEmpty()) item { Text(stringResource(R.string.dp_capsule_empty)) }
         if (events.isNotEmpty()) item {
             Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(20.dp), verticalArrangement=Arrangement.spacedBy(10.dp)) {
                 Text(stringResource(R.string.dp_capsule_rhythm),style=MaterialTheme.typography.titleMedium)
@@ -138,7 +164,7 @@ fun SoundCapsuleScreen(navController: NavController) {
                         shareFailed = true
                     } finally { sharing = false }
                 }
-            }, enabled = events.isNotEmpty() && !sharing, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.dp_capsule_share)) }
+            }, enabled = data != null && events.isNotEmpty() && !sharing, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.dp_capsule_share)) }
             if (shareFailed) Text(stringResource(R.string.dp_capsule_share_error), color = MaterialTheme.colorScheme.error)
             TextButton(onClick = { navController.navigate("stats") }) { Text(stringResource(R.string.dp_capsule_details)) }
         }

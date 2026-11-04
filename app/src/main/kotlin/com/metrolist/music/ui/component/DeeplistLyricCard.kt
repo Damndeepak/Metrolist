@@ -13,6 +13,7 @@ import android.graphics.Typeface
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
+import android.text.TextUtils
 import androidx.core.content.FileProvider
 import org.json.JSONArray
 import org.json.JSONObject
@@ -53,12 +54,13 @@ internal fun deeplistEncodeLyrics(items: List<DeeplistSavedLyric>): String = JSO
 
 internal fun deeplistSaveLyric(value: String, lyric: DeeplistSavedLyric): String =
     deeplistEncodeLyrics(listOf(lyric) + deeplistSavedLyrics(value).filterNot {
-        it.songId == lyric.songId && it.text == lyric.text && it.position == lyric.position &&
+        it.songId == lyric.songId && it.text == lyric.text && it.position == lyric.position.coerceAtLeast(0) &&
             (lyric.songId.isNotBlank() || (it.title == lyric.title && it.artist == lyric.artist))
     })
 
 internal fun deeplistShareCard(context: Context, lyric: DeeplistSavedLyric): Intent {
     val bitmap = Bitmap.createBitmap(900, 1200, Bitmap.Config.ARGB_8888)
+    var output: File? = null
     try {
         val canvas = Canvas(bitmap)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -69,21 +71,31 @@ internal fun deeplistShareCard(context: Context, lyric: DeeplistSavedLyric): Int
         paint.typeface = Typeface.create(Typeface.DEFAULT,Typeface.BOLD);paint.textSize = 30f;paint.color = Color.rgb(192,158,255)
         canvas.drawText("deeplist",75f,100f,paint)
         val textPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE;typeface = Typeface.create(Typeface.DEFAULT,Typeface.BOLD);textSize = 62f }
-        fun layout(text: String, width: Int) = StaticLayout.Builder.obtain(text,0,text.length,textPaint,width).setAlignment(Layout.Alignment.ALIGN_CENTER).setIncludePad(false).build()
+        fun layout(text: String, width: Int, maxLines: Int = Int.MAX_VALUE) = StaticLayout.Builder.obtain(text,0,text.length,textPaint,width)
+            .setAlignment(Layout.Alignment.ALIGN_CENTER).setIncludePad(false)
+            .setMaxLines(maxLines).setEllipsize(TextUtils.TruncateAt.END).build()
         var text = layout(lyric.text.ifBlank { lyric.title }.take(600),720)
         while (text.height > 650 && textPaint.textSize > 30f) {textPaint.textSize -= 4f;text = layout(lyric.text.ifBlank { lyric.title }.take(600),720)}
+        if (text.height > 650) {
+            val lineHeight = (textPaint.fontMetrics.bottom - textPaint.fontMetrics.top).coerceAtLeast(1f)
+            text = layout(lyric.text.ifBlank { lyric.title }.take(600), 720, (650 / lineHeight).toInt().coerceAtLeast(1))
+        }
         canvas.save();canvas.translate(90f,(1120-text.height)/2f);text.draw(canvas);canvas.restore()
         textPaint.textSize = 27f;textPaint.color = Color.rgb(213,195,238)
-        val credit = layout(lyric.title.take(100)+"\n"+lyric.artist.take(100),720)
+        val credit = layout(lyric.title.take(100)+"\n"+lyric.artist.take(100),720,4)
         canvas.save();canvas.translate(90f,1000f);credit.draw(canvas);canvas.restore()
-        val folder = File(context.cacheDir,"deeplist-lyric-cards").apply { mkdirs() }
+        val folder = File(context.cacheDir,"deeplist-lyric-cards").apply { check(isDirectory || mkdirs()) }
         folder.listFiles()?.sortedByDescending { it.lastModified() }?.drop(9)?.forEach { it.delete() }
-        val file = File(folder,"lyric-${System.currentTimeMillis()}.png")
+        val file = File.createTempFile("lyric-", ".png", folder)
+        output = file
         file.outputStream().use { check(bitmap.compress(Bitmap.CompressFormat.PNG,100,it)) }
         val uri = FileProvider.getUriForFile(context,"${context.packageName}.FileProvider",file)
         return Intent(Intent.ACTION_SEND).apply {
             type = "image/png";putExtra(Intent.EXTRA_STREAM,uri);clipData = ClipData.newRawUri("Lyric card",uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
+    } catch (error: Exception) {
+        output?.delete()
+        throw error
     } finally { bitmap.recycle() }
 }
