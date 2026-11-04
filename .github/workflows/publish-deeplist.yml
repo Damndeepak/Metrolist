@@ -82,12 +82,14 @@ jobs:
               downloadUrl='https://world.damndeepak.workers.dev/downloads/deeplist.apk',
               assetUrl='https://github.com/' + os.environ['GITHUB_REPOSITORY'] + '/releases/download/' + tag + '/Deeplist.apk',
               sourceCommit=os.environ['BUILD_SHA'],
-              changelog=(['Faster live sharing: song changes, pause and seek wake the uploader immediately; remote-control requests no longer block state uploads.', 'Requires the matching website deployment. Sub-2-second phone-to-website latency has not been verified on a device.'] if code >= 157 else []) + (['Removed the separate Wasted demo entry. Existing Apple Music and Verci lyrics styles are unchanged.'] if code >= 156 else ['Added the website-style Wasted demo inside the app with the same scrolling, word highlight, moving blur and controls.'] if code == 155 else []) + ['Deeplist Discord branding and website buttons.',
-                  'Retry failed and stale presence after reconnect; ignore stale song artwork.',
-                  'Check for Deeplist updates and download from the public website.',
-                  'Existing Apple, Verci, Neon and video features retained. Google cloud sync is not included.'])
+              changelog=['Save lyric and instrumental moments with Beat, Voice, Lyrics or Mood tags and an optional note.',
+                  'Filter saved moments, revisit exact timestamps and start related mixes from the saved song.',
+                  'Share monthly Sound Capsule as a portrait PNG with top artists, top songs and listening minutes.',
+                  'Softer Apple lyrics word lift while retaining word size, spacing and background customization.',
+                  'Reduce animated artwork playback work and stop it when the app is in the background.',
+                  'Fix stale lyric callbacks, track-change offsets and incomplete monthly share data.'])
           pathlib.Path('deeplist-release.json').write_text(json.dumps(manifest, indent=2) + '\n')
-          pathlib.Path('notes.txt').write_text('\n'.join('- ' + line for line in manifest['changelog']) + '\n\nPackage and original signing certificate verified. Android install and another viewer\'s Discord profile still need device testing.\n')
+          pathlib.Path('notes.txt').write_text('\\n'.join('- ' + line for line in manifest['changelog']) + '\\n\\nPackage and original signing certificate verified. Phone installation, visual smoothness and sustained heat/battery usage still need device testing. Discovery uses saved-song radio; exact audio similarity and the challenge-game leaderboard are not included in this release.\\n')
           with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
               out.write('tag=' + tag + '\n' + 'title=Deeplist ' + version + '\n')
           print(json.dumps(manifest, indent=2))
