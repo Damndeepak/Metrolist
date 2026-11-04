@@ -37,7 +37,7 @@ internal fun DeeplistMomentDialog(moment: DeeplistSavedLyric, onDismiss: () -> U
     AlertDialog(onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.dp_moment_why)) },
         text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(moment.text, style = MaterialTheme.typography.titleMedium)
+            if (moment.text.isNotBlank()) Text(moment.text, style = MaterialTheme.typography.titleMedium)
             Text(moment.title, style = MaterialTheme.typography.bodySmall)
             DeeplistMomentReason.entries.chunked(2).forEach { reasons ->
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { reasons.forEach { choice ->
@@ -47,7 +47,7 @@ internal fun DeeplistMomentDialog(moment: DeeplistSavedLyric, onDismiss: () -> U
             OutlinedTextField(value = note, onValueChange = { note = it.take(160) },
                 label = { Text(stringResource(R.string.dp_moment_note)) }, modifier = Modifier.fillMaxWidth(), maxLines = 3)
         } },
-        confirmButton = { TextButton(onClick = { onSave(moment.copy(reason = reason, note = note.trim())) }) { Text(stringResource(R.string.deeplist_save_lyric)) } },
+        confirmButton = { TextButton(onClick = { onSave(moment.copy(reason = reason, note = note.trim())) }) { Text(stringResource(R.string.dp_moment_save)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } })
 }
 
@@ -60,7 +60,7 @@ internal fun DeeplistMomentActions(moment: DeeplistSavedLyric, canControl: Boole
     var failed by remember(moment) { mutableStateOf(false) }
     moment.reason?.let { Text(stringResource(it.label), style = MaterialTheme.typography.labelMedium) }
     if (moment.note.isNotBlank()) Text(moment.note, style = MaterialTheme.typography.bodySmall)
-    Row {
+    Column {
         TextButton(onClick = { edit = true }) { Text(stringResource(R.string.dp_moment_why)) }
         TextButton(enabled = canControl && connection != null && moment.songId.isNotBlank() && !loading, onClick = {
             loading = true

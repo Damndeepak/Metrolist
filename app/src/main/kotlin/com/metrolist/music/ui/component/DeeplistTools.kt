@@ -60,6 +60,7 @@ internal fun DeeplistTools(initialTab: Int = 0, onDismiss: () -> Unit) {
     var touchLock by rememberPreference(DeeplistTouchLockKey, false)
     var status by remember { mutableStateOf<Int?>(null) }
     var tab by remember { mutableIntStateOf(initialTab) }
+    var pendingMoment by remember { mutableStateOf<DeeplistSavedLyric?>(null) }
     var momentFilter by remember { mutableStateOf<DeeplistMomentReason?>(null) }
     var edit by remember { mutableStateOf(false) }
     var draft by remember(metadata?.id) { mutableStateOf(entity?.takeIf { it.id == metadata?.id }?.lyrics.orEmpty()) }
@@ -172,6 +173,11 @@ internal fun DeeplistTools(initialTab: Int = 0, onDismiss: () -> Unit) {
             if (tab == 2) {
                 val allMoments = deeplistSavedLyrics(saved)
                 Text(stringResource(R.string.dp_moment_collection), style = MaterialTheme.typography.titleMedium)
+                TextButton(enabled = metadata != null && connection != null, onClick = {
+                    val track = metadata ?: return@TextButton
+                    pendingMoment = DeeplistSavedLyric("", track.title, track.artists.joinToString { it.name }, track.id,
+                        connection?.player?.currentPosition?.coerceAtLeast(0) ?: 0)
+                }) { Text(stringResource(R.string.dp_moment_save_current)) }
                 FilterChip(selected = momentFilter == null, onClick = { momentFilter = null }, label = { Text(stringResource(R.string.dp_moment_all)) })
                 DeeplistMomentReason.entries.chunked(2).forEach { reasons ->
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { reasons.forEach { reason ->
@@ -215,6 +221,12 @@ internal fun DeeplistTools(initialTab: Int = 0, onDismiss: () -> Unit) {
             status?.let { Text(stringResource(it)) }
         }
     }, confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.wordstorm_done)) } })
+    pendingMoment?.let { moment ->
+        DeeplistMomentDialog(moment, { pendingMoment = null }) { selected ->
+            saved = deeplistSaveLyric(saved, selected)
+            pendingMoment = null
+        }
+    }
     if (edit) AlertDialog(onDismissRequest = { edit = false }, title = { Text(stringResource(R.string.deeplist_edit_lyrics)) }, text = {
         Column {
             Text(stringResource(R.string.deeplist_review_lyrics))

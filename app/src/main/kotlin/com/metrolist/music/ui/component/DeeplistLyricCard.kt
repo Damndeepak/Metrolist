@@ -70,8 +70,8 @@ internal fun deeplistShareCard(context: Context, lyric: DeeplistSavedLyric): Int
         canvas.drawText("deeplist",75f,100f,paint)
         val textPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE;typeface = Typeface.create(Typeface.DEFAULT,Typeface.BOLD);textSize = 62f }
         fun layout(text: String, width: Int) = StaticLayout.Builder.obtain(text,0,text.length,textPaint,width).setAlignment(Layout.Alignment.ALIGN_CENTER).setIncludePad(false).build()
-        var text = layout(lyric.text.take(600),720)
-        while (text.height > 650 && textPaint.textSize > 30f) {textPaint.textSize -= 4f;text = layout(lyric.text.take(600),720)}
+        var text = layout(lyric.text.ifBlank { lyric.title }.take(600),720)
+        while (text.height > 650 && textPaint.textSize > 30f) {textPaint.textSize -= 4f;text = layout(lyric.text.ifBlank { lyric.title }.take(600),720)}
         canvas.save();canvas.translate(90f,(1120-text.height)/2f);text.draw(canvas);canvas.restore()
         textPaint.textSize = 27f;textPaint.color = Color.rgb(213,195,238)
         val credit = layout(lyric.title.take(100)+"\n"+lyric.artist.take(100),720)

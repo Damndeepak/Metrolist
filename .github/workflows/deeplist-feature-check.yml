@@ -15,6 +15,7 @@ jobs:
       METROLIST_APPLICATION_ID: com.deepu.wordstorm.preview
       METROLIST_APP_NAME: Deeplist Preview
       METROLIST_ABI_FILTERS: arm64-v8a
+      METROLIST_DEBUG_KEYSTORE_PATH: ${{ runner.temp }}/deeplist-preview.keystore
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v5
@@ -28,6 +29,9 @@ jobs:
             ~/.gradle/wrapper
           key: deeplist-feature-gradle-${{ hashFiles('**/*.gradle.kts', 'gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: wordstorm-gradle-${{ runner.os }}-
+      - name: Create isolated preview signing key
+        run: |
+          keytool -genkeypair -noprompt -storetype JKS -keystore "$METROLIST_DEBUG_KEYSTORE_PATH" -storepass android -keypass android -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 2 -dname "CN=Deeplist Preview"
       - name: Install Android SDK
         run: |
           SDK_MANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
@@ -45,3 +49,10 @@ jobs:
             app/build/reports
             app/build/test-results
           if-no-files-found: ignore
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: deeplist-feature-gradle-${{ hashFiles('**/*.gradle.kts', 'gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties') }}

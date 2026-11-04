@@ -1340,4 +1340,6 @@ Your little world.</string>
     <string name="dp_moment_collection">Your favourite moments</string>
     <string name="dp_moment_all">All moments</string>
     <string name="dp_moment_count">%1$s · %2$d</string>
+    <string name="dp_moment_save_current">Save this moment</string>
+    <string name="dp_moment_save">Save moment</string>
 </resources>

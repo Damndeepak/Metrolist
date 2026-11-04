@@ -26,6 +26,11 @@ class DeeplistMomentTest {
         assertEquals(updated, remaining)
     }
 
+    @Test fun `instrumental moment needs no lyric text`() {
+        val moment = DeeplistSavedLyric("", "Instrumental", "Artist", "track", 32000, DeeplistMomentReason.BEAT, "soft guitar")
+        assertEquals(moment, deeplistSavedLyrics(deeplistSaveLyric("[]", moment)).single())
+    }
+
     @Test fun `repeated chorus can be saved at different timestamps`() {
         val first = DeeplistSavedLyric("chorus", "song", "artist", "a", 10000)
         val second = first.copy(position = 60000)
