@@ -110,12 +110,3 @@ internal object DeeplistSetup {
         } }
     }
 }
-
-internal fun applyDeeplistAppleDefault(preferences: MutablePreferences) {
-    val applied = booleanPreferencesKey("deeplistAppleDefaultApplied")
-    if (preferences[applied] == true) return
-    preferences[WordstormEnabledKey] = true
-    preferences[VerciLyricsKey] = true
-    preferences[VerciStyleKey] = VerciStyle.APPLE.name
-    preferences[applied] = true
-}

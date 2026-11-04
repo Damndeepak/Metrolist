@@ -126,6 +126,7 @@ internal fun WordstormLyrics(
     useVerci: Boolean = true,
 ) {
     if (!showLyrics) return
+    val context = LocalContext.current
     var verciEnabled by rememberPreference(VerciLyricsKey, true)
     if (useVerci && verciEnabled) {
         VerciLyrics(sliderPositionProvider, modifier, showLyrics, onOriginal, immersive, onFullscreen, onExitFullscreen)
@@ -186,7 +187,6 @@ internal fun WordstormLyrics(
     var entries by remember(metadata?.id) { mutableStateOf<List<LyricsEntry>>(emptyList()) }
     val position = remember(metadata?.id) { mutableLongStateOf(0L) }
     val lifecycleOwner = LocalLifecycleOwner.current
-    val context = LocalContext.current
     var website by rememberPreference(DeeplistWebsiteKey, "")
     var websiteDraft by remember { mutableStateOf(website) }
     var websiteError by remember { mutableStateOf(false) }
