@@ -174,6 +174,7 @@ internal fun DeeplistTools(initialTab: Int = 0, onDismiss: () -> Unit) {
                 items.forEach { lyric ->
                     Text(lyric.text)
                     Text(lyric.title, style = MaterialTheme.typography.labelSmall)
+                    DeeplistMomentActions(lyric, canControl) { updated -> saved = deeplistSaveLyric(saved, updated) }
                     if (lyric.songId.isNotBlank()) TextButton(onClick = {
                         val current = connection ?: return@TextButton
                         if (metadata?.id == lyric.songId) { current.seekTo(lyric.position); current.player.play() }
@@ -196,9 +197,7 @@ internal fun DeeplistTools(initialTab: Int = 0, onDismiss: () -> Unit) {
                                 .onSuccess { runCatching { context.startActivity(Intent.createChooser(it, null)) }.onFailure { status = R.string.deeplist_card_error } }
                                 .onFailure { status = R.string.deeplist_card_error }
                         } }) { Text(stringResource(R.string.deeplist_share_card)) }
-                        TextButton(onClick = { saved = org.json.JSONArray().apply {
-                            items.filter { it != lyric }.forEach { put(JSONObject().put("text", it.text).put("title", it.title).put("artist", it.artist)) }
-                        }.toString() }) { Text(stringResource(R.string.delete)) }
+                        TextButton(onClick = { saved = deeplistEncodeLyrics(items.filter { it != lyric }) }) { Text(stringResource(R.string.delete)) }
                     }
                 }
             }

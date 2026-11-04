@@ -16,7 +16,7 @@ internal object DeeplistSetup {
         SetupField(DeeplistWordGlowKey.name, true), SetupField(DeeplistAppleBeatKey.name, false), SetupField(DeeplistStackNeonKey.name, true),
         SetupField(DeeplistTapSeekKey.name, false), SetupField(DeeplistDuetEnabledKey.name, false), SetupField(DeeplistInstrumentalKey.name, true),
         *VerciStyle.entries.filter { it != VerciStyle.APPLE }.map { SetupField(deeplistSizeKey(it).name, 52f, 24.0, 200.0) }.toTypedArray(),
-        SetupField(WordstormEnabledKey.name, true), SetupField(VerciLyricsKey.name, false),
+        SetupField(WordstormEnabledKey.name, true), SetupField(VerciLyricsKey.name, true),
         SetupField(VerciStyleKey.name, VerciStyle.APPLE.name, choices = VerciStyle.entries.map { it.name }.toSet()),
         SetupField(VerciFontKey.name, VerciFont.BOLD.name, choices = VerciFont.entries.map { it.name }.toSet()),
         SetupField(VerciTextSizeKey.name, 52f, 28.0, 200.0), SetupField(VerciSpacingKey.name, 1f, .45, 1.35),
@@ -109,4 +109,13 @@ internal object DeeplistSetup {
             }
         } }
     }
+}
+
+internal fun applyDeeplistAppleDefault(preferences: MutablePreferences) {
+    val applied = booleanPreferencesKey("deeplistAppleDefaultApplied")
+    if (preferences[applied] == true) return
+    preferences[WordstormEnabledKey] = true
+    preferences[VerciLyricsKey] = true
+    preferences[VerciStyleKey] = VerciStyle.APPLE.name
+    preferences[applied] = true
 }

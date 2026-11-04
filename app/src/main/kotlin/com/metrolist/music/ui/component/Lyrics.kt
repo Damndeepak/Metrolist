@@ -16,6 +16,11 @@ import com.metrolist.music.R
 import com.metrolist.music.constants.WordstormEnabledKey
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
+import androidx.datastore.preferences.core.edit
+import com.metrolist.music.utils.dataStore
+import com.metrolist.music.lyrics.applyDeeplistAppleDefault
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -30,6 +35,10 @@ fun Lyrics(
     showLyrics: Boolean,
     lyricsViewModel: LyricsViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        context.dataStore.edit { applyDeeplistAppleDefault(it) }
+    }
     var wordstormEnabled by rememberPreference(WordstormEnabledKey, true)
     if (wordstormEnabled) {
         WordstormLyrics(sliderPositionProvider, showLyrics, { wordstormEnabled = false }, modifier)

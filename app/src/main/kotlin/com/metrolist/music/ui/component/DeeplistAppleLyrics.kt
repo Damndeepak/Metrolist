@@ -226,7 +226,7 @@ internal fun DeeplistAppleLyrics(source: String, slider: () -> Long?, locked: Bo
                             if (amount <= 0f) continue
                             val extra = if (economy) 0f else pulse.coerceIn(0f, 1f) * .025f
                             val zoom = 1f + amount * (wordZoom.coerceIn(0f, .35f) + extra) * intensity
-                            val lift = amount * (4.dp.toPx() + extra * 90.dp.toPx()) * intensity
+                            val lift = amount * (1.5.dp.toPx() + extra * 90.dp.toPx()) * intensity
                             for (box in bounds[i][j]) {
                                 canvas.save()
                                 canvas.translate(0f, -lift)

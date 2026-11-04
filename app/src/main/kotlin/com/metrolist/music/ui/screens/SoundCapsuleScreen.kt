@@ -27,19 +27,26 @@ import com.metrolist.music.R
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CancellationException
 
 @Composable
 fun SoundCapsuleScreen(navController: NavController) {
     val database = LocalDatabase.current
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var sharing by remember { mutableStateOf(false) }
+    var shareFailed by remember { mutableStateOf(false) }
     val currentMonth = remember { YearMonth.now() }
     var month by remember { mutableStateOf(currentMonth) }
     val start = remember(month) { month.atDay(1).atStartOfDay() }
     val end = remember(month) { month.plusMonths(1).atDay(1).atStartOfDay() }
-    val events by remember(start, end) { database.capsuleEvents(start, end) }.collectAsStateWithLifecycle(emptyList())
+    val events by key(month) { remember(start, end) { database.capsuleEvents(start, end) }.collectAsStateWithLifecycle(emptyList()) }
     val previousTime by remember(start) { database.getTotalPlayTimeInRange(start.minusMonths(1), start.minusNanos(1)) }.collectAsStateWithLifecycle(null)
-    val songs by remember(start, end) { database.mostPlayedSongsStats(start.minusNanos(1), limit = 5, toTimeStamp = end.minusNanos(1)) }.collectAsStateWithLifecycle(emptyList())
-    val artists by remember(start, end) { database.mostPlayedArtists(start.minusNanos(1), limit = 5, toTimeStamp = end.minusNanos(1)) }.collectAsStateWithLifecycle(emptyList())
+    val songs by key(month) { remember(start, end) { database.mostPlayedSongsStats(start.minusNanos(1), limit = 5, toTimeStamp = end.minusNanos(1)) }.collectAsStateWithLifecycle(emptyList()) }
+    val artists by key(month) { remember(start, end) { database.mostPlayedArtists(start.minusNanos(1), limit = 5, toTimeStamp = end.minusNanos(1)) }.collectAsStateWithLifecycle(emptyList()) }
     val artistCount by remember(start, end) { database.getUniqueArtistCountInRange(start, end.minusNanos(1)) }.collectAsStateWithLifecycle(0)
     val summary = remember(events, month) { capsuleSummary(month, events.map { it.timestamp.toLocalDate() to it.playTime }) }
     val activeDays = summary.dailyMinutes.count { it > 0 }
@@ -52,6 +59,16 @@ fun SoundCapsuleScreen(navController: NavController) {
     val shareTitle = stringResource(R.string.dp_sound_capsule)
     val minutesLabel = stringResource(R.string.dp_capsule_minutes)
     val streakLabel = stringResource(R.string.dp_capsule_streak, summary.longestStreak)
+    val cardData = CapsuleShareData(
+        title = stringResource(R.string.dp_capsule_my_month, month.format(DateTimeFormatter.ofPattern("MMMM", Locale.getDefault()))),
+        month = title,
+        artistsLabel = stringResource(R.string.dp_capsule_top_artists),
+        songsLabel = stringResource(R.string.dp_capsule_top_songs),
+        minutesLabel = minutesLabel,
+        minutes = summary.totalMinutes,
+        artists = artists.map { it.artist.name },
+        songs = songs.map { it.title },
+    )
     LazyColumn(Modifier.fillMaxSize().windowInsetsPadding(LocalPlayerAwareWindowInsets.current.only(WindowInsetsSides.Vertical)),
         contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         item {
@@ -108,9 +125,21 @@ fun SoundCapsuleScreen(navController: NavController) {
         }
         item {
             Button(onClick = {
-                val text = "$shareTitle · $title\n${summary.totalMinutes} $minutesLabel\n$streakLabel\n" + songs.firstOrNull()?.let { "${it.title} · ${it.artists.joinToString { a -> a.name }}" }.orEmpty()
-                context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, text) }, shareTitle))
-            }, enabled = events.isNotEmpty(), modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.dp_capsule_share)) }
+                val snapshot = cardData
+                sharing = true
+                shareFailed = false
+                scope.launch {
+                    try {
+                        val intent = withContext(Dispatchers.IO) { capsuleShareCard(context, snapshot) }
+                        context.startActivity(Intent.createChooser(intent, shareTitle))
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        shareFailed = true
+                    } finally { sharing = false }
+                }
+            }, enabled = events.isNotEmpty() && !sharing, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.dp_capsule_share)) }
+            if (shareFailed) Text(stringResource(R.string.dp_capsule_share_error), color = MaterialTheme.colorScheme.error)
             TextButton(onClick = { navController.navigate("stats") }) { Text(stringResource(R.string.dp_capsule_details)) }
         }
     }

@@ -30,7 +30,7 @@ import kotlin.math.roundToInt
 
 @Composable
 fun verciLyricsSettingsItems(): List<Material3SettingsItem> {
-    val (enabled, setEnabled) = rememberPreference(VerciLyricsKey, false)
+    val (enabled, setEnabled) = rememberPreference(VerciLyricsKey, true)
     val (_, setWordstorm) = rememberPreference(WordstormEnabledKey, true)
     val enable: (Boolean) -> Unit = { value ->
         if (value) setWordstorm(true)

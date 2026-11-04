@@ -18,20 +18,44 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 
-data class DeeplistSavedLyric(val text: String, val title: String, val artist: String, val songId: String = "", val position: Long = 0)
+enum class DeeplistMomentReason { BEAT, VOICE, LYRICS, MOOD }
+
+data class DeeplistSavedLyric(
+    val text: String,
+    val title: String,
+    val artist: String,
+    val songId: String = "",
+    val position: Long = 0,
+    val reason: DeeplistMomentReason? = null,
+    val note: String = "",
+)
 
 internal fun deeplistSavedLyrics(value: String): List<DeeplistSavedLyric> = runCatching {
     val array = JSONArray(value)
-    List(array.length().coerceAtMost(30)) { i ->
-        val item = array.getJSONObject(i)
-        DeeplistSavedLyric(item.getString("text"), item.getString("title"), item.getString("artist"), item.optString("songId"), item.optLong("position"))
+    (0 until array.length().coerceAtMost(30)).mapNotNull { i ->
+        runCatching {
+            val item = array.getJSONObject(i)
+            DeeplistSavedLyric(item.getString("text"), item.getString("title"), item.getString("artist"),
+                item.optString("songId"), item.optLong("position").coerceAtLeast(0),
+                DeeplistMomentReason.entries.firstOrNull { it.name == item.optString("reason") },
+                item.optString("note").take(160))
+        }.getOrNull()
     }
 }.getOrDefault(emptyList())
 
-internal fun deeplistSaveLyric(value: String, lyric: DeeplistSavedLyric): String {
-    val items = listOf(lyric) + deeplistSavedLyrics(value).filter { it != lyric }
-    return JSONArray().apply { items.take(30).forEach { put(JSONObject().put("text",it.text).put("title",it.title).put("artist",it.artist).put("songId",it.songId).put("position",it.position)) } }.toString()
-}
+internal fun deeplistEncodeLyrics(items: List<DeeplistSavedLyric>): String = JSONArray().apply {
+    items.take(30).forEach { lyric ->
+        put(JSONObject().put("text", lyric.text).put("title", lyric.title).put("artist", lyric.artist)
+            .put("songId", lyric.songId).put("position", lyric.position.coerceAtLeast(0))
+            .put("reason", lyric.reason?.name.orEmpty()).put("note", lyric.note.take(160)))
+    }
+}.toString()
+
+internal fun deeplistSaveLyric(value: String, lyric: DeeplistSavedLyric): String =
+    deeplistEncodeLyrics(listOf(lyric) + deeplistSavedLyrics(value).filterNot {
+        it.songId == lyric.songId && it.text == lyric.text &&
+            (lyric.songId.isNotBlank() || (it.title == lyric.title && it.artist == lyric.artist))
+    })
 
 internal fun deeplistShareCard(context: Context, lyric: DeeplistSavedLyric): Intent {
     val bitmap = Bitmap.createBitmap(900, 1200, Bitmap.Config.ARGB_8888)

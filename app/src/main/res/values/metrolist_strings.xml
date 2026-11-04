@@ -1325,4 +1325,16 @@ Your little world.</string>
     <string name="dp_capsule_morning">Morning · 6 AM–noon</string>
     <string name="dp_capsule_afternoon">Afternoon · noon–6 PM</string>
     <string name="dp_capsule_evening">Evening · 6 PM–midnight</string>
+    <string name="dp_moment_why">What do you love about this moment?</string>
+    <string name="dp_moment_beat">The beat</string>
+    <string name="dp_moment_voice">The voice</string>
+    <string name="dp_moment_lyrics">The lyrics</string>
+    <string name="dp_moment_mood">The mood</string>
+    <string name="dp_moment_note">Your note (optional)</string>
+    <string name="dp_moment_discover">Discover from this moment</string>
+    <string name="dp_moment_loading">Finding songs…</string>
+    <string name="dp_moment_discovery_hint">Starts a mix from this saved song. Your reason and note stay with the moment.</string>
+    <string name="dp_moment_error">Could not load this song. Try again when you are online.</string>
+    <string name="dp_capsule_my_month">My %1$s Sound Capsule</string>
+    <string name="dp_capsule_share_error">Could not share the card. Please try again.</string>
 </resources>

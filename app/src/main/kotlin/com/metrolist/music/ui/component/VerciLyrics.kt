@@ -117,7 +117,7 @@ fun VerciLyrics(
     val connection = LocalPlayerConnection.current ?: return
     val entity by connection.currentLyrics.collectAsStateWithLifecycle(initialValue = null)
     val metadata by connection.mediaMetadata.collectAsStateWithLifecycle()
-    var verciEnabled by rememberPreference(VerciLyricsKey, false)
+    var verciEnabled by rememberPreference(VerciLyricsKey, true)
     var settings by remember { mutableStateOf(false) }
     val playing by connection.isPlaying.collectAsStateWithLifecycle()
     val recording by rememberPreference(VerciRecordingKey, false)
@@ -130,9 +130,16 @@ fun VerciLyrics(
     var correctPhrase by remember { mutableStateOf<String?>(null) }
     var actions by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
+    var pendingMoment by remember { mutableStateOf<DeeplistSavedLyric?>(null) }
+    pendingMoment?.let { moment ->
+        DeeplistMomentDialog(moment, { pendingMoment = null }) { selected ->
+            saved = deeplistSaveLyric(saved, selected)
+            pendingMoment = null
+        }
+    }
     fun saveLine(text: String) {
         val track = metadata ?: return
-        saved = deeplistSaveLyric(saved, DeeplistSavedLyric(text, track.title, track.artists.joinToString { it.name }, track.id, connection.player.currentPosition))
+        pendingMoment = DeeplistSavedLyric(text, track.title, track.artists.joinToString { it.name }, track.id, connection.player.currentPosition)
     }
     LaunchedEffect(metadata?.id) {
         val id = metadata?.id ?: return@LaunchedEffect

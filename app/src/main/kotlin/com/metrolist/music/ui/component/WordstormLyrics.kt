@@ -126,7 +126,7 @@ internal fun WordstormLyrics(
     useVerci: Boolean = true,
 ) {
     if (!showLyrics) return
-    var verciEnabled by rememberPreference(VerciLyricsKey, false)
+    var verciEnabled by rememberPreference(VerciLyricsKey, true)
     if (useVerci && verciEnabled) {
         VerciLyrics(sliderPositionProvider, modifier, showLyrics, onOriginal, immersive, onFullscreen, onExitFullscreen)
         return
@@ -164,6 +164,13 @@ internal fun WordstormLyrics(
     var autoPerformance by rememberPreference(DeeplistAutoPerformanceKey, true)
     var savedStyle by rememberPreference(DeeplistSavedStyleKey, "")
     var savedLyrics by rememberPreference(DeeplistSavedLyricsKey, "[]")
+    var pendingMoment by remember { mutableStateOf<DeeplistSavedLyric?>(null) }
+    pendingMoment?.let { moment ->
+        DeeplistMomentDialog(moment, { pendingMoment = null }) { selected ->
+            savedLyrics = deeplistSaveLyric(savedLyrics, selected)
+            pendingMoment = null
+        }
+    }
     var savedDialog by remember { mutableStateOf(false) }
     var cardBusy by remember { mutableStateOf(false) }
     var studioStatus by remember { mutableStateOf<Int?>(null) }
@@ -408,8 +415,8 @@ internal fun WordstormLyrics(
                     val track = metadata
                     val current = active
                     if (track != null && current != null) {
-                        val lyric = DeeplistSavedLyric(current.text, track.title, track.artists.joinToString { it.name })
-                        TextButton(onClick = { savedLyrics = deeplistSaveLyric(savedLyrics, lyric); studioStatus = R.string.deeplist_lyric_saved }) { Text(stringResource(R.string.deeplist_save_lyric)) }
+                        val lyric = DeeplistSavedLyric(current.text, track.title, track.artists.joinToString { it.name }, track.id, connection.player.currentPosition)
+                        TextButton(onClick = { pendingMoment = lyric }) { Text(stringResource(R.string.deeplist_save_lyric)) }
                         TextButton(onClick = { shareCard(lyric) }, enabled = !cardBusy) { Text(stringResource(R.string.deeplist_share_card)) }
                     }
                     TextButton(onClick = { savedDialog = true }) { Text(stringResource(R.string.deeplist_saved_lyrics)) }
