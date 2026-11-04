@@ -2,7 +2,7 @@ name: Deeplist Android APK
 
 on:
   push:
-    branches: [wordstorm-build, deeplist-agreed-updates]
+    branches: [wordstorm-build]
     paths-ignore: [".github/workflows/**"]
   workflow_dispatch:
 
