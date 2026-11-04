@@ -1300,7 +1300,7 @@ Your little world.</string>
     <string name="dp_capsule_streak">Longest streak: %1$d days</string>
     <string name="dp_capsule_unique">%1$d songs · %2$d artists</string>
     <string name="dp_capsule_empty">Your story starts with a song. Listen to build this month’s capsule.</string>
-    <string name="dp_capsule_share">Share your capsule</string>
+    <string name="dp_capsule_share">Share capsule image</string>
     <string name="dp_capsule_details">Explore all listening stats</string>
     <string name="dp_capsule_previous">Previous month</string>
     <string name="dp_capsule_next">Next month</string>
