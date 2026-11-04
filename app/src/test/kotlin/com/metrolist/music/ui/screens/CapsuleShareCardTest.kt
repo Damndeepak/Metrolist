@@ -25,7 +25,7 @@ class CapsuleShareCardTest {
         assertTrue(intent.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0)
         assertNotNull(intent.clipData)
         val files = File(context.cacheDir, "deeplist-capsule-cards").listFiles().orEmpty()
-        val bitmap = BitmapFactory.decodeFile(files.maxBy { it.lastModified() }.absolutePath)
+        val bitmap = requireNotNull(BitmapFactory.decodeFile(files.maxBy { it.lastModified() }.absolutePath))
         assertEquals(1080, bitmap.width)
         assertEquals(1920, bitmap.height)
         bitmap.recycle()
