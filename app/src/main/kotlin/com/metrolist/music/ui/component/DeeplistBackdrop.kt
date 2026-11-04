@@ -119,8 +119,15 @@ internal fun DeeplistBackdrop(track: String?, art: String?, title: String, artis
 private fun DeeplistVideo(url: String, playing: Boolean, modifier: Modifier, onFailure: () -> Unit) {
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
+    val lifecycleState by owner.lifecycle.currentStateFlow.collectAsState()
+    if (!lifecycleState.isAtLeast(Lifecycle.State.RESUMED)) return
     val player = remember(url) { ExoPlayer.Builder(context).build().apply {
         volume = 0f; repeatMode = Player.REPEAT_MODE_ONE
+        trackSelectionParameters = trackSelectionParameters.buildUpon()
+            .setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_AUDIO, true)
+            .setMaxVideoSize(1280, 720)
+            .setMaxVideoBitrate(2_000_000)
+            .build()
         setAudioAttributes(androidx.media3.common.AudioAttributes.DEFAULT, false)
         setMediaItem(MediaItem.fromUri(Uri.parse(url))); prepare()
     } }

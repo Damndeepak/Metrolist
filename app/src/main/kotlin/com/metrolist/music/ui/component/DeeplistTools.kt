@@ -60,6 +60,7 @@ internal fun DeeplistTools(initialTab: Int = 0, onDismiss: () -> Unit) {
     var touchLock by rememberPreference(DeeplistTouchLockKey, false)
     var status by remember { mutableStateOf<Int?>(null) }
     var tab by remember { mutableIntStateOf(initialTab) }
+    var momentFilter by remember { mutableStateOf<DeeplistMomentReason?>(null) }
     var edit by remember { mutableStateOf(false) }
     var draft by remember(metadata?.id) { mutableStateOf(entity?.takeIf { it.id == metadata?.id }?.lyrics.orEmpty()) }
     var pendingTrack by remember { mutableStateOf<String?>(null) }
@@ -169,7 +170,17 @@ internal fun DeeplistTools(initialTab: Int = 0, onDismiss: () -> Unit) {
                 } }
             }
             if (tab == 2) {
-                val items = deeplistSavedLyrics(saved)
+                val allMoments = deeplistSavedLyrics(saved)
+                Text(stringResource(R.string.dp_moment_collection), style = MaterialTheme.typography.titleMedium)
+                FilterChip(selected = momentFilter == null, onClick = { momentFilter = null }, label = { Text(stringResource(R.string.dp_moment_all)) })
+                DeeplistMomentReason.entries.chunked(2).forEach { reasons ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { reasons.forEach { reason ->
+                        val count = allMoments.count { it.reason == reason }
+                        FilterChip(selected = momentFilter == reason, onClick = { momentFilter = reason },
+                            label = { Text(stringResource(R.string.dp_moment_count, stringResource(reason.label), count)) })
+                    } }
+                }
+                val items = allMoments.filter { momentFilter == null || it.reason == momentFilter }
                 if (items.isEmpty()) Text(stringResource(R.string.deeplist_no_saved))
                 items.forEach { lyric ->
                     Text(lyric.text)
@@ -197,7 +208,7 @@ internal fun DeeplistTools(initialTab: Int = 0, onDismiss: () -> Unit) {
                                 .onSuccess { runCatching { context.startActivity(Intent.createChooser(it, null)) }.onFailure { status = R.string.deeplist_card_error } }
                                 .onFailure { status = R.string.deeplist_card_error }
                         } }) { Text(stringResource(R.string.deeplist_share_card)) }
-                        TextButton(onClick = { saved = deeplistEncodeLyrics(items.filter { it != lyric }) }) { Text(stringResource(R.string.delete)) }
+                        TextButton(onClick = { saved = deeplistEncodeLyrics(allMoments.filter { it != lyric }) }) { Text(stringResource(R.string.delete)) }
                     }
                 }
             }
