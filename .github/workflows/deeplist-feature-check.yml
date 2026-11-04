@@ -15,7 +15,7 @@ jobs:
       METROLIST_APPLICATION_ID: com.deepu.wordstorm.preview
       METROLIST_APP_NAME: Deeplist Preview
       METROLIST_ABI_FILTERS: arm64-v8a
-      METROLIST_DEBUG_KEYSTORE_PATH: ${{ runner.temp }}/deeplist-preview.keystore
+      METROLIST_DEBUG_KEYSTORE_PATH: /tmp/deeplist-preview.keystore
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v5
