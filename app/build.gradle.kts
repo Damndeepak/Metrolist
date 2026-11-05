@@ -27,8 +27,8 @@ extensions.configure<ApplicationExtension> {
         applicationId = "com.deepu.wordstorm"
         minSdk = 24
         targetSdk = 36
-        versionCode = 162
-        versionName = "13.8.0"
+        versionCode = 163
+        versionName = "13.8.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true

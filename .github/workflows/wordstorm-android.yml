@@ -101,7 +101,7 @@ jobs:
           badging = subprocess.check_output([tools + '/aapt', 'dump', 'badging', apk], text=True)
           assert "package: name='com.deepu.wordstorm'" in badging
           assert "application-label:'Deeplist'" in badging
-          assert "versionCode='162'" in badging and "versionName='13.8.0'" in badging
+          assert "versionCode='163'" in badging and "versionName='13.8.1'" in badging
           assert 'application-debuggable' not in badging
           reports = [ET.parse(p).getroot() for p in glob.glob('app/build/test-results/testArm64FossDebugUnitTest/TEST-*.xml')]
           assert reports and not any(int(r.get('failures', 0)) + int(r.get('errors', 0)) for r in reports)

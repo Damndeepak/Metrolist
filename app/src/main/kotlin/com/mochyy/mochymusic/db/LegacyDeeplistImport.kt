@@ -50,40 +50,38 @@ internal object LegacyDeeplistImport {
             }
             val selected = tables.filter { it in available && columns(target, it).isNotEmpty() }
             var count = 0
-            source.execSQL("BEGIN")
+            // Android may start a write transaction for SQL BEGIN even on a read-only connection.
+            target.beginTransaction()
             try {
-                target.beginTransaction()
-                try {
-                    // Check while holding the write transaction so a background library write cannot race import.
-                    if (selected.any { table -> target.query("SELECT 1 FROM ${quoted(table)} LIMIT 1").use { it.moveToFirst() } }) {
-                        return Result.DestinationInUse
-                    }
-                    target.execSQL("PRAGMA defer_foreign_keys=ON")
-                    for (table in selected) {
-                        val destinationColumns = columns(target, table)
-                        source.rawQuery("SELECT * FROM ${quoted(table)}", null).use { rows ->
-                            val shared = rows.columnNames.withIndex().filter { it.value in destinationColumns }
-                            require(shared.isNotEmpty()) { "No compatible columns for $table" }
-                            while (rows.moveToNext()) {
-                                val values = ContentValues()
-                                for ((index, name) in shared) {
-                                    // Cache state, expiring URLs and service tokens are deliberately not migrated.
-                                    if (name in setOf("isDownloaded", "isCached")) values.put(name, 0)
-                                    else if (name in setOf("dateDownload", "libraryAddToken", "libraryRemoveToken")) values.putNull(name)
-                                    else put(values, name, rows, index)
-                                }
-                                target.insert(table, SQLiteDatabase.CONFLICT_ABORT, values)
-                                count++
+                // Check while holding the write transaction so a background library write cannot race import.
+                if (selected.any { table -> target.query("SELECT 1 FROM ${quoted(table)} LIMIT 1").use { it.moveToFirst() } }) {
+                    return Result.DestinationInUse
+                }
+                target.execSQL("PRAGMA defer_foreign_keys=ON")
+                for (table in selected) {
+                    val destinationColumns = columns(target, table)
+                    source.rawQuery("SELECT * FROM ${quoted(table)}", null).use { rows ->
+                        val shared = rows.columnNames.withIndex().filter { it.value in destinationColumns }
+                        require(shared.isNotEmpty()) { "No compatible columns for $table" }
+                        while (rows.moveToNext()) {
+                            val values = ContentValues()
+                            for ((index, name) in shared) {
+                                // Cache state, expiring URLs and service tokens are deliberately not migrated.
+                                if (name in setOf("isDownloaded", "isCached")) values.put(name, 0)
+                                else if (name in setOf("dateDownload", "libraryAddToken", "libraryRemoveToken")) values.putNull(name)
+                                else put(values, name, rows, index)
                             }
+                            target.insert(table, SQLiteDatabase.CONFLICT_ABORT, values)
+                            count++
                         }
                     }
-                    target.query("PRAGMA foreign_key_check").use { require(!it.moveToFirst()) { "Imported library has unresolved references" } }
-                    // Receipt and library commit together, including if the process dies immediately after commit.
-                    target.execSQL("CREATE TABLE IF NOT EXISTS deeplist_legacy_import (id INTEGER NOT NULL PRIMARY KEY, source_version INTEGER NOT NULL, imported_rows INTEGER NOT NULL)")
-                    target.execSQL("INSERT INTO deeplist_legacy_import (id, source_version, imported_rows) VALUES (1, 38, ?)", arrayOf(count))
-                    target.setTransactionSuccessful()
-                } finally { target.endTransaction() }
-            } finally { source.execSQL("ROLLBACK") }
+                }
+                target.query("PRAGMA foreign_key_check").use { require(!it.moveToFirst()) { "Imported library has unresolved references" } }
+                // Receipt and library commit together, including if the process dies immediately after commit.
+                target.execSQL("CREATE TABLE IF NOT EXISTS deeplist_legacy_import (id INTEGER NOT NULL PRIMARY KEY, source_version INTEGER NOT NULL, imported_rows INTEGER NOT NULL)")
+                target.execSQL("INSERT INTO deeplist_legacy_import (id, source_version, imported_rows) VALUES (1, 38, ?)", arrayOf(count))
+                target.setTransactionSuccessful()
+            } finally { target.endTransaction() }
             return Result.Imported(count, (available - selected.toSet()).filterNot { it.startsWith("sqlite_") || it == "room_master_table" }.sorted())
         }
     }
