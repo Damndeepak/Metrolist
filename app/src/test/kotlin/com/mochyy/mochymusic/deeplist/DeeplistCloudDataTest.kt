@@ -1,7 +1,7 @@
 package com.mochyy.mochymusic.deeplist
 
 import android.app.Application
-import com.mochyy.mochymusic.db.MusicDatabase
+import com.mochyy.mochymusic.db.InternalDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
@@ -18,7 +18,7 @@ class DeeplistCloudDataTest {
     @Test fun `legacy metadata survives Mochy library round trip without applying old settings`() = runBlocking(Dispatchers.IO) {
         val context = RuntimeEnvironment.getApplication()
         context.deleteDatabase("mochy.db")
-        val db = MusicDatabase.newInstance(context)
+        val db = InternalDatabase.newInstance(context)
         try {
             db.openHelper.writableDatabase.execSQL("INSERT INTO artist(id,name,lastUpdateTime) VALUES('UCtest','Artist',0)")
             db.openHelper.writableDatabase.execSQL("INSERT INTO song(id,title,duration,liked,totalPlayTime) VALUES('abcdefghijk','Song',180,1,12000)")

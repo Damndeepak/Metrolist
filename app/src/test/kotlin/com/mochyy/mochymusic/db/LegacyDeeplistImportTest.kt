@@ -81,7 +81,7 @@ class LegacyDeeplistImportTest {
                 override fun onOpen(db: SupportSQLiteDatabase) {
                     LegacyDeeplistImport.requireImported(context, db)
                 }
-            }).build().use { opened ->
+            }).build().useRoom { opened ->
                 opened.openHelper.writableDatabase.query("SELECT title FROM song").use {
                     assertTrue(it.moveToFirst())
                     assertEquals("On open", it.getString(0))
@@ -103,10 +103,10 @@ class LegacyDeeplistImportTest {
         val name = "migration-reopen.db"
         context.deleteDatabase(name)
         fun open() = Room.databaseBuilder(context, InternalDatabase::class.java, name).allowMainThreadQueries().build()
-        open().use { database ->
+        open().useRoom { database ->
             assertTrue(LegacyDeeplistImport.importIfFresh(context, database.openHelper.writableDatabase) is LegacyDeeplistImport.Result.Imported)
         }
-        open().use { database ->
+        open().useRoom { database ->
             val db = database.openHelper.writableDatabase
             assertEquals(LegacyDeeplistImport.Result.AlreadyImported, LegacyDeeplistImport.importIfFresh(context, db))
             db.query("SELECT COUNT(*) FROM song").use { assertTrue(it.moveToFirst()); assertEquals(1, it.getInt(0)) }
@@ -151,3 +151,6 @@ class LegacyDeeplistImportTest {
         db.insertOrThrow(table, null, values)
     }
 }
+
+private inline fun <T : androidx.room.RoomDatabase, R> T.useRoom(block: (T) -> R): R =
+    try { block(this) } finally { close() }
