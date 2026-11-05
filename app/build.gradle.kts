@@ -1,112 +1,153 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import com.android.build.api.dsl.ApplicationExtension
 import java.util.Properties
+import java.security.MessageDigest
+import java.net.URL
 
 val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
 if (localPropertiesFile.exists()) {
     localProperties.load(localPropertiesFile.inputStream())
 }
-
-val baseApplicationId = "com.metrolist.music"
-val applicationIdOverride = System.getenv("METROLIST_APPLICATION_ID")?.takeIf { it.isNotBlank() }
-val appNameOverride = System.getenv("METROLIST_APP_NAME")?.takeIf { it.isNotBlank() }
-val buildCommit =
-    System.getenv("METROLIST_BUILD_COMMIT")
-        ?.trim()
-        ?.takeIf { it.matches(Regex("[0-9a-fA-F]{7,40}")) }
-        ?.take(7)
-        ?.lowercase()
-val debugKeystorePathOverride = System.getenv("METROLIST_DEBUG_KEYSTORE_PATH")?.takeIf { it.isNotBlank() }
-val debugKeystorePassword = System.getenv("METROLIST_DEBUG_KEYSTORE_PASSWORD")?.takeIf { it.isNotBlank() } ?: "android"
-val debugKeyAlias = System.getenv("METROLIST_DEBUG_KEY_ALIAS")?.takeIf { it.isNotBlank() } ?: "androiddebugkey"
-val debugKeyPassword = System.getenv("METROLIST_DEBUG_KEY_PASSWORD")?.takeIf { it.isNotBlank() } ?: "android"
-val persistentDebugKeystoreFile = file("persistent-debug.keystore")
-val workflowDebugKeystoreFile = debugKeystorePathOverride?.let(::file)
-
 plugins {
     id("com.android.application")
     alias(libs.plugins.hilt)
     alias(libs.plugins.kotlin.ksp)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.protobuf)
+    alias(libs.plugins.protobufPlugin)
 }
 
-android {
-    namespace = "com.metrolist.music"
-    compileSdk = 37
+extensions.configure<ApplicationExtension> {
+    namespace = "com.mochyy.mochymusic"
+    compileSdk = 36
+    ndkVersion = "27.0.12077973"
 
     defaultConfig {
-        applicationId = applicationIdOverride ?: baseApplicationId
-        minSdk = 26
+        applicationId = "com.deepu.wordstorm"
+        minSdk = 24
         targetSdk = 36
-        versionCode = 161
-        versionName = "13.7.8"
-        val baseVersionName = requireNotNull(versionName)
-        buildConfigField("String", "BASE_VERSION_NAME", "\"$baseVersionName\"")
-        buildCommit?.let { versionName = "$baseVersionName+$it" }
-        resValue("string", "app_name", appNameOverride ?: "Metrolist")
+        versionCode = 162
+        versionName = "13.8.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
 
-        ndk {
-            abiFilters += System.getenv("METROLIST_ABI_FILTERS")?.split(",") ?: listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
-        }
-
-        // LastFM API keys from GitHub Secrets
+        // LastFM API keys from local.properties locally, GitHub Secrets on CI. never commit them
         val lastFmKey = localProperties.getProperty("LASTFM_API_KEY") ?: System.getenv("LASTFM_API_KEY") ?: ""
         val lastFmSecret = localProperties.getProperty("LASTFM_SECRET") ?: System.getenv("LASTFM_SECRET") ?: ""
 
         buildConfigField("String", "LASTFM_API_KEY", "\"$lastFmKey\"")
         buildConfigField("String", "LASTFM_SECRET", "\"$lastFmSecret\"")
-        buildConfigField("String", "ARCHITECTURE", "\"universal\"")
-        buildConfigField("Long", "DISCORD_APP_ID", "1447278780795064401L")
-    }
 
-    flavorDimensions += listOf("variant")
+        // Libre.fm the same way. It takes any 32-character key and never checks the secret, so a
+        // build without its own (a fork, a CI run with no secrets) gets one made from the app id
+        // instead of losing Libre.fm
+        fun libreFmStandIn(name: String) = MessageDigest.getInstance("MD5")
+            .digest("$applicationId.librefm.$name".toByteArray()).joinToString("") { "%02x".format(it) }
+        val libreFmKey = localProperties.getProperty("LIBREFM_API_KEY")
+            ?: System.getenv("LIBREFM_API_KEY")?.takeIf { it.isNotEmpty() } ?: libreFmStandIn("key")
+        val libreFmSecret = localProperties.getProperty("LIBREFM_SECRET")
+            ?: System.getenv("LIBREFM_SECRET")?.takeIf { it.isNotEmpty() } ?: libreFmStandIn("secret")
+        buildConfigField("String", "LIBREFM_API_KEY", "\"$libreFmKey\"")
+        buildConfigField("String", "LIBREFM_SECRET", "\"$libreFmSecret\"")
+
+        // The Discord app Mochy signs in through (Developer Portal → your app → Application ID).
+        // Discord sends the login back to discord-<id>:/authorize/callback, so the manifest needs it too.
+        // Without one, the Discord page says so instead of opening a login that can't come back.
+        val discordClientId = localProperties.getProperty("DISCORD_CLIENT_ID")
+            ?: System.getenv("DISCORD_CLIENT_ID") ?: ""
+        buildConfigField("String", "DISCORD_CLIENT_ID", "\"$discordClientId\"")
+        manifestPlaceholders["discordRedirectScheme"] =
+            if (discordClientId.isNotBlank()) "discord-$discordClientId" else "mochy-discord-unset"
+
+//add nightly build label support
+        val isNightly = project.hasProperty("nightly") && project.property("nightly") == "true"
+        buildConfigField("Boolean", "IS_NIGHTLY", isNightly.toString())
+
+        // When this build's code was made (its commit, not the wall clock, so it only changes with the
+        // code). The Developer space counts issues, commits and releases since then.
+        val buildTimeMillis = runCatching {
+            providers.exec {
+                commandLine("git", "log", "-1", "--format=%ct")
+                isIgnoreExitValue = true
+            }.standardOutput.asText.get().trim().toLong() * 1000L
+        }.getOrDefault(0L)
+        buildConfigField("long", "BUILD_TIME_MILLIS", "${buildTimeMillis}L")
+    }
+    
+
+    flavorDimensions += listOf("abi", "variant")
     productFlavors {
-        // FOSS - Updater, but no gcast
+        // FOSS variant (default) - self-updating, no Google Play Services
         create("foss") {
             dimension = "variant"
             isDefault = true
             buildConfigField("Boolean", "CAST_AVAILABLE", "false")
-            buildConfigField("Boolean", "UPDATER_AVAILABLE", "true")
         }
 
-        // GMS - Updater and gcast
+        // F-Droid variant - F-Droid policy compliant (strips package install permissions)
+        create("fdroid") {
+            dimension = "variant"
+            buildConfigField("Boolean", "CAST_AVAILABLE", "false")
+        }
+
+        // GMS variant - with Google Cast support (requires Google Play Services)
         create("gms") {
             dimension = "variant"
             buildConfigField("Boolean", "CAST_AVAILABLE", "true")
-            buildConfigField("Boolean", "UPDATER_AVAILABLE", "true")
         }
-
-        // IzzyOnDroid - no gcast, no updater - the ONLY F-droid compliant build
-        create("izzy") {
-            dimension = "variant"
-            buildConfigField("Boolean", "CAST_AVAILABLE", "false")
-            buildConfigField("Boolean", "UPDATER_AVAILABLE", "false")
+        
+        create("universal") {
+            dimension = "abi"
+            buildConfigField("String", "ARCHITECTURE", "\"universal\"")
+            ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64") }
+        }
+        create("arm64") {
+            dimension = "abi"
+            buildConfigField("String", "ARCHITECTURE", "\"arm64\"")
+            ndk { abiFilters += "arm64-v8a" }
+        }
+        create("armeabi") {
+            dimension = "abi"
+            buildConfigField("String", "ARCHITECTURE", "\"armeabi\"")
+            ndk { abiFilters += "armeabi-v7a" }
+        }
+        create("x86") {
+            dimension = "abi"
+            buildConfigField("String", "ARCHITECTURE", "\"x86\"")
+            ndk { abiFilters += "x86" }
+        }
+        create("x86_64") {
+            dimension = "abi"
+            buildConfigField("String", "ARCHITECTURE", "\"x86_64\"")
+            ndk { abiFilters += "x86_64" }
         }
     }
 
+    sourceSets {
+        getByName("fdroid") {
+            java.directories.add("src/foss/kotlin")
+            res.directories.add("src/foss/res")
+        }
+    }
+
+    // Installed Deeplist updates must retain their original certificate. Missing credentials
+    // leave release signing unavailable; they must never select a developer/debug key.
+    val deeplistReleaseKeystore = System.getenv("DEEPLIST_RELEASE_KEYSTORE_PATH")
+
     signingConfigs {
         create("persistentDebug") {
-            storeFile = persistentDebugKeystoreFile
+            storeFile = file("persistent-debug.keystore")
             storePassword = "android"
             keyAlias = "androiddebugkey"
             keyPassword = "android"
         }
-        create("workflowDebug") {
-            storeFile = workflowDebugKeystoreFile ?: persistentDebugKeystoreFile
-            storePassword = debugKeystorePassword
-            keyAlias = debugKeyAlias
-            keyPassword = debugKeyPassword
-        }
         create("release") {
-            storeFile = file("keystore/release.keystore")
-            storePassword = System.getenv("STORE_PASSWORD")
-            keyAlias = System.getenv("KEY_ALIAS")
-            keyPassword = System.getenv("KEY_PASSWORD")
+            storeFile = file(deeplistReleaseKeystore ?: "keystore/missing-deeplist-release.keystore")
+            storePassword = System.getenv("DEEPLIST_RELEASE_STORE_PASSWORD")
+            keyAlias = System.getenv("DEEPLIST_RELEASE_KEY_ALIAS")
+            keyPassword = System.getenv("DEEPLIST_RELEASE_KEY_PASSWORD")
         }
         getByName("debug") {
             keyAlias = "androiddebugkey"
@@ -116,40 +157,62 @@ android {
         }
     }
 
-    testOptions {
-        unitTests.isIncludeAndroidResources = true
-    }
-
     buildTypes {
         release {
-            if (applicationIdOverride != null && workflowDebugKeystoreFile != null) {
-                signingConfig = signingConfigs.getByName("workflowDebug")
-            }
             isMinifyEnabled = true
             isShrinkResources = true
             isCrunchPngs = false
             isDebuggable = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro",
+                "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
         }
         debug {
-            if (applicationIdOverride == null) {
-                applicationIdSuffix = ".debug"
-            }
+            applicationIdSuffix = ".debug"
             isDebuggable = true
-            if (appNameOverride == null) {
-                resValue("string", "app_name", "Metrolist Debug")
-            }
-            signingConfig =
-                if (workflowDebugKeystoreFile != null) {
-                    signingConfigs.getByName("workflowDebug")
-                } else if (persistentDebugKeystoreFile.exists()) {
-                    signingConfigs.getByName("persistentDebug")
-                } else {
-                    signingConfigs.getByName("debug")
-                }
+            signingConfig = signingConfigs.getByName("debug")
+        }
+
+        // Release-identical performance with the profiler still attachable.
+        //
+        // `isDebuggable = false` is what makes release fast (ART will not JIT-deopt, R8 output
+        // runs as shipped), but it also locks out Studio's profiler and Perfetto's app-level
+        // tracks. `isProfileable` re-opens exactly those without turning debuggability back on,
+        // so frame timings measured here are the ones users actually get.
+        //
+        // Installs alongside debug and release under its own applicationId, so all three can sit
+        // on the device at once.
+        create("profileable") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".profileable"
+            isProfileable = true
+            signingConfig = signingConfigs.getByName("debug")
+            // The provider modules only publish debug/release variants; without this, resolving
+            // a "profileable" variant of :providers:* fails.
+            matchingFallbacks += listOf("release")
+            proguardFiles("proguard-profileable.pro")
+        }
+
+        // not debuggable so ART uses the baseline profile, but no r8, so it builds about as fast as debug
+        create("fast") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".fast"
+            isDebuggable = false
+            isProfileable = true
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("debug")
+            // the provider modules only publish debug and release variants
+            matchingFallbacks += listOf("debug")
+        }
+    }
+
+    // audio pass's direct usb driver and aaudio exclusive output (app/src/main/cpp)
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
         }
     }
 
@@ -162,6 +225,7 @@ android {
     kotlin {
         jvmToolchain(21)
         compilerOptions {
+            freeCompilerArgs.add("-Xannotation-default-target=param-property")
             jvmTarget.set(JvmTarget.JVM_21)
         }
     }
@@ -169,7 +233,6 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
-        resValues = true
     }
 
     dependenciesInfo {
@@ -182,10 +245,10 @@ android {
         warningsAsErrors = false
         abortOnError = false
         checkDependencies = false
-        // Lint never gated anything here (abortOnError = false), so the
-        // lintVital pass that assembleRelease implicitly triggers was pure
-        // build time. Run lint on demand with ./gradlew :app:lintGmsRelease.
-        checkReleaseBuilds = false
+    }
+
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
     }
 
     androidResources {
@@ -195,11 +258,10 @@ android {
     packaging {
         jniLibs {
             useLegacyPackaging = false
-            keepDebugSymbols +=
-                listOf(
-                    "**/libandroidx.graphics.path.so",
-                    "**/libdatastore_shared_counter.so",
-                )
+            keepDebugSymbols += listOf(
+                "**/libandroidx.graphics.path.so",
+                "**/libdatastore_shared_counter.so"
+            )
         }
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -217,21 +279,58 @@ protobuf {
         artifact = "com.google.protobuf:protoc:${libs.versions.protobuf.get()}"
     }
     generateProtoTasks {
-        all().configureEach {
-            builtins {
-                create("java") { option("lite") }
-                create("kotlin") { option("lite") }
+        all().forEach { task ->
+            task.builtins {
+                create("java") {
+                    option("lite")
+                }
+                create("kotlin") {
+                    option("lite")
+                }
             }
         }
     }
 }
 
-val cleanLegacyProtoSources = tasks.register<Delete>("cleanLegacyProtoSources") {
-    delete(layout.projectDirectory.dir("src/main/java/com/metrolist/music/listentogether/proto"))
-}
+// Compose compiler tuning.
+//
+// includeSourceInformation is what makes every composable group emit source-position metadata
+// and sourceInformationMarkerStart/End calls. That is required for the layout inspector and is
+// on by default, but in a shipping build it is pure per-composition overhead. Keeping it on for
+// debug preserves tooling; turning it off for release removes the cost where it matters.
+//
+// The metrics/reports destinations are opt-in via -PcomposeMetrics so normal builds are
+// unaffected. Run with:
+//   ./gradlew assembleUniversalFossRelease -PcomposeMetrics
+// then read build/compose-reports/*-composables.txt to see which composables are non-skippable
+// and which parameters are inferred unstable.
+composeCompiler {
+    // Computed eagerly at configuration time rather than in a provider: reading
+    // gradle.startParameter during task execution is a configuration-cache violation, and this
+    // project enables the configuration cache. The cache entry is keyed by task names anyway, so
+    // an eager read re-evaluates correctly when the requested tasks change.
+    //
+    // Both release and profileable must strip source info — profileable exists precisely to
+    // measure release performance, so it has to be compiled identically.
+    val buildingReleaseLike = gradle.startParameter.taskNames.any { name ->
+        name.contains("Release", ignoreCase = true) ||
+            name.contains("Profileable", ignoreCase = true) ||
+            name.contains("Fast", ignoreCase = true)
+    }
+    includeSourceInformation.set(!buildingReleaseLike)
 
-tasks.named("preBuild") {
-    dependsOn(cleanLegacyProtoSources)
+    if (project.hasProperty("composeMetrics")) {
+        metricsDestination.set(layout.buildDirectory.dir("compose-metrics"))
+        reportsDestination.set(layout.buildDirectory.dir("compose-reports"))
+    }
+
+    // Treat these as @Immutable/@Stable without annotating them at every declaration site.
+    // Compose otherwise infers List/ImmutableCollection-typed parameters as unstable, which
+    // under strong skipping downgrades those composables to instance-equality comparison and
+    // makes them re-run whenever a caller rebuilds the list.
+    stabilityConfigurationFiles.add(
+        rootProject.layout.projectDirectory.file("compose_compiler_config.conf")
+    )
 }
 
 ksp {
@@ -241,58 +340,65 @@ ksp {
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
     compilerOptions {
         freeCompilerArgs.addAll(
-            "-opt-in=kotlin.RequiresOptIn",
+            "-opt-in=kotlin.RequiresOptIn"
         )
         suppressWarnings.set(false)
     }
 }
 
-// Android provides org.json as a platform API (/apex/com.android.art/javalib/core-libart.jar).
-// The standalone org.json:json artefact bundles an older Apache Harmony copy of JSONArray that
-// contains an internal `myArrayList` field absent from the platform class.  Without obfuscation
-// R8 inlines against this internal field; at runtime the platform class is resolved instead,
-// producing a NoSuchFieldError.  Excluding the artefact globally ensures only the platform
-// class is ever referenced.
-configurations.configureEach {
-    exclude(group = "org.json", module = "json")
-}
-
 dependencies {
     implementation(libs.guava)
     implementation(libs.coroutines.guava)
+    implementation(libs.concurrent.futures)
 
     implementation(libs.activity)
     implementation(libs.hilt.navigation)
     implementation(libs.datastore)
 
     implementation(libs.compose.runtime)
+    // the profiling build names every composable in system traces, so a slow frame says what it was
+    "profileableImplementation"("androidx.compose.runtime:runtime-tracing:1.10.2")
+    "profileableImplementation"("androidx.tracing:tracing-perfetto-binary:1.0.1")
     implementation(libs.compose.foundation)
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.util)
+    // Tooling must not ship in release: it pulls in ui-tooling-data and the inspector, which
+    // keep composition inspection tables reachable. Nothing in main/ imports it and there are
+    // no @Preview functions, so debug-only costs us nothing.
+    debugImplementation(libs.compose.ui.tooling)
     implementation(libs.compose.animation)
     implementation(libs.compose.reorderable)
 
+    implementation(libs.viewmodel)
     implementation(libs.viewmodel.compose)
     implementation(libs.lifecycle.process)
 
     implementation(libs.material3)
+    implementation(libs.androidx.adaptive)
+    implementation(libs.androidx.adaptive.layout)
+    implementation(libs.androidx.adaptive.navigation)
     implementation(libs.palette)
     implementation(libs.materialKolor)
 
     implementation(libs.appcompat)
 
     implementation(libs.coil)
+    implementation(libs.coil.svg)
     implementation(libs.coil.network.okhttp)
-    implementation(libs.browser)
 
     implementation(libs.ucrop)
 
     implementation(libs.shimmer)
 
     implementation(libs.media3)
-    implementation(libs.media3.hls)
     implementation(libs.media3.session)
+    implementation(libs.media3.hls)
+    implementation(libs.media3.dash)
+    implementation(libs.media3.ui)
     implementation(libs.media3.okhttp)
+    // song share videos: decode the background, mix in the song, encode the mp4
+    implementation(libs.media3.transformer)
+    implementation(libs.media3.effect)
 
     // Google Cast - only included in GMS flavor (not available in F-Droid/FOSS builds)
     "gmsImplementation"(libs.media3.cast)
@@ -303,16 +409,40 @@ dependencies {
     implementation(libs.kuromoji.ipadic)
     implementation(libs.tinypinyin)
     ksp(libs.room.compiler)
+    implementation(libs.room.ktx)
+
+    implementation(libs.apache.lang3)
 
     implementation(libs.hilt)
+    implementation(libs.jsoup)
     ksp(libs.hilt.compiler)
 
-    implementation(project(":innertube"))
+    implementation(project(":providers:innertube"))
+    implementation(project(":providers:kugou"))
+    implementation(project(":providers:lrclib"))
+    implementation(project(":providers:lastfm"))
+    implementation(project(":providers:betterlyrics"))
+    implementation(project(":providers:simpmusic"))
+    implementation(project(":providers:youlyplus"))
+    implementation(project(":providers:canvas"))
+    implementation(project(":providers:shazamkit"))
+    implementation(project(":providers:artistvideo"))
+    implementation(project(":providers:applecanvas"))
+    implementation(project(":providers:paxsenixlyrics"))
+    implementation(project(":providers:directlyrics"))
+    implementation(project(":providers:musixmatch"))
+    implementation(project(":providers:genius"))
+    implementation(project(":providers:wikipedia"))
+    implementation(project(":modules:api"))
+    implementation(project(":modules:applemusic"))
+    implementation(project(":modules:monochrome"))
+    implementation(project(":modules:jiosaavn"))
+    implementation(project(":modules:bridge"))
+
 
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.okhttp)
     implementation(libs.ktor.client.content.negotiation)
-    implementation(libs.ktor.client.encoding)
     implementation(libs.ktor.serialization.json)
 
     // Protobuf for message serialization (lite version for Android)
@@ -320,11 +450,14 @@ dependencies {
     implementation(libs.protobuf.kotlin.lite)
 
     coreLibraryDesugaring(libs.desugaring)
-
     implementation(libs.timber)
+    implementation(libs.smoothCorner)
+    implementation(libs.lottie.compose)
+    implementation("androidx.compose.material:material-icons-extended:1.7.8")
+    implementation(libs.work.runtime.ktx)
+    implementation(libs.androidx.core.splashscreen)
+    implementation(libs.androidx.webkit)
 
     testImplementation(libs.junit)
-    testImplementation(libs.robolectric)
-    testImplementation(libs.androidx.test.core)
-    testImplementation(libs.ktor.client.mock)
+    testImplementation("org.robolectric:robolectric:4.16")
 }

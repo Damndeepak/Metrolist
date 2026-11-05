@@ -1,0 +1,600 @@
+// PlayerActionMenu.kt
+
+package com.mochyy.mochymusic.ui.player.menu
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.media3.exoplayer.offline.DownloadRequest
+import androidx.media3.exoplayer.offline.DownloadService
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import com.mochyy.mochymusic.LocalDatabase
+import com.mochyy.mochymusic.LocalDownloadUtil
+import com.mochyy.mochymusic.LocalPlayerConnection
+import com.mochyy.mochymusic.R
+import com.mochyy.mochymusic.constants.KeepScreenOn
+import com.mochyy.mochymusic.playback.ExoDownloadService
+import com.mochyy.mochymusic.playback.queues.YouTubeQueue
+import com.mochyy.mochymusic.ui.component.AppSwitch
+import com.mochyy.mochymusic.ui.component.SheetActionCard
+import com.mochyy.mochymusic.ui.component.SheetActionCardRow
+import com.mochyy.mochymusic.ui.component.SheetDownloadCard
+import com.mochyy.mochymusic.ui.component.SheetHeaderGap
+import com.mochyy.mochymusic.ui.component.SheetIcon
+import com.mochyy.mochymusic.ui.menu.AddToPlaylistDialog
+import com.mochyy.mochymusic.ui.utils.resize
+import com.mochyy.mochymusic.utils.rememberPreference
+import kotlinx.coroutines.flow.flowOf
+
+/**
+ * @param fromLyrics true when the menu was opened from the lyrics page. The lyrics tools are only
+ *   meaningful there — offering "edit lyrics" or "refetch lyrics" from the player, where there may
+ *   not even be lyrics on screen, is an action with no visible consequence.
+ */
+@Composable
+fun PlayerActionMenu(
+    onDismiss: () -> Unit,
+    onEditPlayer: () -> Unit,
+    modifier: Modifier = Modifier,
+    fromLyrics: Boolean = false,
+
+    onReveal: ((Float) -> Unit)? = null,
+    // turns the player into the full video mode; no row without it
+    onFullVideo: (() -> Unit)? = null,
+    // opens the equalizer page; no row without it
+    onEqualizer: (() -> Unit)? = null,
+) {
+    val playerConnection = LocalPlayerConnection.current ?: return
+    val trackInfo by playerConnection.uiState.trackInfo.collectAsState()
+    val context = LocalContext.current
+    val density = LocalDensity.current
+
+    val database = LocalDatabase.current
+    val downloadUtil = LocalDownloadUtil.current
+
+    // The song playing right now - what add to playlist, library and download act on.
+    val currentMetadata by playerConnection.mediaMetadata.collectAsState()
+    val songId = currentMetadata?.id
+    val download by remember(downloadUtil, songId) {
+        if (songId != null) downloadUtil.getDownload(songId) else flowOf(null)
+    }.collectAsState(initial = null)
+    val librarySong by remember(database, songId) { database.song(songId) }.collectAsState(initial = null)
+    // only a song autoplay picked is ours to stop recommending, a song you chose yourself stays as it is
+    val queue by playerConnection.queueSnapshot.collectAsState()
+    val isAutoplaySong = queue.items.getOrNull(queue.currentIndex)?.isAutoplay == true
+
+    var showChoosePlaylistDialog by remember { mutableStateOf(false) }
+    var showSleepTimer by remember { mutableStateOf(false) }
+    var showAudioDevices by remember { mutableStateOf(false) }
+    var showPlaybackSpeed by remember { mutableStateOf(false) }
+    var showLyricsEditor by remember { mutableStateOf(false) }
+    var showLyricsProvider by remember { mutableStateOf(false) }
+    var showLyricsTranslation by remember { mutableStateOf(false) }
+    var showLyricsOffset by remember { mutableStateOf(false) }
+
+    // Only touched by the lyrics section. hiltViewModel() itself is cheap, but the flows are
+    // collected lazily so a menu opened from the player does no lyrics work at all.
+    val lyricsMenuViewModel: com.mochyy.mochymusic.viewmodels.LyricsMenuViewModel = hiltViewModel()
+    val lyricsMetadata by playerConnection.mediaMetadata.collectAsState()
+    val lyricsEntity by playerConnection.currentLyrics.collectAsState(initial = null)
+
+    // Shared by this menu and every sheet it opens, so they stack: the menu shrinks back and
+    // peeks above "Change device output", a lyrics tool, etc. instead of being dimmed under it.
+    val sheetStack = rememberMenuSheetStack()
+
+    CompositionLocalProvider(LocalMenuSheetStack provides sheetStack) {
+    MenuSheetSurface(
+        onDismiss = onDismiss,
+        modifier = modifier,
+        revealProvider = onReveal,
+    ) { _ ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .navigationBarsPadding()
+                    .padding(horizontal = 20.dp)
+                    .padding(top = 16.dp, bottom = 24.dp)
+            ) {
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data(trackInfo.thumbnailUrl?.resize(240, 240))
+                            .build(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.White.copy(alpha = 0.08f)),
+                    )
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = trackInfo.title,
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            text = buildString {
+                                append("by ")
+                                append(trackInfo.artist.ifBlank { "unknown" })
+                                if (trackInfo.album.isNotBlank()) {
+                                    append(" on ")
+                                    append(trackInfo.album)
+                                }
+                            },
+                            color = Color(0xFFB3B3B3),
+                            fontSize = 12.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(SheetHeaderGap))
+
+                // Opened from the lyrics page, the lyrics tools are what the menu is for, so they
+                // come first and take the two big cards.
+                if (fromLyrics) {
+                    SheetActionCardRow {
+                        SheetActionCard(
+                            icon = R.drawable.translate,
+                            title = "Ai translation",
+                            // Greyed out until the AI translation settings are filled in — an
+                            // enabled button that silently does nothing is worse than a disabled
+                            // one that says so.
+                            enabled = false,
+                            onClick = {},
+                            modifier = Modifier.weight(1f),
+                        )
+                        SheetActionCard(
+                            icon = R.drawable.edit,
+                            title = "Edit lyrics",
+                            onClick = { showLyricsEditor = true },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Refetch removed — picking a provider already re-fetches, so a separate
+                    // button that re-ran the same query with unchanged settings had no visible
+                    // outcome.
+                    MenuRow(
+                        icon = R.drawable.lyrics,
+                        title = "Lyrics provider",
+                        onClick = { showLyricsProvider = true },
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    MenuRow(
+                        icon = R.drawable.fast_forward,
+                        title = "Lyrics offset",
+                        onClick = { showLyricsOffset = true },
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    MenuRow(
+                        icon = R.drawable.translate,
+                        title = "lyrics translation",
+                        onClick = { showLyricsTranslation = true },
+                    )
+
+                    Spacer(modifier = Modifier.height(SectionGap))
+                }
+
+                // Saving the song somewhere is what people open this menu for most.
+                SheetActionCardRow {
+                    SheetActionCard(
+                        icon = R.drawable.radio,
+                        title = "Start Radio",
+                        enabled = currentMetadata != null,
+                        onClick = {
+                            currentMetadata?.let { metadata ->
+                                playerConnection.playQueue(YouTubeQueue.radio(metadata))
+                                onDismiss()
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                    )
+                    SheetActionCard(
+                        icon = R.drawable.playlist_add,
+                        title = "Add to playlist",
+                        enabled = currentMetadata != null,
+                        onClick = { showChoosePlaylistDialog = true },
+                        modifier = Modifier.weight(1f),
+                    )
+                    SheetDownloadCard(
+                        downloadState = download?.state,
+                        onDownload = {
+                            currentMetadata?.let { metadata ->
+                                // The song has to be in the database for the download to be
+                                // listed and played back from there.
+                                database.transaction { insert(metadata) }
+                                val request = DownloadRequest.Builder(metadata.id, metadata.id.toUri())
+                                    .setCustomCacheKey(metadata.id)
+                                    .setData(metadata.title.toByteArray())
+                                    .build()
+                                DownloadService.sendAddDownload(
+                                    context, ExoDownloadService::class.java, request, false,
+                                )
+                            }
+                        },
+                        // Done, or on its way: tapping takes it back out.
+                        onRemove = {
+                            currentMetadata?.let { metadata ->
+                                DownloadService.sendRemoveDownload(
+                                    context, ExoDownloadService::class.java, metadata.id, false,
+                                )
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+
+                if (onFullVideo != null) {
+                    Spacer(modifier = Modifier.height(SectionGap))
+                    MenuRow(
+                        icon = R.drawable.fullscreen,
+                        title = androidx.compose.ui.res.stringResource(R.string.video_mode),
+                        onClick = {
+                            onDismiss()
+                            onFullVideo()
+                        },
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(SectionGap))
+
+                DeviceVolumeRow()
+                Spacer(modifier = Modifier.height(8.dp))
+                MenuRow(
+                    icon = R.drawable.cast,
+                    title = "Change device output",
+                    onClick = { showAudioDevices = true },
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                SleepTimerRow(onClick = { showSleepTimer = true })
+                Spacer(modifier = Modifier.height(8.dp))
+                KeepScreenOnRow()
+                Spacer(modifier = Modifier.height(8.dp))
+                MenuRow(
+                    icon = R.drawable.speed,
+                    title = "Playback speed and tempo",
+                    onClick = { showPlaybackSpeed = true },
+                )
+                if (onEqualizer != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    MenuRow(
+                        icon = R.drawable.equalizer,
+                        title = androidx.compose.ui.res.stringResource(R.string.player_menu_equalizer),
+                        onClick = {
+                            onDismiss()
+                            onEqualizer()
+                        },
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(SectionGap))
+
+                MenuRow(
+                    icon = if (trackInfo.liked) R.drawable.ic_untitled_heart else R.drawable.ic_untitled_heart_unfill,
+                    title = if (trackInfo.liked) "remove from liked" else "add to liked",
+                    onClick = { playerConnection.toggleLike() },
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                val inLibrary = librarySong?.song?.inLibrary != null
+                MenuRow(
+                    icon = if (inLibrary) R.drawable.library_add_check else R.drawable.library_add,
+                    title = if (inLibrary) "remove from library" else "add to library",
+                    enabled = currentMetadata != null,
+                    onClick = { playerConnection.toggleLibrary() },
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                // opens the song share over everything: a card, its lyrics, a video with the song, or the link
+                MenuRow(
+                    icon = R.drawable.share,
+                    title = androidx.compose.ui.res.stringResource(R.string.song_share_menu),
+                    enabled = currentMetadata != null,
+                    onClick = {
+                        currentMetadata?.let { metadata ->
+                            onDismiss()
+                            com.mochyy.mochymusic.ui.player.share.song.SongShare.open(metadata)
+                        }
+                    },
+                )
+                if (isAutoplaySong) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    MenuRow(
+                        icon = R.drawable.thumb_down,
+                        title = androidx.compose.ui.res.stringResource(R.string.not_recommended_menu),
+                        onClick = {
+                            onDismiss()
+                            playerConnection.stopRecommendingCurrent()
+                        },
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(SectionGap))
+
+                MenuRow(
+                    icon = R.drawable.edit,
+                    title = "edit player",
+                    onClick = {
+                        onDismiss()
+                        onEditPlayer()
+                    },
+                )
+            }
+    }
+
+    // Outside the menu surface, like the sheets below: the picker is a sheet of its own.
+    currentMetadata?.let { metadata ->
+        AddToPlaylistDialog(
+            isVisible = showChoosePlaylistDialog,
+            onGetSong = {
+                // The playlist stores the song by id; it has to exist in the database first.
+                database.transaction { insert(metadata) }
+                listOf(metadata.id)
+            },
+            onDismiss = { showChoosePlaylistDialog = false },
+            // A playlist made from here starts with this song, so its cover takes the song's colours.
+            topSongId = metadata.id,
+            topSongArtworkUrl = metadata.thumbnailUrl,
+        )
+    }
+    if (showSleepTimer) {
+        SleepTimerSheet(onDismiss = { showSleepTimer = false })
+    }
+    if (showAudioDevices) {
+        DeviceOutputSheet(onDismiss = { showAudioDevices = false })
+    }
+    if (showPlaybackSpeed) {
+        PlaybackSpeedSheet(onDismiss = { showPlaybackSpeed = false })
+    }
+    if (showLyricsEditor) {
+        LyricsEditorSheet(onDismiss = { showLyricsEditor = false })
+    }
+    if (showLyricsProvider) {
+        LyricsProviderSheet(onDismiss = { showLyricsProvider = false })
+    }
+    if (showLyricsOffset) {
+        LyricsOffsetSheet(onDismiss = { showLyricsOffset = false })
+    }
+    if (showLyricsTranslation) {
+        LyricsTranslationSheet(onDismiss = { showLyricsTranslation = false })
+    }
+    }
+}
+
+/** Space between the menu's groups of rows. It used to be a line; the sheets don't draw lines any more. */
+private val SectionGap = 16.dp
+
+@Composable
+internal fun MenuRow(
+    icon: Int,
+    title: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    trailing: (@Composable () -> Unit)? = null,
+) {
+    val contentAlpha = if (enabled) 1f else 0.35f
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MenuRowSurface)
+            .clickable(
+                enabled = enabled,
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            )
+            .padding(horizontal = 14.dp, vertical = 14.dp)
+    ) {
+        SheetIcon(icon, tint = Color.White.copy(alpha = contentAlpha))
+        Spacer(modifier = Modifier.width(14.dp))
+        Text(
+            text = title,
+            color = Color.White.copy(alpha = contentAlpha),
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.weight(1f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        trailing?.invoke()
+    }
+}
+
+/** The phone doesn't sleep while Mochy is open: for following lyrics, or a phone on a car mount. */
+@Composable
+private fun KeepScreenOnRow() {
+    val (keepScreenOn, setKeepScreenOn) = rememberPreference(KeepScreenOn, defaultValue = false)
+    MenuRow(
+        icon = R.drawable.lock_open,
+        title = "Keep screen on",
+        onClick = { setKeepScreenOn(!keepScreenOn) },
+        trailing = { AppSwitch(checked = keepScreenOn, onCheckedChange = setKeepScreenOn) },
+    )
+}
+
+@Composable
+private fun SleepTimerRow(onClick: () -> Unit) {
+    val playerConnection = LocalPlayerConnection.current ?: return
+    val sleepTimer = playerConnection.service.sleepTimer
+
+    var remainingLabel by remember { mutableStateOf("") }
+    LaunchedEffect(sleepTimer.triggerTime, sleepTimer.pauseWhenSongEnd) {
+        while (true) {
+            remainingLabel = when {
+                sleepTimer.pauseWhenSongEnd -> "ends with song"
+                sleepTimer.triggerTime > 0L -> {
+                    val left = sleepTimer.triggerTime - System.currentTimeMillis()
+                    if (left <= 0L) "" else formatRemaining(left)
+                }
+                else -> ""
+            }
+            if (remainingLabel.isEmpty() || sleepTimer.pauseWhenSongEnd) break
+            kotlinx.coroutines.delay(1000)
+        }
+    }
+
+    MenuRow(
+        icon = R.drawable.sleep_timer,
+        title = "Sleep timer",
+        onClick = onClick,
+        trailing = {
+            if (remainingLabel.isNotEmpty()) {
+                Text(
+                    text = "$remainingLabel remaining",
+                    color = Color(0xFF9A9A9A),
+                    fontSize = 12.sp,
+                )
+            }
+        },
+    )
+}
+
+internal fun formatRemaining(millis: Long): String {
+    val totalSeconds = (millis / 1000).coerceAtLeast(0)
+    val h = totalSeconds / 3600
+    val m = (totalSeconds % 3600) / 60
+    val s = totalSeconds % 60
+    return when {
+        h > 0 -> "${h}h ${m}m"
+        m > 0 -> "${m}m ${s}s"
+        else -> "${s}s"
+    }
+}
+
+@Composable
+private fun DeviceVolumeRow() {
+    val context = LocalContext.current
+    val audioManager = remember {
+        context.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
+    }
+    val maxVolume = remember {
+        audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+    }
+    var volume by remember {
+        mutableStateOf(
+            audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC).toFloat() / maxVolume
+        )
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MenuRowSurface)
+            .padding(horizontal = 14.dp, vertical = 14.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            SheetIcon(R.drawable.volume_up)
+            Spacer(modifier = Modifier.width(14.dp))
+            Text(
+                text = android.os.Build.MODEL ?: "this device",
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.volume_down),
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.7f),
+                modifier = Modifier.size(16.dp),
+            )
+            LineSlider(
+                value = volume,
+                onValueChange = { next ->
+                    volume = next
+                    audioManager.setStreamVolume(
+                        android.media.AudioManager.STREAM_MUSIC,
+                        (next * maxVolume).toInt(),
+                        0,
+                    )
+                },
+                modifier = Modifier.weight(1f),
+            )
+            Icon(
+                painter = painterResource(R.drawable.volume_up),
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.7f),
+                modifier = Modifier.size(16.dp),
+            )
+        }
+    }
+}

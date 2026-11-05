@@ -1,0 +1,49 @@
+{
+ "total": 2,
+ "results": [
+  {
+   "id": "aRZbUYD7",
+   "title": "Tum Hi Ho",
+   "more_info": {
+    "album": "Aashiqui 2",
+    "duration": "262",
+    "320kbps": "true",
+    "encrypted_media_url": "ID2ieOjCrwfgWvL5sXl4B1ImC5QfbsDyRofh8YQPTqjR2tIxTYXqGEQHgqnNfsetouo4rsD0s4RZKObWAyHrEhw7tS9a8Gtq",
+    "artistMap": {
+     "primary_artists": [
+      {
+       "id": "702592",
+       "name": "Mithoon"
+      },
+      {
+       "id": "459320",
+       "name": "Arijit Singh"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "yXCLyL-9",
+   "title": "Tum Hi Ho (From &quot;Aashiqui 2&quot;)",
+   "more_info": {
+    "album": "World Music Day - Best Of Bollywood Hits",
+    "duration": "261",
+    "320kbps": "true",
+    "encrypted_media_url": "ID2ieOjCrwfgWvL5sXl4B1ImC5QfbsDyfYG2pMKFiOrKJFVJUSG2Y5J21vkXcpDtAJs93mxXk8CKbc9p1uTqbRw7tS9a8Gtq",
+    "artistMap": {
+     "primary_artists": [
+      {
+       "id": "702592",
+       "name": "Mithoon"
+      },
+      {
+       "id": "459320",
+       "name": "Arijit Singh"
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

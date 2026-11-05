@@ -1,0 +1,276 @@
+// AudioPass.kt
+
+package com.mochyy.mochymusic.playback.audio.pass
+
+import android.content.Context
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
+import android.os.Build
+import android.os.SystemClock
+import androidx.media3.common.Format
+import androidx.media3.common.MimeTypes
+import com.mochyy.mochymusic.constants.AudioPassMode
+import com.mochyy.mochymusic.playback.audio.AudioOutputs
+import com.mochyy.mochymusic.playback.audio.UsbDacReader
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import timber.log.Timber
+import java.lang.ref.WeakReference
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicReference
+
+/** the one exclusive output every player shares: which songs may go to it, opening it, and what the page shows about it (docs/notes/audio-output.md) */
+class AudioPass(context: Context, private val outputs: AudioOutputs) {
+
+    sealed interface Status {
+        data object Off : Status
+        data object Waiting : Status
+        data class Playing(val mode: AudioPassMode, val device: String, val sampleRate: Int, val bits: Int, val sourceBits: Int, val lossless: Boolean, val exact: Boolean) : Status
+        data class Fell(val mode: AudioPassMode, val sampleRate: Int, val sourceBits: Int) : Status
+    }
+
+    data class DacVolume(val minDb: Double, val maxDb: Double, val currentDb: Double)
+
+    private val audio = context.getSystemService(AudioManager::class.java)
+    internal val usb = UsbDacAccess(context) { bump() }
+
+    private val _status = MutableStateFlow<Status>(Status.Off)
+    val status: StateFlow<Status> = _status.asStateFlow()
+
+    private val _dacVolume = MutableStateFlow<DacVolume?>(null)
+    val dacVolume: StateFlow<DacVolume?> = _dacVolume.asStateFlow()
+
+    /** whether the dac is mochy's to open, null with none plugged in */
+    val usbPermitted: StateFlow<Boolean?> get() = usb.permitted
+
+    @Volatile private var enabled = false
+    @Volatile var mode: AudioPassMode = AudioPassMode.Default
+        private set
+    @Volatile private var blocked = true
+    @Volatile private var allowFixedVolume = false
+
+    /** goes up whenever the answer to "may this song go exclusive" could change, so the router knows to ask again */
+    @Volatile var generation = 0
+        private set
+
+    private var owner: Any? = null
+    private var active: PassTransport? = null
+    private val failed = HashSet<String>()
+    @Volatile private var directReleasedAt = 0L
+    private val remembered = HashMap<String, Double>()
+    private val volumeWork = Executors.newSingleThreadExecutor { Thread(it, "AudioPassVolume") }
+    private val pendingVolume = AtomicReference<Double?>(null)
+    private val volumeListeners = mutableListOf<WeakReference<() -> Unit>>()
+
+    init {
+        usb.onDetached = { id -> synchronized(this) { (active as? UsbPass)?.takeIf { it.usbDeviceId == id }?.markUnplugged() } }
+    }
+
+    fun start() = usb.start()
+
+    fun release() = usb.stop()
+
+    /** the switch, the mode and whether anything shapes the sound, from the service whenever one changes */
+    @Synchronized
+    fun update(enabled: Boolean, mode: AudioPassMode, blocked: Boolean, allowFixedVolume: Boolean) {
+        if (enabled == this.enabled && mode == this.mode && blocked == this.blocked && allowFixedVolume == this.allowFixedVolume) return
+        if (mode != this.mode || allowFixedVolume != this.allowFixedVolume) failed.clear()
+        this.enabled = enabled
+        this.mode = mode
+        this.blocked = blocked
+        this.allowFixedVolume = allowFixedVolume
+        // the direct driver needs android's ok before the first song; asking now means the dialog shows while the page is open
+        if (engaged && mode == AudioPassMode.DIRECT_USB) usb.requestPermission()
+        if (owner == null) _status.value = if (engaged) Status.Waiting else Status.Off
+        bump()
+    }
+
+    /** asks for usb access again, from the page's button */
+    fun requestUsbPermission() = usb.requestPermission()
+
+    private fun bump() {
+        generation++
+    }
+
+    val engaged: Boolean get() = enabled && mode.exclusive && Build.VERSION.SDK_INT >= mode.minSdk && !blocked
+
+    /** the direct driver owns the dac either way, so lossy songs go to it untouched too; the other modes leave them to android */
+    private val takesLossy: Boolean get() = mode == AudioPassMode.DIRECT_USB
+
+    /** lets the decoder hand a hi-res song over as float, which carries 24 bits whole, while it could go exclusive */
+    fun wantsFloat(source: Format?): Boolean =
+        engaged && (takesLossy || isLossless(source)) && (source?.pcmEncoding?.let { PassPcm.sourceBits(it, it) > 16 } ?: true)
+
+    @Synchronized
+    internal fun canTake(format: Format, source: Format?, requester: Any): Boolean {
+        if (!engaged || (owner != null && owner !== requester)) return false
+        if (format.sampleMimeType != MimeTypes.AUDIO_RAW || format.channelCount !in 1..2 || format.sampleRate <= 0) return false
+        if (format.pcmEncoding !in PassPcm.Encodings) return false
+        if (!takesLossy && !isLossless(source)) return false
+        val bits = PassPcm.sourceBits(format.pcmEncoding, source?.pcmEncoding)
+        if (key(format.sampleRate, format.channelCount, bits) in failed) return false
+        val rate = format.sampleRate
+        val channels = format.channelCount
+        return when (mode) {
+            AudioPassMode.SONG_RATE -> false
+            AudioPassMode.BIT_PERFECT -> Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
+                usbOutput()?.let { MixerPass.pick(audio, it, rate, channels, bits) } != null
+            AudioPassMode.EXCLUSIVE_USB -> usbOutput() != null && ExclusivePass.containerFor(bits) != null
+            AudioPassMode.EXCLUSIVE_DAC -> wiredOutput() != null && ExclusivePass.containerFor(bits) != null
+            AudioPassMode.DIRECT_USB -> usb.device()?.let { device ->
+                usb.hasPermission(device) && usb.dac(device)?.let { UsbAudioDescriptors.plans(it, rate, channels, bits).isNotEmpty() } == true
+            } == true
+        }
+    }
+
+    /** opens the output for this song, or says why not; the caller owns it until it hands it back */
+    @Synchronized
+    internal fun open(format: Format, source: Format?, requester: Any): PassTransport {
+        if (owner != null && owner !== requester) throw PassFailure("another player holds the output")
+        val rate = format.sampleRate
+        val channels = format.channelCount
+        val bits = PassPcm.sourceBits(format.pcmEncoding, source?.pcmEncoding)
+        val transport = when (mode) {
+            AudioPassMode.SONG_RATE -> throw PassFailure("song's rate isn't exclusive")
+            AudioPassMode.BIT_PERFECT -> {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) throw PassFailure("needs android 14")
+                val device = usbOutput() ?: throw PassFailure("no usb dac")
+                outputs.releaseMixer()
+                MixerPass.open(audio, device, rate, channels, bits)
+            }
+            AudioPassMode.EXCLUSIVE_USB -> ExclusivePass.open(usbOutput() ?: throw PassFailure("no usb dac"), rate, channels, bits)
+            AudioPassMode.EXCLUSIVE_DAC -> ExclusivePass.open(wiredOutput() ?: throw PassFailure("no headphones"), rate, channels, bits)
+            AudioPassMode.DIRECT_USB -> {
+                val manager = usb.manager ?: throw PassFailure("no usb")
+                val device = usb.device() ?: throw PassFailure("no usb dac")
+                val dac = usb.dac(device) ?: throw PassFailure("no usb access")
+                UsbPass.open(manager, device, dac, rate, channels, bits, allowFixedVolume, remembered[dacKey(device.vendorId, device.productId)])
+            }
+        }
+        owner = requester
+        active = transport
+        publishVolume()
+        return transport
+    }
+
+    @Synchronized
+    internal fun release(requester: Any) {
+        if (owner !== requester) return
+        if (active is UsbPass) directReleasedAt = SystemClock.elapsedRealtime()
+        owner = null
+        active = null
+        _dacVolume.value = null
+        notifyVolume()
+        _status.value = if (engaged) Status.Waiting else Status.Off
+    }
+
+    /** this song couldn't open, so the same format isn't tried again on this dac until something changes */
+    @Synchronized
+    internal fun failed(format: Format, source: Format?, why: String) {
+        val bits = PassPcm.sourceBits(format.pcmEncoding, source?.pcmEncoding)
+        failed += key(format.sampleRate, format.channelCount, bits)
+        Timber.tag("AudioPass").i("$mode fell back for ${format.sampleRate} Hz ${bits}-bit: $why")
+        _status.value = Status.Fell(mode, format.sampleRate, bits)
+    }
+
+    internal fun playing(transport: PassTransport, sourceBits: Int, source: Format?, exact: Boolean) {
+        _status.value = Status.Playing(mode, transport.deviceName, transport.sampleRate, transport.bits, sourceBits, isLossless(source), exact)
+    }
+
+    /** right after the direct driver lets go, android hasn't taken the dac back yet; a normal song started then would play from the speaker */
+    fun holdsNormal(): Boolean {
+        val at = directReleasedAt
+        if (at == 0L) return false
+        if (SystemClock.elapsedRealtime() - at > HandBackMs || usbOutput() != null) {
+            directReleasedAt = 0L
+            return false
+        }
+        return true
+    }
+
+    /** sets the dac's own volume while the direct driver plays; a dragged slider sends many, only the latest goes out */
+    fun setDacVolume(db: Double) {
+        if (pendingVolume.getAndSet(db) != null) return
+        volumeWork.execute {
+            val target = pendingVolume.getAndSet(null) ?: return@execute
+            val pass = synchronized(this) { active as? UsbPass } ?: return@execute
+            runCatching { pass.setVolume(target) }
+                .onSuccess { publishVolume() }
+                .onFailure { Timber.tag("AudioPass").w(it, "dac volume change failed") }
+        }
+    }
+
+    /** one press of a volume key: 16 presses from silent to full, as on the phone */
+    fun stepDacVolume(up: Boolean) {
+        val volume = _dacVolume.value ?: return
+        setDacVolume(dbAt(volume, (levelOf(volume) + if (up) 1f / VolumeSteps else -1f / VolumeSteps).coerceIn(0f, 1f)))
+    }
+
+    /** the player's volume bar and the system panel both see the dac's volume as 0..1 */
+    fun setDacLevel(level: Float) {
+        val volume = _dacVolume.value ?: return
+        setDacVolume(dbAt(volume, level.coerceIn(0f, 1f)))
+    }
+
+    /** called whenever the dac's volume appears, changes or goes away; held weakly so a swapped player isn't kept alive */
+    @Synchronized
+    fun addVolumeListener(listener: () -> Unit) {
+        volumeListeners.removeAll { it.get() == null }
+        volumeListeners += WeakReference(listener)
+    }
+
+    @Synchronized
+    private fun publishVolume() {
+        val pass = active as? UsbPass
+        _dacVolume.value = pass?.volume?.let { DacVolume(it.minDb, it.maxDb, it.currentDb) }
+        pass?.let { p -> usb.device()?.let { remembered[dacKey(it.vendorId, it.productId)] = p.volume?.currentDb ?: return@let } }
+        notifyVolume()
+    }
+
+    private fun notifyVolume() {
+        val listeners = synchronized(this) { volumeListeners.mapNotNull { it.get() } }
+        listeners.forEach { it() }
+    }
+
+    private fun usbOutput(): AudioDeviceInfo? = audio?.let(UsbDacReader::usbOutput)
+
+    private fun wiredOutput(): AudioDeviceInfo? =
+        runCatching { audio?.getDevices(AudioManager.GET_DEVICES_OUTPUTS)?.toList() }.getOrNull().orEmpty()
+            .firstOrNull { it.isSink && AudioOutputs.kindOf(it.type) == AudioOutputs.Kind.WIRED }
+
+    private fun key(rate: Int, channels: Int, bits: Int): String {
+        val device = when (mode) {
+            AudioPassMode.DIRECT_USB -> usb.device()?.deviceId
+            AudioPassMode.EXCLUSIVE_DAC -> wiredOutput()?.id
+            else -> usbOutput()?.id
+        }
+        return "$mode/$device/$rate/$channels/$bits"
+    }
+
+    companion object {
+        private const val HandBackMs = 3_000L
+        const val VolumeSteps = 16
+
+        // below this the dac's range is all silence anyway, so the bar's travel starts here
+        private const val FloorDb = -80.0
+
+        private val LosslessTypes = setOf(MimeTypes.AUDIO_FLAC, MimeTypes.AUDIO_ALAC, MimeTypes.AUDIO_RAW, MimeTypes.AUDIO_WAV)
+
+        fun isLossless(source: Format?): Boolean = source?.sampleMimeType in LosslessTypes
+
+        private fun dacKey(vendor: Int, product: Int) = "$vendor:$product"
+
+        fun levelOf(volume: DacVolume): Float {
+            val floor = maxOf(volume.minDb, FloorDb)
+            if (volume.currentDb <= floor || volume.maxDb <= floor) return 0f
+            return ((volume.currentDb - floor) / (volume.maxDb - floor)).toFloat().coerceIn(0f, 1f)
+        }
+
+        fun dbAt(volume: DacVolume, level: Float): Double {
+            if (level <= 0f) return volume.minDb
+            val floor = maxOf(volume.minDb, FloorDb)
+            return floor + level * (volume.maxDb - floor)
+        }
+    }
+}

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Keep in sync with the app's translated values-* resources. -->
+    <string-array name="app_language_tags" translatable="false">
+        <item>en</item>
+        <item>ar</item>
+        <item>as</item>
+        <item>az</item>
+        <item>be</item>
+        <item>bg</item>
+        <item>bn</item>
+        <item>bn-IN</item>
+        <item>bs</item>
+        <item>ca</item>
+        <item>cs</item>
+        <item>de</item>
+        <item>el</item>
+        <item>en-CA</item>
+        <item>es</item>
+        <item>es-US</item>
+        <item>et</item>
+        <item>eu</item>
+        <item>fa</item>
+        <item>fi</item>
+        <item>fil</item>
+        <item>fr</item>
+        <item>he</item>
+        <item>hi</item>
+        <item>hr</item>
+        <item>hu</item>
+        <item>id</item>
+        <item>it</item>
+        <item>ja</item>
+        <item>km</item>
+        <item>ko</item>
+        <item>lt</item>
+        <item>mfe</item>
+        <item>ml</item>
+        <item>ms</item>
+        <item>nb-NO</item>
+        <item>nl</item>
+        <item>nn</item>
+        <item>pa</item>
+        <item>pl</item>
+        <item>pt</item>
+        <item>pt-BR</item>
+        <item>ro</item>
+        <item>ru</item>
+        <item>sk</item>
+        <item>sl</item>
+        <item>sr-Latn</item>
+        <item>sv</item>
+        <item>ta</item>
+        <item>te</item>
+        <item>th</item>
+        <item>tr</item>
+        <item>uk</item>
+        <item>vi</item>
+        <item>zh-CN</item>
+        <item>zh-TW</item>
+    </string-array>
+</resources>

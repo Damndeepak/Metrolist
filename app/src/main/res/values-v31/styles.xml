@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Widget Theme for Android 12+ with Dynamic Colors -->
-    <style name="Theme.Widget.Metrolist" parent="@android:style/Theme.DeviceDefault.DayNight" />
+    <!-- the anime icons' splash: no icon of its own, so the system shows the launcher icon it was opened from and the intro bounces out of it -->
+    <style name="Theme.App.Starting.Icon" parent="Theme.App.Starting">
+        <item name="android:windowSplashScreenAnimatedIcon">@null</item>
+    </style>
 
-    <style name="Theme.Metrolist.Transparent" parent="@android:style/Theme.Translucent.NoTitleBar">
-        <item name="android:windowBackground">@android:color/transparent</item>
-        <item name="android:windowIsTranslucent">true</item>
-        <item name="android:windowNoTitle">true</item>
-        <item name="android:windowDisablePreview">true</item>
-        <item name="android:windowAnimationStyle">@null</item>
+    <!-- Widget Theme for Android 12+ with Dynamic Colors -->
+    <style name="Theme.Widget.mochy" parent="@android:style/Theme.DeviceDefault.DayNight">
+        <item name="android:fontFamily">@font/inter</item>
+        <item name="fontFamily">@font/inter</item>
     </style>
 </resources>
