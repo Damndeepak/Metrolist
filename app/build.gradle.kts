@@ -149,12 +149,6 @@ extensions.configure<ApplicationExtension> {
             keyAlias = System.getenv("DEEPLIST_RELEASE_KEY_ALIAS")
             keyPassword = System.getenv("DEEPLIST_RELEASE_KEY_PASSWORD")
         }
-        getByName("debug") {
-            keyAlias = "androiddebugkey"
-            keyPassword = "android"
-            storePassword = "android"
-            storeFile = file("${System.getProperty("user.home")}/.android/debug.keystore")
-        }
     }
 
     buildTypes {

@@ -20,6 +20,7 @@ import com.mochyy.mochymusic.extensions.zipInputStream
 import com.mochyy.mochymusic.extensions.zipOutputStream
 import com.mochyy.mochymusic.playback.MusicService
 import com.mochyy.mochymusic.playback.MusicService.Companion.PERSISTENT_QUEUE_FILE
+import com.mochyy.mochymusic.utils.NativeSettingsFileName
 import com.mochyy.mochymusic.utils.reportException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -52,7 +53,7 @@ class BackupRestoreViewModel @Inject constructor(
         runCatching {
             context.applicationContext.contentResolver.openOutputStream(uri)?.use {
                 it.buffered().zipOutputStream().use { outputStream ->
-                    (context.filesDir / "datastore" / SETTINGS_FILENAME).inputStream().buffered()
+                    (context.filesDir / "datastore" / NativeSettingsFileName).inputStream().buffered()
                         .use { inputStream ->
                             outputStream.putNextEntry(ZipEntry(SETTINGS_FILENAME))
                             inputStream.copyTo(outputStream)
@@ -87,7 +88,7 @@ class BackupRestoreViewModel @Inject constructor(
                             SETTINGS_FILENAME -> {
                                 Timber.tag("RESTORE").i("Restoring settings to datastore")
                                 foundAny = true
-                                (context.filesDir / "datastore" / SETTINGS_FILENAME).outputStream()
+                                (context.filesDir / "datastore" / NativeSettingsFileName).outputStream()
                                     .use { outputStream ->
                                         inputStream.copyTo(outputStream)
                                     }

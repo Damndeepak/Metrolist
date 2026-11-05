@@ -10,9 +10,15 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import android.database.sqlite.SQLiteDatabase
+import androidx.datastore.core.DataMigration
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import com.mochyy.mochymusic.deeplist.DeeplistSyncEnabledKey
+import com.mochyy.mochymusic.deeplist.DeeplistWebsiteKey
+import com.mochyy.mochymusic.deeplist.DeeplistTokenKey
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.preferencesDataStore
 import com.mochyy.mochymusic.extensions.toEnum
@@ -25,7 +31,53 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlin.properties.ReadOnlyProperty
 
-val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
+internal const val NativeSettingsName = "mochy-settings"
+internal const val NativeSettingsFileName = "mochy-settings.preferences_pb"
+
+private val Context.legacyDeeplistSettings: DataStore<Preferences> by preferencesDataStore(name = "settings")
+
+val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
+    name = NativeSettingsName,
+    produceMigrations = { context -> listOf(LegacyDeeplistPairingMigration(context.applicationContext)) },
+)
+
+internal val LegacyPairingMigratedKey = booleanPreferencesKey("deeplistLegacyPairingMigrated")
+
+internal fun needsLegacyPairingMigration(current: Preferences, databaseVersion: Int?): Boolean =
+    current[LegacyPairingMigratedKey] != true && databaseVersion == 38
+
+internal fun copyLegacyDeeplistPairing(current: Preferences, legacy: Preferences): Preferences {
+    if (current[LegacyPairingMigratedKey] == true) return current
+    val result = current.toMutablePreferences()
+    // Keep new Mochy choices intact; migrate only the separate website connection, never old visuals.
+    if (listOf(DeeplistSyncEnabledKey, DeeplistWebsiteKey, DeeplistTokenKey).none { current.asMap().containsKey(it) }) {
+        val website = legacy.asMap()[DeeplistWebsiteKey] as? String
+        val token = legacy.asMap()[DeeplistTokenKey] as? String
+        if (website?.trimEnd('/') == "https://world.damndeepak.workers.dev" &&
+            token?.matches(Regex("[a-f0-9]{64}")) == true) {
+            result[DeeplistWebsiteKey] = "https://world.damndeepak.workers.dev"
+            result[DeeplistTokenKey] = token
+            result[DeeplistSyncEnabledKey] = legacy.asMap()[DeeplistSyncEnabledKey] as? Boolean ?: false
+        }
+    }
+    result[LegacyPairingMigratedKey] = true
+    return result
+}
+
+private class LegacyDeeplistPairingMigration(private val context: Context) : DataMigration<Preferences> {
+    override suspend fun shouldMigrate(currentData: Preferences): Boolean {
+        if (currentData[LegacyPairingMigratedKey] == true) return false
+        val source = context.getDatabasePath("song.db")
+        val version = if (source.isFile) SQLiteDatabase.openDatabase(source.path, null, SQLiteDatabase.OPEN_READONLY).use { it.version } else null
+        return needsLegacyPairingMigration(currentData, version)
+    }
+
+    override suspend fun migrate(currentData: Preferences): Preferences =
+        copyLegacyDeeplistPairing(currentData, context.legacyDeeplistSettings.data.first())
+
+    // The old database and settings are retained for recovery and manual export.
+    override suspend fun cleanUp() = Unit
+}
 
 object PreferencesCache {
 
