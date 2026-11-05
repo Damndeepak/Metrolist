@@ -1,0 +1,138 @@
+name: Bootstrap Mochy migration preview
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [deeplist-mochy-base]
+    paths: [.deeplist-migration/overlay.json]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mochy-bootstrap-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  preview:
+    if: github.repository == 'Damndeepak/Metrolist' && github.ref == 'refs/heads/deeplist-mochy-base'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: target
+
+      - name: Check out exact Mochy source
+        uses: actions/checkout@v4
+        with:
+          repository: realidkroo/Mochy-Music
+          ref: 3e49d704869cfa18a3217e8c07dd63d8de4644bc
+          path: upstream
+          persist-credentials: false
+
+      - name: Import reviewed source overlay into preview branch only
+        env:
+          EXPECTED_HEAD: ${{ github.sha }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64, gzip, hashlib, json, os, pathlib, shutil, subprocess
+          root = pathlib.Path('target').resolve()
+          upstream = pathlib.Path('upstream').resolve()
+          pin = '3e49d704869cfa18a3217e8c07dd63d8de4644bc'
+          def git(*args):
+              return subprocess.check_output(['git', '-C', str(root), *args], text=True).strip()
+          assert git('rev-parse', 'HEAD') == os.environ['EXPECTED_HEAD']
+          assert subprocess.check_output(['git', '-C', str(upstream), 'rev-parse', 'HEAD'], text=True).strip() == pin
+          envelope = json.loads((root / '.deeplist-migration/overlay.json').read_text())
+          raw = gzip.decompress(base64.b64decode(envelope['gzipBase64'], validate=True))
+          assert len(raw) < 10_000_000
+          overlay = json.loads(raw)
+          assert overlay['upstreamCommit'] == pin
+          files = overlay['files']
+          assert files and len(files) < 300
+          def safe_path(path):
+              p = pathlib.PurePosixPath(path)
+              assert not p.is_absolute() and '..' not in p.parts and '.git' not in p.parts
+              assert p.parts and not path.endswith('/')
+              return p
+          decoded = []
+          for item in files:
+              p = safe_path(item['path'])
+              content = base64.b64decode(item['contentBase64'], validate=True)
+              assert hashlib.sha256(content).hexdigest() == item['sha256']
+              assert item['mode'] in ('100644', '100755')
+              decoded.append((p, content, item['mode']))
+          upstream_paths = subprocess.check_output(['git', '-C', str(upstream), 'ls-files', '-z']).decode().split('\0')
+          subprocess.run(['git', '-C', str(root), 'rm', '-r', '--ignore-unmatch', '.'], check=True)
+          for name in filter(None, upstream_paths):
+              p = safe_path(name)
+              source = upstream / p
+              assert source.is_file() and not source.is_symlink()
+              destination = root / p
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copy2(source, destination)
+          for p, content, mode in decoded:
+              destination = root / p
+              assert not destination.is_symlink()
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              destination.write_bytes(content)
+              destination.chmod(0o755 if mode == '100755' else 0o644)
+          subprocess.run(['git', '-C', str(root), 'add', '-A'], check=True)
+          assert git('diff', '--cached', '--name-only')
+          assert (root / 'LICENSE').read_bytes() == (upstream / 'LICENSE').read_bytes()
+          subprocess.run(['git', '-C', str(root), '-c', 'user.name=github-actions[bot]', '-c', 'user.email=41898282+github-actions[bot]@users.noreply.github.com', 'commit', '-m', 'feat(deeplist): import pinned Mochy base with migration bridge'], check=True)
+          # Ordinary fast-forward push rejects concurrent branch updates.
+          subprocess.run(['git', '-C', str(root), 'push', 'origin', 'HEAD:refs/heads/deeplist-mochy-base'], check=True)
+          print('Imported preview source commit:', git('rev-parse', 'HEAD'))
+          PY
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: mochy-gradle-${{ runner.os }}-${{ hashFiles('target/**/*.gradle.kts', 'target/gradle/libs.versions.toml', 'target/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: mochy-gradle-${{ runner.os }}-
+
+      - name: Install Android SDK and native build tools
+        run: |
+          SDK_MANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          "$SDK_MANAGER" --licenses < <(yes) >/dev/null
+          "$SDK_MANAGER" "platforms;android-36" "build-tools;36.0.0" "ndk;27.0.12077973" "cmake;3.22.1"
+
+      - name: Build preview and run migration tests
+        working-directory: target
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon --max-workers=2 --no-parallel --no-configuration-cache -Pkotlin.compiler.execution.strategy=in-process -Dorg.gradle.jvmargs="-Xmx4g -XX:ActiveProcessorCount=2" :app:assembleArm64FossDebug :app:testArm64FossDebugUnitTest
+          python3 - <<'PY'
+          import glob, xml.etree.ElementTree as ET
+          reports = [ET.parse(p).getroot() for p in glob.glob('app/build/test-results/testArm64FossDebugUnitTest/TEST-*.xml')]
+          assert reports and sum(int(r.get('tests', 0)) for r in reports) > 0
+          assert not any(int(r.get('failures', 0)) + int(r.get('errors', 0)) for r in reports)
+          print('Preview unit tests:', sum(int(r.get('tests', 0)) for r in reports))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Deeplist-Mochy-Preview
+          path: target/app/build/outputs/apk/arm64Foss/debug/*.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: Mochy-preview-build-reports
+          path: |
+            target/app/build/reports
+            target/app/build/test-results
+          if-no-files-found: ignore
+          retention-days: 7
