@@ -7,6 +7,9 @@
 
 package com.metrolist.music.ui.player
 
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.animation.core.animateFloatAsState
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -373,11 +376,18 @@ private fun NewMiniPlayer(
                 },
     ) {
         val interactionSource = remember { MutableInteractionSource() }
+        val pressed by interactionSource.collectIsPressedAsState()
+        val touchScale by animateFloatAsState(
+            if (pressed) .975f else 1f,
+            animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
+            label = "miniPlayerTouch",
+        )
         Box(
             modifier =
                 Modifier
                     .then(if (isTabletLandscape) Modifier.width(500.dp).align(Alignment.Center) else Modifier.fillMaxWidth())
                     .height(64.dp)
+                    .graphicsLayer { scaleX = touchScale; scaleY = touchScale }
                     .offset { IntOffset(offsetXAnimatable.value.roundToInt(), 0) }
                     .clip(RoundedCornerShape(32.dp))
                     .background(color = backgroundColor)

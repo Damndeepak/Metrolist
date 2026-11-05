@@ -1342,4 +1342,8 @@ Your little world.</string>
     <string name="dp_moment_count">%1$s · %2$d</string>
     <string name="dp_moment_save_current">Save this moment</string>
     <string name="dp_moment_save">Save moment</string>
+    <string name="deeplist_gacha_title">Gacha here!</string>
+    <string name="deeplist_gacha_hint">Roll for a random song from Quick Picks.</string>
+    <string name="deeplist_gacha_roll">Roll</string>
+    <string name="deeplist_gacha_rolling">Rolling…</string>
 </resources>

@@ -91,6 +91,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.metrolist.music.LocalNavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import coil3.compose.AsyncImage
+import com.metrolist.music.ui.component.DeeplistGacha
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.crossfade
@@ -1197,6 +1198,14 @@ fun HomeScreen(
                             viewModel.toggleChip(it)
                         },
                     )
+                }
+
+                if (selectedChip == null && (quickPicks?.size ?: 0) >= 4) {
+                    item(key = "deeplist_gacha") {
+                        val picks = quickPicks
+                        val pool = remember(picks) { picks.orEmpty().map { it.toMediaMetadata() } }
+                        DeeplistGacha(pool) { playerConnection.playQueue(YouTubeQueue.radio(it)) }
+                    }
                 }
 
                 if (isLoading && homePage?.chips.isNullOrEmpty()) {
