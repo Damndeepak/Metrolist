@@ -1,0 +1,9 @@
+# Mochy's own code, compiled ahead of time when the app is installed or updated.
+#
+# Without this only the libraries' own profiles shipped, so every screen of the app ran in the
+# interpreter until the phone got round to compiling it in the background, which can take days.
+# Measured on Home scrolling: about twice the slow frames until then.
+HSPLcom/mochyy/mochymusic/**->**(**)**
+HSPLcom/music/**->**(**)**
+Lcom/mochyy/mochymusic/**;
+Lcom/music/**;

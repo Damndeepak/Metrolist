@@ -3,12 +3,13 @@
 <!-- Upstream InnerTune strings -->
 <!-- Do not add new features here -->
 <!-- Try to re-use strings here, but be careful on its usage e.g. verb vs noun -->
-<!-- "InnerTune" is replaced with "Metrolist" -->
+<!-- "InnerTune" is replaced with "mochy" -->
 <!-- Translators: Do not modify this file for translations, use InnerTune's Weblate instead. -->
 
 <resources>
     <!-- Bottom navigation -->
     <string name="home">Home</string>
+    <string name="music">Music</string>
     <string name="songs">Songs</string>
     <string name="artists">Artists</string>
     <string name="albums">Albums</string>
@@ -72,6 +73,7 @@
 
     <!-- Album screen -->
     <string name="other_versions">Other versions</string>
+    <string name="album_description_placeholder">This is a placeholder description for the album. Enjoy listening to the tracks below!</string>
 
     <!-- Playlist -->
     <string name="liked_songs">Liked songs</string>
@@ -79,15 +81,19 @@
     <string name="playlist_is_empty">The playlist is empty</string>
     <string name="remove_download_playlist_confirm">Do you really want to remove all \"%s\" playlist songs from the Downloaded Songs storage?</string>
     <string name="delete_playlist_confirm">Do you really want to delete the playlist \"%s\"?</string>
+    <string name="you_might_also_like">Related Playlist</string>
 
     <!-- Button -->
     <string name="retry">Retry</string>
     <string name="radio">Radio</string>
     <string name="shuffle">Shuffle</string>
+    <string name="shuffle_content_desc">Shuffle</string>
+    <string name="shuffle_label">Shuffle</string>
     <string name="reset">Reset</string>
 
     <!-- Menu -->
     <string name="details">Details</string>
+    <string name="view_details">View details</string>
     <string name="edit">Edit</string>
     <string name="start_radio">Start radio</string>
     <string name="play">Play</string>
@@ -97,16 +103,27 @@
     <string name="add_to_library">Add to library</string>
     <string name="add_all_to_library">Add all to library</string>
     <string name="remove_from_library">Remove from library</string>
+    <string name="added_to_library">Added to library</string>
+    <string name="removed_from_library">Removed from library</string>
+    <string name="remove_from_import_and_library">Remove from import and library</string>
+    <string name="removed_from_import_and_library">Removed from your %1$s imports and your library</string>
     <string name="remove_all_from_library">Remove all from library</string>
     <string name="action_download">Download</string>
     <string name="downloading">Downloading</string>
+    <string name="saving">Saving</string>
+    <string name="saved">Saved</string>
     <string name="remove_download">Remove download</string>
     <string name="import_playlist">Import playlist</string>
     <string name="add_to_playlist">Add to playlist</string>
+    <string name="start_an_radio">Radio</string>
+    <string name="add_to_an_playlist">Add</string>
     <string name="view_artist">View artist</string>
     <string name="view_album">View album</string>
     <string name="refetch">Refetch</string>
     <string name="share">Share</string>
+    <string name="more_options">More options</string>
+    <string name="more_label">More</string>
+    <string name="releases_for_you">Releases for you</string>
     <string name="delete">Delete</string>
     <string name="remove_from_history">Remove from history</string>
     <string name="remove_from_playlist">Remove from playlist</string>
@@ -140,6 +157,10 @@
 
     <string name="edit_lyrics">Edit lyrics</string>
     <string name="search_lyrics">Search lyrics</string>
+    <string name="lyrics_swipe_to_change_song">Swipe to change song</string>
+    <string name="lyrics_swipe_to_change_song_desc">Swipe left or right in the artist and song name section in full-screen lyrics to change the song</string>
+    <string name="lyrics_thumbnail_play_pause">Show play/pause on thumbnail</string>
+    <string name="lyrics_thumbnail_play_pause_desc">Show a play/pause button overlay on the song thumbnail in full-screen lyrics</string>
 
     <string name="edit_song">Edit song</string>
     <string name="song_title">Song title</string>
@@ -192,6 +213,11 @@
     <plurals name="n_year">
         <item quantity="one">%d year</item>
         <item quantity="other">%d years</item>
+    </plurals>
+    <plurals name="n_apk_found">
+        <item quantity="zero">No APKs found</item>
+        <item quantity="one">%d APK found</item>
+        <item quantity="other">%d APKs found</item>
     </plurals>
 
     <!-- Snackbar -->
@@ -256,6 +282,7 @@
     <string name="right">Right</string>
     <string name="player_slider_style">Player slider style</string>
     <string name="default_">Default</string>
+    <string name="apple_music">Apple Music</string>
     <string name="squiggly">Squiggly</string>
     <string name="misc">Misc</string>
     <string name="default_open_tab">Default open tab</string>
@@ -267,6 +294,7 @@
     <string name="action_logout">Log out</string>
     <string name="action_login">Log in</string>
     <string name="login">Login</string>
+    <string name="show_audio_quality_badge">Show audio quality badge</string>
     <string name="not_logged_in">Not logged in</string>
     <string name="login_failed">Login failed</string>
 
@@ -280,9 +308,14 @@
 
     <string name="player_and_audio">Player and audio</string>
     <string name="audio_quality">Audio quality</string>
+    <string name="network_ip_version">Network IP Version</string>
+    <string name="ip_version_auto">Automatic</string>
+    <string name="ip_version_ipv4">Forced IPv4</string>
+    <string name="ip_version_ipv6">Forced IPv6</string>
     <string name="audio_quality_auto">Auto</string>
     <string name="audio_quality_high">High</string>
     <string name="audio_quality_low">Low</string>
+    <string name="audio_quality_medium">Medium</string>
     <string name="queue">Queue</string>
     <string name="persistent_queue">Persistent queue</string>
     <string name="persistent_queue_desc">Restore your last queue when the app starts</string>
@@ -307,6 +340,9 @@
     <string name="max_song_cache_size">Max song cache size</string>
     <string name="clear_song_cache">Clear song cache</string>
     <string name="size_used">%s used</string>
+
+    <string name="clear_downloaded_updates">Clear downloaded updates</string>
+    <string name="clear_downloaded_updates_desc">Remove downloaded APK files to free up space</string>
 
     <string name="privacy">Privacy</string>
     <string name="listen_history">Listen history</string>
@@ -333,9 +369,12 @@
     <string name="backup_create_failed">Couldn\'t create backup</string>
     <string name="restore_failed">Failed to restore backup</string>
 
+    <string name="discord_integration">Discord Integration</string>
+    <string name="discord_information">mochy uses the KizzyRPC library to set your Discord account\'s status. This involves using the Discord Gateway connection, which may be considered a violation of Discord\'s TOS. However, there are no known cases of user accounts being suspended for this reason. Use at your own risk.\n\mochy will only extract your token, and everything else is stored locally.</string>
     <string name="dismiss">Dismiss</string>
     <string name="options">Options</string>
     <string name="preview">Preview</string>
+    <string name="enable_discord_rpc">Enable Rich Presence</string>
 
     <string name="about">About</string>
     <string name="app_version">App version</string>
@@ -343,4 +382,22 @@
     <string name="new_version_available">New version available</string>
     <string name="translation_models">Translation Models</string>
     <string name="clear_translation_models">Clear translation models</string>
+    <string name="bluetooth_permission_required">Bluetooth permission is required to discover audio devices.</string>
+    <string name="streaming_to">Streaming to</string>
+    <string name="this_phone">This phone</string>
+    <string name="wired_headphones">Wired headphones</string>
+    <string name="hdmi">HDMI</string>
+    <string name="phone_speaker">Phone speaker</string>
+    <string name="audio_quality_title">Audio Quality</string>
+    <string name="battery_content_desc">Battery Level</string>
+    <string name="done">Done</string>
+    <string name="audio_devices">Audio devices</string>
+    <string name="bluetooth_headphones">Bluetooth headphones</string>
+    <string name="license">GNU General Public License v3.0</string>
+    <string name="standard_lyrics_blur">Standard lyrics blur</string>
+    <string name="listen_together_smart_resync">Smart Network Resync</string>
+    <string name="listen_together_smart_resync_desc">Automatically catch up with the host after a connection drop</string>
+    <string name="error_stream_unavailable_title">Couldn\'t play this track</string>
+    <string name="playback_error_channel_name">Playback errors</string>
+    <string name="playing_music_video_audio">YouTube wouldn\'t play this song, so you\'re hearing its music video instead</string>
 </resources>
