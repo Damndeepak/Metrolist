@@ -1,9 +1,34 @@
 @file:Suppress("UnstableApiUsage")
 
+val useMavenLocalInnerTubeX = providers.gradleProperty("useMavenLocalInnerTubeX").isPresent
+
+pluginManagement {
+    repositories {
+        mavenLocal()
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
 
     repositories {
+        exclusiveContent {
+            forRepository {
+                if (useMavenLocalInnerTubeX) mavenLocal() else maven("https://jitpack.io")
+            }
+            filter {
+                if (useMavenLocalInnerTubeX) {
+                    includeModule("com.github.MetrolistGroup", "innertubex")
+                    includeModule("com.github.MetrolistGroup", "innertubex-android")
+                    includeModule("com.github.MetrolistGroup", "innertubex-desktop")
+                } else {
+                    includeGroup("com.github.MetrolistGroup.innertubex")
+                }
+            }
+        }
         google()
         mavenCentral()
         maven { setUrl("https://jitpack.io") }
@@ -11,41 +36,7 @@ dependencyResolutionManagement {
     }
 }
 
-// f-droid foojay workaround
-// plugins {
-//     id("org.gradle.toolchains.foojay-resolver-convention") version("1.0.0")
-// }
-
-rootProject.name = "mochy"
+// F-Droid doesn't support foojay-resolver plugin
+rootProject.name = "Metrolist"
 include(":app")
-include(":providers:canvas")
-include(":providers:innertube")
-include(":providers:kugou")
-include(":providers:lrclib")
-include(":providers:lastfm")
-include(":providers:betterlyrics")
-include(":providers:simpmusic")
-include(":providers:youlyplus")
-include(":providers:shazamkit")
-include(":providers:artistvideo")
-include(":providers:applecanvas")
-include(":providers:paxsenixlyrics")
-include(":providers:directlyrics")
-include(":providers:musixmatch")
-include(":providers:genius")
-include(":providers:wikipedia")
-
-// source modules built into mochy, the api every module is written against, and the bridge to a module that brings its own code in a zip
-include(":modules:api")
-include(":modules:bridge")
-include(":modules:applemusic")
-include(":modules:monochrome")
-include(":modules:jiosaavn")
-
-
-// local newpipe extractor
-//includeBuild("../NewPipeExtractor") {
-//    dependencySubstitution {
-//        substitute(module("com.github.teamnewpipe:NewPipeExtractor")).using(project(":extractor"))
-//    }
-//}
+include(":innertube")

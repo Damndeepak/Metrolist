@@ -3,35 +3,20 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <uses-permission android:name="android.permission.VIBRATE" />
-    <!-- lets the player ask a usb dac to run at the song's own rate, or bit-perfect, on android 14+ -->
-    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
-
-    <!--    bluetooth connect-->
-    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    <!-- For Android 11 (API 30) and below -->
-    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
-    <!-- Optional: If you also need to scan for Bluetooth devices -->
-    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
-
-    <!-- Library > Local: lets Mochy find the songs already on the phone. Android 13 has its own
-         audio permission; older phones need the general storage one. -->
-    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
 
     <!-- Microphone feature for music recognition (not required) -->
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
-
-<!--    install permission-->
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- Android TV -->
     <uses-feature android:name="android.software.leanback" android:required="false" />
@@ -41,15 +26,7 @@
         <intent>
             <action android:name="android.media.action.DISPLAY_AUDIO_EFFECT_CONTROL_PANEL" />
         </intent>
-        <!-- source modules installed as their own app (modules/SourceModules.kt) -->
-        <intent>
-            <action android:name="com.mochyy.mochymusic.SOURCE_MODULE" />
-        </intent>
-        <!-- the song share sends straight to these three -->
-        <package android:name="com.instagram.android" />
-        <package android:name="com.whatsapp" />
-        <package android:name="com.whatsapp.w4b" />
-        <package android:name="com.facebook.katana" />
+        <package android:name="com.google.android.projection.gearhead" />
     </queries>
     <application
         android:name=".App"
@@ -64,30 +41,30 @@
         android:networkSecurityConfig="@xml/network_security_config"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="false"
-        android:theme="@style/Theme.mochy"
+        android:theme="@style/Theme.Metrolist"
         tools:targetApi="tiramisu">
         <uses-library
             android:name="org.apache.http.legacy"
             android:required="false" />
 
         <activity
-            android:name=".deeplist.DeeplistAccountActivity"
-            android:exported="true"
+            android:name=".ui.screens.CrashActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Metrolist"
             android:excludeFromRecents="true"
-            android:theme="@style/Theme.mochy">
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="deeplist" android:host="account" />
-            </intent-filter>
-        </activity>
+            android:process=":crash" />
 
-        <activity
-            android:name=".deeplist.DeeplistConnectActivity"
-            android:exported="true"
-            android:excludeFromRecents="true"
-            android:theme="@android:style/Theme.Material.Dialog.Alert">
+        <activity android:name=".deeplist.DeeplistAccountActivity" android:exported="true" android:excludeFromRecents="true" android:theme="@style/Theme.Metrolist">
+            <intent-filter><action android:name="android.intent.action.VIEW"/><category android:name="android.intent.category.DEFAULT"/><category android:name="android.intent.category.BROWSABLE"/><data android:scheme="deeplist" android:host="account"/></intent-filter>
+        </activity>
+        <activity android:name=".deeplist.DeeplistPlaylistActivity" android:exported="true" android:theme="@style/Theme.Metrolist">
+            <intent-filter android:autoVerify="true"><action android:name="android.intent.action.VIEW"/><category android:name="android.intent.category.DEFAULT"/><category android:name="android.intent.category.BROWSABLE"/><data android:scheme="https" android:host="deeplist-playlists.cherrybard2.chatgpt.site" android:pathPrefix="/playlist"/></intent-filter>
+            <intent-filter><action android:name="android.intent.action.VIEW"/><category android:name="android.intent.category.DEFAULT"/><category android:name="android.intent.category.BROWSABLE"/><data android:scheme="deeplist" android:host="playlist"/></intent-filter>
+        </activity>
+        <activity android:name=".deeplist.DeeplistSpotifyActivity" android:exported="true" android:launchMode="singleTask" android:theme="@style/Theme.Metrolist">
+            <intent-filter><action android:name="android.intent.action.VIEW"/><category android:name="android.intent.category.DEFAULT"/><category android:name="android.intent.category.BROWSABLE"/><data android:scheme="${applicationId}.spotify" android:host="callback"/></intent-filter>
+        </activity>
+        <activity android:name=".deeplist.DeeplistConnectActivity" android:exported="true" android:excludeFromRecents="true" android:theme="@android:style/Theme.Material.Dialog.Alert">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -95,33 +72,39 @@
                 <data android:scheme="deeplist" android:host="connect" />
             </intent-filter>
         </activity>
-
-        <activity
-            android:name=".ui.screens.CrashActivity"
-            android:exported="false"
-            android:screenOrientation="portrait"
-            android:theme="@style/Theme.mochy"
-            android:excludeFromRecents="true"
-            android:process=":crash" />
-
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
-            android:screenOrientation="portrait"
-            android:theme="@style/Theme.App.Starting"
+            android:resizeableActivity="true"
+            android:theme="@style/Theme.Metrolist"
             android:windowSoftInputMode="adjustResize">
-            <!-- not in the launcher itself: one of the icon aliases below is, the one picked in customisation -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-            </intent-filter>
-            <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <action android:name="android.intent.action.MUSIC_PLAYER" />
 
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
                 <category android:name="android.intent.category.APP_MUSIC" />
                 <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+
+            <!-- Music Recognizer Widget: open recognition / recognition_history screen -->
+            <intent-filter>
+                <action android:name="com.metrolist.music.action.RECOGNITION" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+
+            <!-- Listen Together invite link -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="https" />
+                <data android:host="metrolist.cc" />
+                <data android:pathPrefix="/listen" />
             </intent-filter>
 
             <!-- Youtube filter -->
@@ -189,22 +172,17 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
 
-            <!-- Audio files shared from other apps or a file manager -->
-            <intent-filter>
-                <action android:name="android.intent.action.SEND" />
-                <action android:name="android.intent.action.SEND_MULTIPLE" />
-
-                <category android:name="android.intent.category.DEFAULT" />
-
-                <data android:mimeType="audio/*" />
-                <data android:mimeType="application/ogg" />
-            </intent-filter>
-
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
 
-        <!-- the launcher icons: exactly one is enabled at a time (utils/AppIcons.kt), the default until another is picked -->
+        <!-- Legacy launcher alias kept for upgrade compatibility.
+             Users upgrading from older builds may have this component
+             pinned as a home-screen icon. Removing it would leave a
+             dead icon, so we preserve it as a compatibility shim. -->
         <activity-alias
-            android:name=".IconDefault"
+            android:name=".MainActivityAlias"
             android:enabled="true"
             android:exported="true"
             android:icon="@mipmap/ic_launcher"
@@ -215,795 +193,38 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
         </activity-alias>
+
         <activity-alias
-            android:name=".IconMarkWhite"
+            android:name=".MainActivityStatic"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/app_icon_mark_white"
+            android:icon="@mipmap/ic_launcher_static"
             android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_mark_white"
+            android:roundIcon="@mipmap/ic_launcher_static_round"
             android:targetActivity=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
         </activity-alias>
-        <activity-alias
-            android:name=".IconMarkBlack"
-            android:enabled="false"
+
+        <activity
+            android:name=".discord.DiscordOAuthActivity"
             android:exported="true"
-            android:icon="@mipmap/app_icon_mark_black"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_mark_black"
-            android:targetActivity=".MainActivity">
+            android:launchMode="singleTask"
+            android:theme="@style/Theme.AppCompat.NoActionBar">
             <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="metrolistdiscord" />
+                <data android:host="oauth2" />
+                <data android:pathPrefix="/callback" />
             </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconMarkMaterial"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_mark_material"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_mark_material"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconMarkTransparent"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_mark_transparent"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_mark_transparent"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconOutline"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_outline"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_outline"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconOutlineWhite"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_outline_white"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_outline_white"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconOutlineBlack"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_outline_black"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_outline_black"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconOutlineMaterial"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_outline_material"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_outline_material"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconOutlineTransparent"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_outline_transparent"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_outline_transparent"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconAnimeWhite"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_anime_white"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_anime_white"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconAnimeDark"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_anime_dark"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_anime_dark"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconAnimeMaterial"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_anime_material"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_anime_material"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconAnimeTransparent"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_anime_transparent"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_anime_transparent"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <!-- each icon type on each custom colour, picked from the swatches under Customize -->
-        <activity-alias
-            android:name=".IconMarkRed"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_mark_custom_red"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_mark_custom_red"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconMarkOrange"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_mark_custom_orange"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_mark_custom_orange"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconMarkYellow"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_mark_custom_yellow"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_mark_custom_yellow"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconMarkGreen"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_mark_custom_green"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_mark_custom_green"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconMarkTeal"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_mark_custom_teal"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_mark_custom_teal"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconMarkSky"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_mark_custom_sky"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_mark_custom_sky"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconMarkBlue"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_mark_custom_blue"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_mark_custom_blue"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconMarkIndigo"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_mark_custom_indigo"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_mark_custom_indigo"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconMarkPurple"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_mark_custom_purple"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_mark_custom_purple"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconMarkPink"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_mark_custom_pink"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_mark_custom_pink"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconMarkGraphite"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_mark_custom_graphite"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_mark_custom_graphite"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconMarkCream"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_mark_custom_cream"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_mark_custom_cream"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconOutlineRed"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_outline_custom_red"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_outline_custom_red"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconOutlineOrange"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_outline_custom_orange"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_outline_custom_orange"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconOutlineYellow"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_outline_custom_yellow"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_outline_custom_yellow"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconOutlineGreen"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_outline_custom_green"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_outline_custom_green"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconOutlineTeal"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_outline_custom_teal"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_outline_custom_teal"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconOutlineSky"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_outline_custom_sky"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_outline_custom_sky"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconOutlineBlue"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_outline_custom_blue"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_outline_custom_blue"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconOutlineIndigo"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_outline_custom_indigo"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_outline_custom_indigo"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconOutlinePurple"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_outline_custom_purple"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_outline_custom_purple"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconOutlinePink"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_outline_custom_pink"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_outline_custom_pink"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconOutlineGraphite"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_outline_custom_graphite"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_outline_custom_graphite"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconOutlineCream"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_outline_custom_cream"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_outline_custom_cream"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconAnimeRed"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_anime_custom_red"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_anime_custom_red"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconAnimeOrange"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_anime_custom_orange"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_anime_custom_orange"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconAnimeYellow"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_anime_custom_yellow"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_anime_custom_yellow"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconAnimeGreen"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_anime_custom_green"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_anime_custom_green"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconAnimeTeal"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_anime_custom_teal"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_anime_custom_teal"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconAnimeSky"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_anime_custom_sky"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_anime_custom_sky"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconAnimeBlue"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_anime_custom_blue"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_anime_custom_blue"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconAnimeIndigo"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_anime_custom_indigo"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_anime_custom_indigo"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconAnimePurple"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_anime_custom_purple"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_anime_custom_purple"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconAnimePink"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_anime_custom_pink"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_anime_custom_pink"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconAnimeGraphite"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_anime_custom_graphite"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_anime_custom_graphite"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
-        <activity-alias
-            android:name=".IconAnimeCream"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/app_icon_anime_custom_cream"
-            android:label="@string/app_name"
-            android:roundIcon="@mipmap/app_icon_anime_custom_cream"
-            android:targetActivity=".MainActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcuts" />
-        </activity-alias>
+        </activity>
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -1015,35 +236,18 @@
                 android:resource="@xml/provider_paths" />
         </provider>
 
-        <provider
-            android:name="com.dpi.DensityScaler"
-            android:authorities="${applicationId}.com.dpi.DensityScaler"
-            android:enabled="true"
-            android:exported="false" />
-
-        <!-- Discord's login page sends the browser back here once the user says yes -->
-        <activity
-            android:name=".discord.DiscordLoginActivity"
-            android:exported="true"
-            android:excludeFromRecents="true"
-            android:launchMode="singleTask"
-            android:noHistory="true"
-            android:taskAffinity=""
-            android:theme="@android:style/Theme.Translucent.NoTitleBar">
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-
-                <data android:scheme="${discordRedirectScheme}" />
-            </intent-filter>
-        </activity>
-
         <activity
             android:name="com.yalantis.ucrop.UCropActivity"
             android:exported="false"
             android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
+
+        <activity
+            android:name=".recognition.RecognitionLaunchActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:noHistory="true"
+            android:theme="@style/Theme.Metrolist.Transparent" />
 
         <service
             android:name=".playback.MusicService"
@@ -1067,6 +271,30 @@
             </intent-filter>
         </service>
 
+        <!-- Receiver for Listen Together notification actions (Approve/Reject) -->
+        <receiver
+            android:name=".listentogether.ListenTogetherActionReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".playback.alarm.MusicAlarmReceiver"
+            android:enabled="true"
+            android:exported="false" />
+
+        <receiver
+            android:name=".playback.alarm.MusicAlarmRescheduleReceiver"
+            android:directBootAware="true"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
         <receiver
             android:name="androidx.media3.session.MediaButtonReceiver"
             android:exported="true">
@@ -1085,14 +313,29 @@
             android:label="@string/widget_music_player">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.mochyy.mochymusic.widget.PLAY_PAUSE" />
-                <action android:name="com.mochyy.mochymusic.widget.LIKE" />
-                <action android:name="com.mochyy.mochymusic.widget.UPDATE_WIDGET" />
+                <action android:name="com.metrolist.music.widget.PLAY_PAUSE" />
+                <action android:name="com.metrolist.music.widget.LIKE" />
+                <action android:name="com.metrolist.music.widget.UPDATE_WIDGET" />
             </intent-filter>
 
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/music_widget_info" />
+        </receiver>
+
+
+        <!-- Playlist Widget -->
+        <receiver
+            android:name=".widget.PlaylistWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_playlists">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/playlist_widget_info" />
         </receiver>
 
         <!-- Turntable Widget -->
@@ -1102,9 +345,9 @@
             android:label="@string/widget_turntable">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.mochyy.mochymusic.widget.TURNTABLE_PLAY_PAUSE" />
-                <action android:name="com.mochyy.mochymusic.widget.TURNTABLE_LIKE" />
-                <action android:name="com.mochyy.mochymusic.widget.UPDATE_TURNTABLE_WIDGET" />
+                <action android:name="com.metrolist.music.widget.TURNTABLE_PLAY_PAUSE" />
+                <action android:name="com.metrolist.music.widget.TURNTABLE_LIKE" />
+                <action android:name="com.metrolist.music.widget.UPDATE_TURNTABLE_WIDGET" />
             </intent-filter>
 
             <meta-data
@@ -1115,7 +358,42 @@
         <!-- Google Cast Options Provider -->
         <meta-data
             android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
-            android:value="com.mochyy.mochymusic.cast.CastOptionsProvider" />
+            android:value="com.metrolist.music.cast.CastOptionsProvider" />
+
+        <!-- Music Recognizer Widget -->
+        <receiver
+            android:name=".widget.MusicRecognizerWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_recognizer_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.metrolist.music.widget.recognizer.TAP_MIC" />
+                <action android:name="com.metrolist.music.widget.recognizer.UPDATE" />
+                <action android:name="com.metrolist.music.widget.recognizer.RESET" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/recognizer_widget_info" />
+        </receiver>
+
+        <service
+            android:name=".recognition.RecognitionForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+
+        <!-- Music Recognizer Quick Settings Tile -->
+        <service
+            android:name=".quicksettings.MusicRecognizerTileService"
+            android:label="@string/qs_tile_music_recognizer"
+            android:icon="@drawable/mic"
+            android:exported="true"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
     </application>
 
 </manifest>

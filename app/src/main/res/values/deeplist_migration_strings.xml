@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="deeplist_library_preparing">Preparing your library…</string>
-    <string name="deeplist_library_recovery_title">Your previous library needs attention</string>
-    <string name="deeplist_library_recovery_body">Deeplist could not safely open your previous library. The original data has not been deleted. Keep this app installed and do not clear its data. You can retry, or close the app and install a recovery update.</string>
-    <string name="deeplist_library_retry">Retry</string>
-    <string name="deeplist_library_close">Close app</string>
-</resources>
