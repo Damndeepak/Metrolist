@@ -445,10 +445,6 @@ fun OriginalLyrics(
         mutableIntStateOf(0)
     }
 
-    var previousLineIndex by rememberSaveable {
-        mutableIntStateOf(0)
-    }
-
     var lastPreviewTime by rememberSaveable {
         mutableLongStateOf(0L)
     }
@@ -554,9 +550,11 @@ fun OriginalLyrics(
         selectedIndices.clear()
     }
 
-    LaunchedEffect(lyrics) {
+    var scrollAnchorIndex by remember { mutableIntStateOf(-1) }
+    LaunchedEffect(lyrics, lines) {
         if (lyrics.isNullOrEmpty() || !lyrics.startsWith("[")) {
             currentLineIndex = -1
+            scrollAnchorIndex = -1
             return@LaunchedEffect
         }
         while (isActive) {
@@ -566,7 +564,18 @@ fun OriginalLyrics(
             val position = sliderPosition ?: playerConnection.player.currentPosition
             currentPlaybackPosition = position
             val lyricsOffset = currentSong?.song?.lyricsOffset ?: 0
-            currentLineIndex = findCurrentLineIndex(lines, position + lyricsOffset)
+            val time = position + lyricsOffset
+            currentLineIndex = findCurrentLineIndex(lines, time)
+            // Preserve the previous line's scroll anchor while its timed words overlap.
+            var anchor = currentLineIndex
+            if (!isSeeking && anchor in 1 until lines.size) {
+                while (anchor > 0) {
+                    val end = lines[anchor - 1].words?.lastOrNull()?.endTime ?: break
+                    if (end * 1000 <= time) break
+                    anchor--
+                }
+            }
+            scrollAnchorIndex = anchor
         }
     }
 
@@ -638,7 +647,8 @@ fun OriginalLyrics(
         },
     )
 
-    LaunchedEffect(currentLineIndex, lastPreviewTime, initialScrollDone, isAutoScrollEnabled) {
+    var previousScrollAnchor by remember(lines) { mutableIntStateOf(-1) }
+    LaunchedEffect(currentLineIndex, scrollAnchorIndex, lastPreviewTime, initialScrollDone, isAutoScrollEnabled) {
         if (!isSynced) return@LaunchedEffect
         if (isAutoScrollEnabled) {
             if ((currentLineIndex == 0 && shouldScrollToFirstLine) || !initialScrollDone) {
@@ -655,11 +665,11 @@ fun OriginalLyrics(
                     // Fast scroll for seeking to center the target line (300ms)
                     val seekCenterIndex = kotlin.math.max(0, currentLineIndex)
                     performSmoothPageScroll(seekCenterIndex, 500) // Fast seek duration
-                } else if ((lastPreviewTime == 0L || currentLineIndex != previousLineIndex) && scrollLyrics) {
+                } else if ((lastPreviewTime == 0L || scrollAnchorIndex != previousScrollAnchor) && scrollLyrics) {
                     // Auto-scroll when lyrics settings allow it
-                    if (currentLineIndex != previousLineIndex) {
+                    if (scrollAnchorIndex != previousScrollAnchor) {
                         // Calculate which line should be at the top to center the active group
-                        val centerTargetIndex = currentLineIndex
+                        val centerTargetIndex = scrollAnchorIndex
                         performSmoothPageScroll(centerTargetIndex, 1500) // Auto scroll duration
                     }
                 }
@@ -668,7 +678,7 @@ fun OriginalLyrics(
         if (currentLineIndex > 0) {
             shouldScrollToFirstLine = true
         }
-        previousLineIndex = currentLineIndex
+        previousScrollAnchor = scrollAnchorIndex
     }
 
     BoxWithConstraints(

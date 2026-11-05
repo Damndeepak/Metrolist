@@ -1,5 +1,9 @@
 package com.metrolist.music.ui.component
 
+import android.content.Context
+import android.media.AudioAttributes
+import android.media.SoundPool
+import android.os.SystemClock
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
@@ -16,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -38,6 +43,16 @@ internal fun DeeplistGacha(pool: List<MediaMetadata>, enabled: Boolean, onWinner
     var winner by remember { mutableStateOf<MediaMetadata?>(null) }
     var rolling by remember { mutableStateOf(false) }
     val reel = remember { Animatable(0f) }
+    val context = LocalContext.current.applicationContext
+    var sounds by remember { mutableStateOf<GachaSounds?>(null) }
+    DisposableEffect(Unit) {
+        onDispose { sounds?.close() }
+    }
+    LaunchedEffect(reel) {
+        snapshotFlow { floor(reel.value).toInt() }.collect {
+            if (rolling && it > 0) sounds?.tick()
+        }
+    }
     val covers = candidates.ifEmpty { available.take(9) }
 
     Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
@@ -78,6 +93,7 @@ internal fun DeeplistGacha(pool: List<MediaMetadata>, enabled: Boolean, onWinner
                 enabled = enabled && !rolling && available.size >= 4,
                 onClick = {
                     if (!rolling) {
+                        if (sounds == null) sounds = GachaSounds(context)
                         rolling = true
                         scope.launch {
                             try {
@@ -91,6 +107,7 @@ internal fun DeeplistGacha(pool: List<MediaMetadata>, enabled: Boolean, onWinner
                                     tween(3200, easing = CubicBezierEasing(.12f, .65f, .12f, 1f)),
                                 )
                                 winner = picks[index]
+                                sounds?.win()
                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                 latestOnWinner(picks[index])
                             } finally {
@@ -104,4 +121,25 @@ internal fun DeeplistGacha(pool: List<MediaMetadata>, enabled: Boolean, onWinner
             }
         }
     }
+}
+
+// Sound effects from Mochy Music (GPL-3.0).
+private class GachaSounds(context: Context) {
+    private val pool = SoundPool.Builder().setMaxStreams(4)
+        .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_GAME)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
+        .build()
+    private val tick = pool.load(context, R.raw.gacha_tick, 1)
+    private val win = pool.load(context, R.raw.gacha_win, 1)
+    private var lastTick = 0L
+
+    fun tick() {
+        val now = SystemClock.uptimeMillis()
+        if (now - lastTick < 28L) return
+        lastTick = now
+        pool.play(tick, .5f, .5f, 1, 0, .94f + Random.nextFloat() * .12f)
+    }
+
+    fun win() { pool.play(win, .75f, .75f, 2, 0, 1f) }
+    fun close() = pool.release()
 }

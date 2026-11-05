@@ -116,6 +116,14 @@ internal fun DeeplistProfileScreen(navController: NavController) {
     val uriHandler = LocalUriHandler.current
     val scope = rememberCoroutineScope()
     val database = LocalDatabase.current
+    val playTimeFlow = remember(database) {
+        database.getTotalPlayTimeInRange(
+            java.time.LocalDateTime.of(1970, 1, 1, 0, 0),
+            java.time.LocalDateTime.of(9999, 12, 31, 0, 0),
+        )
+    }
+    val playTime by playTimeFlow.collectAsStateWithLifecycle(initialValue = null)
+    val minutes = (playTime ?: 0L).coerceAtLeast(0L) / 60_000L
     var edit by remember { mutableStateOf(false) }
     var moments by remember { mutableStateOf(false) }
     var publish by remember { mutableStateOf(false) }
@@ -173,6 +181,22 @@ internal fun DeeplistProfileScreen(navController: NavController) {
             }) { Text(stringResource(R.string.dp_share_profile)) }
         }
         TextButton(onClick={photo.launch("image/*")},enabled=!state.busy) { Text(stringResource(R.string.dp_photo)) }
+        Card(
+            onClick = { navController.navigate("stats") },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(22.dp),
+        ) {
+            Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(R.string.deeplist_profile_listening_time), style = MaterialTheme.typography.labelLarge)
+                Text(
+                    stringResource(R.string.deeplist_profile_listening_duration, minutes / 60, minutes % 60),
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                HorizontalDivider()
+                Text(stringResource(R.string.dp_capsule_details), color = MaterialTheme.colorScheme.primary)
+            }
+        }
         HorizontalDivider()
         TextButton(onClick={moments=true}) { Text(stringResource(R.string.dp_moments)) }
         TextButton(onClick={publish=true},enabled=!state.busy) { Text(stringResource(R.string.dp_public_collections)) }
