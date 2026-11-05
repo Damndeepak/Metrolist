@@ -277,7 +277,8 @@ class MainActivity : ComponentActivity() {
     lateinit var database: MusicDatabase
 
     @Inject
-    lateinit var downloadUtil: DownloadUtil
+    lateinit var downloadUtilProvider: dagger.Lazy<DownloadUtil>
+    private val downloadUtil: DownloadUtil get() = downloadUtilProvider.get()
 
     @Inject
     lateinit var syncUtils: SyncUtils
@@ -296,6 +297,41 @@ class MainActivity : ComponentActivity() {
     // keeps the app's animation speed following android's own animation scale while we're open
     private var systemScaleObserver: android.database.ContentObserver? = null
     private var introPlays = false
+    private var libraryReady by mutableStateOf(false)
+    private var libraryError by mutableStateOf(false)
+    private var libraryPreparing = false
+    private var playerServiceBound = false
+
+    private fun prepareLibrary() {
+        if (libraryPreparing) return
+        libraryPreparing = true
+        libraryError = false
+        lifecycleScope.launch {
+            try {
+                withContext(Dispatchers.IO) { database.openHelper.writableDatabase }
+                libraryReady = true
+                bindPlayerIfReady()
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Timber.tag("DeeplistMigration").e(error, "Previous library could not be opened safely")
+                libraryError = true
+                introRequested = false
+                LaunchGate.skip()
+            } finally { libraryPreparing = false }
+        }
+    }
+
+    private fun bindPlayerIfReady() {
+        if (!libraryReady || playerServiceBound || !lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)) return
+        playerServiceBound = bindService(Intent(this, MusicService::class.java), serviceConnection, BIND_AUTO_CREATE)
+    }
+
+    private fun unbindPlayerIfNeeded() {
+        if (!playerServiceBound) return
+        unbindService(serviceConnection)
+        playerServiceBound = false
+    }
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -344,16 +380,12 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        bindService(
-            Intent(this, MusicService::class.java),
-            serviceConnection,
-            BIND_AUTO_CREATE
-        )
+        bindPlayerIfReady()
     }
 
     override fun onStop() {
         playerConnection?.isUiVisible?.value = false
-        unbindService(serviceConnection)
+        unbindPlayerIfNeeded()
         super.onStop()
     }
 
@@ -366,7 +398,7 @@ class MainActivity : ComponentActivity() {
             isFinishing
         ) {
             stopService(Intent(this, MusicService::class.java))
-            unbindService(serviceConnection)
+            unbindPlayerIfNeeded()
         }
         // the service outlives us, so take our listener off its player or a recreate leaves the old one firing
         playerConnection?.dispose()
@@ -434,13 +466,22 @@ class MainActivity : ComponentActivity() {
             lifecycle,
         )
         setContent(parent = motionRecomposer) {
-            mochyApp(
-                playerConnection = playerConnection,
-                database = database,
-                downloadUtil = downloadUtil,
-                syncUtils = syncUtils,
-            )
+            if (libraryReady) {
+                mochyApp(
+                    playerConnection = playerConnection,
+                    database = database,
+                    downloadUtil = downloadUtil,
+                    syncUtils = syncUtils,
+                )
+            } else {
+                com.mochyy.mochymusic.ui.component.DeeplistLibraryRecovery(
+                    failed = libraryError,
+                    onRetry = ::prepareLibrary,
+                    onClose = ::finish,
+                )
+            }
         }
+        prepareLibrary()
     }
 
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
