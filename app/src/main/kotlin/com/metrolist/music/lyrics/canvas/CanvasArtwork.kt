@@ -3,6 +3,8 @@
 package com.metrolist.music.lyrics.canvas
 
 import com.metrolist.music.deeplist.deeplistReadLimited
+import com.metrolist.music.lyrics.canvas.mochy.MonochromeApiCanvas
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -15,7 +17,7 @@ import java.text.Normalizer
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
-internal enum class CanvasSource { APPLE, TIDAL, COMMUNITY }
+internal enum class CanvasSource { MONOCHROME, APPLE, TIDAL, COMMUNITY }
 
 internal data class CanvasArtwork(
     val url: String,
@@ -74,7 +76,16 @@ internal object DeeplistCanvasResolver {
         val key = "$cleanTitle|$cleanArtist"
         mutex.withLock {
             cache[key]?.takeIf { it.expires > System.currentTimeMillis() }?.let { return@withLock it.result }
-            val sources = listOf<() -> CanvasArtwork?>(
+            val sources = listOf<suspend () -> CanvasArtwork?>(
+                {
+                    withTimeoutOrNull(5_000) {
+                        MonochromeApiCanvas.getBySongArtist(cleanTitle, cleanArtist)?.let { result ->
+                            result.preferredAnimationUrl?.let { url ->
+                                CanvasArtwork(url, title = result.name, artist = result.artist, source = CanvasSource.MONOCHROME)
+                            }
+                        }
+                    }
+                },
                 { AppleMusicCanvas.search(client, cleanTitle, cleanArtist, null) },
                 { TidalCanvas.search(client, cleanTitle, cleanArtist, null) },
                 { CommunityCanvas.search(client, cleanTitle, cleanArtist, null) },

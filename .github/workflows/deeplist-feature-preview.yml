@@ -1,0 +1,61 @@
+name: Deeplist feature preview
+
+on:
+  push:
+    branches: [deeplist-mochy-feature-preview]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wordstorm-android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    name: Build Deeplist
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      METROLIST_APP_NAME: Deeplist
+      METROLIST_ABI_FILTERS: arm64-v8a
+    steps:
+      - name: Check out custom source
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Cache Gradle downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: wordstorm-gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle.kts', 'gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: wordstorm-gradle-${{ runner.os }}-
+
+      - name: Install Android SDK components
+        shell: bash
+        run: |
+          SDK_MANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          "$SDK_MANAGER" --licenses < <(yes) >/dev/null
+          "$SDK_MANAGER" --channel=3 "platforms;android-37.0" "build-tools;36.0.0"
+
+      - name: Build debug APK and run unit tests
+        shell: bash
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon --max-workers=1 --no-parallel -Pkotlin.compiler.execution.strategy=in-process -Dorg.gradle.jvmargs="-Xmx3g -XX:ActiveProcessorCount=2" :app:assembleFossDebug :app:testFossDebugUnitTest
+          python3 - <<'PYTEST'
+          import xml.etree.ElementTree as ET
+          result = ET.parse('app/build/test-results/testFossDebugUnitTest/TEST-com.metrolist.music.deeplist.DeeplistAccountGateStartupTest.xml').getroot()
+          assert int(result.get('tests', 0)) > 0
+          assert all(int(result.get(key, 0)) == 0 for key in ('failures', 'errors', 'skipped'))
+          print('Real startup gate regression passed without a database composition provider.')
+          PYTEST
+

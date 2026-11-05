@@ -1348,4 +1348,6 @@ Your little world.</string>
     <string name="deeplist_gacha_rolling">Rolling…</string>
     <string name="deeplist_gacha_wait">Gacha needs at least four songs from Home.</string>
     <string name="deeplist_gacha_guest">Only the room host can start a roll.</string>
+    <string name="deeplist_profile_listening_time">Total listening time</string>
+    <string name="deeplist_profile_listening_duration">%1$d h %2$d m</string>
 </resources>
