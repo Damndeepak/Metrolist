@@ -136,15 +136,38 @@ internal fun DeeplistProfileScreen(navController: NavController) {
     }
     Column(Modifier.fillMaxSize().safeDrawingPadding().verticalScroll(rememberScrollState()).padding(24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
         TextButton(onClick={navController.popBackStack()}) { Text(stringResource(R.string.dp_back)) }
-        Box(Modifier.size(104.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),contentAlignment=Alignment.Center) {
-            if(user.optString("avatar").isNotBlank()) AsyncImage(user.optString("avatar"),null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
-            else Text(user.optString("name").take(1).uppercase(),style=MaterialTheme.typography.displayMedium)
+        val cardColors = MaterialTheme.colorScheme
+        Column(
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))
+                .background(Brush.linearGradient(listOf(cardColors.primaryContainer, cardColors.surfaceContainerHigh)))
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                stringResource(R.string.dp_profile),
+                color = cardColors.onPrimaryContainer,
+                style = MaterialTheme.typography.labelLarge,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Box(
+                    Modifier.size(76.dp).clip(CircleShape).background(cardColors.surface),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (user.optString("avatar").isNotBlank()) {
+                        AsyncImage(user.optString("avatar"), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                    } else {
+                        Text(user.optString("name").take(1).uppercase(), style = MaterialTheme.typography.headlineLarge)
+                    }
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(user.optString("name"), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text("@" + user.optString("username"), color = cardColors.onSurfaceVariant)
+                }
+            }
+            user.optString("bio").takeIf { it.isNotBlank() }?.let { Text(it) }
         }
-        Text(user.optString("name"),style=MaterialTheme.typography.headlineLarge,fontWeight=FontWeight.Bold)
-        Text("@"+user.optString("username"),color=MaterialTheme.colorScheme.onSurfaceVariant)
-        user.optString("bio").takeIf { it.isNotBlank() }?.let { Text(it) }
         Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-            OutlinedButton(onClick={edit=true},enabled=!state.busy) { Text(stringResource(R.string.dp_edit_profile)) }
+            FilledTonalButton(onClick={edit=true},enabled=!state.busy) { Text(stringResource(R.string.dp_edit_profile)) }
             OutlinedButton(onClick={
                 context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply { type="text/plain";putExtra(Intent.EXTRA_TEXT,DeeplistAccount.WEBSITE+"/app-profile.html?user="+Uri.encode(user.optString("username"))) },null))
             }) { Text(stringResource(R.string.dp_share_profile)) }

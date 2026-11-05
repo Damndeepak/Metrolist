@@ -44,6 +44,8 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ContainedLoadingIndicator
@@ -137,7 +139,6 @@ import com.metrolist.music.playback.queues.YouTubeAlbumRadio
 import com.metrolist.music.playback.queues.YouTubeQueue
 import com.metrolist.music.ui.component.AlbumGridItem
 import com.metrolist.music.ui.component.ArtistGridItem
-import com.metrolist.music.ui.component.ChipsRow
 import com.metrolist.music.ui.component.HideOnScrollFAB
 import com.metrolist.music.ui.component.LocalBottomSheetPageState
 import com.metrolist.music.ui.component.LocalMenuState
@@ -1190,21 +1191,46 @@ fun HomeScreen(
                 state = lazylistState,
                 contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
             ) {
-                item {
-                    ChipsRow(
-                        chips = homePage?.chips?.map { it to it.title } ?: emptyList(),
-                        currentValue = selectedChip,
-                        onValueUpdate = {
-                            viewModel.toggleChip(it)
-                        },
-                    )
+                item(key = "deeplist_home_filters") {
+                    val chips = homePage?.chips.orEmpty()
+                    if (chips.isNotEmpty()) {
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            items(chips) { chip ->
+                                FilterChip(
+                                    selected = chip == selectedChip,
+                                    onClick = { viewModel.toggleChip(chip) },
+                                    label = { Text(chip.title) },
+                                    shape = RoundedCornerShape(50),
+                                    border = null,
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                                    ),
+                                )
+                            }
+                        }
+                    }
                 }
 
-                if (selectedChip == null && (quickPicks?.size ?: 0) >= 4) {
+                if (selectedChip == null) {
                     item(key = "deeplist_gacha") {
                         val picks = quickPicks
-                        val pool = remember(picks) { picks.orEmpty().map { it.toMediaMetadata() } }
-                        DeeplistGacha(pool) { playerConnection.playQueue(YouTubeQueue.radio(it)) }
+                        val favorites = forgottenFavorites
+                        val sections = homePage?.sections
+                        val pool = remember(picks, favorites, sections) {
+                            (picks.orEmpty().map { it.toMediaMetadata() } +
+                                favorites.orEmpty().map { it.toMediaMetadata() } +
+                                sections.orEmpty().asSequence().flatMap { it.items.asSequence() }
+                                    .filterIsInstance<SongItem>().take(24).map { it.toMediaMetadata() }.toList())
+                                .distinctBy { it.id }
+                        }
+                        DeeplistGacha(pool, enabled = !isListenTogetherGuest) {
+                            if (!isListenTogetherGuest) playerConnection.playQueue(YouTubeQueue.radio(it))
+                        }
                     }
                 }
 

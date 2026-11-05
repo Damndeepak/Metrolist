@@ -1549,7 +1549,10 @@ fun BottomSheetPlayer(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = PlayerHorizontalPadding),
+                                    .padding(horizontal = PlayerHorizontalPadding)
+                                    .clip(RoundedCornerShape(36.dp))
+                                    .background(TextBackgroundColor.copy(alpha = .10f))
+                                    .padding(horizontal = 6.dp, vertical = 6.dp),
                         ) {
                             val backInteractionSource = remember { MutableInteractionSource() }
                             val nextInteractionSource = remember { MutableInteractionSource() }
@@ -1730,7 +1733,10 @@ fun BottomSheetPlayer(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = PlayerHorizontalPadding),
+                                    .padding(horizontal = PlayerHorizontalPadding)
+                                    .clip(RoundedCornerShape(36.dp))
+                                    .background(TextBackgroundColor.copy(alpha = .10f))
+                                    .padding(horizontal = 6.dp, vertical = 6.dp),
                         ) {
                             Box(modifier = Modifier.weight(1f)) {
                                 ResizableIconButton(

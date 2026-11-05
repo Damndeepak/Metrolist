@@ -29,7 +29,7 @@ import kotlin.random.Random
 
 // Cover reel and randomized landing adapted from Mochy Music's HeroCarousel (GPL-3.0).
 @Composable
-internal fun DeeplistGacha(pool: List<MediaMetadata>, onWinner: (MediaMetadata) -> Unit) {
+internal fun DeeplistGacha(pool: List<MediaMetadata>, enabled: Boolean, onWinner: (MediaMetadata) -> Unit) {
     val available = remember(pool) { pool.distinctBy { it.id } }
     val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
@@ -39,12 +39,11 @@ internal fun DeeplistGacha(pool: List<MediaMetadata>, onWinner: (MediaMetadata) 
     var rolling by remember { mutableStateOf(false) }
     val reel = remember { Animatable(0f) }
     val covers = candidates.ifEmpty { available.take(9) }
-    if (covers.size < 4) return
 
     Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(stringResource(R.string.deeplist_gacha_title), style = MaterialTheme.typography.titleLarge)
-            BoxWithConstraints(Modifier.fillMaxWidth().height(80.dp).clip(RoundedCornerShape(12.dp))) {
+            if (covers.isNotEmpty()) BoxWithConstraints(Modifier.fillMaxWidth().height(80.dp).clip(RoundedCornerShape(12.dp))) {
                 val step = minOf(maxWidth / 3, 86.dp)
                 val position = reel.value
                 val center = floor(position).toInt()
@@ -67,12 +66,16 @@ internal fun DeeplistGacha(pool: List<MediaMetadata>, onWinner: (MediaMetadata) 
                 }
             }
             Text(
-                winner?.title ?: stringResource(R.string.deeplist_gacha_hint),
+                winner?.title ?: stringResource(when {
+                    !enabled -> R.string.deeplist_gacha_guest
+                    available.size < 4 -> R.string.deeplist_gacha_wait
+                    else -> R.string.deeplist_gacha_hint
+                }),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Button(
-                enabled = !rolling && available.size >= 4,
+                enabled = enabled && !rolling && available.size >= 4,
                 onClick = {
                     if (!rolling) {
                         rolling = true

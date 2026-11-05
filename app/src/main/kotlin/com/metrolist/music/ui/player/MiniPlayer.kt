@@ -378,7 +378,7 @@ private fun NewMiniPlayer(
         val interactionSource = remember { MutableInteractionSource() }
         val pressed by interactionSource.collectIsPressedAsState()
         val touchScale by animateFloatAsState(
-            if (pressed) .975f else 1f,
+            if (pressed) .95f else 1f,
             animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
             label = "miniPlayerTouch",
         )
@@ -750,12 +750,19 @@ private fun LegacyMiniPlayer(
     val trackColor = MaterialTheme.colorScheme.surfaceVariant
 
     val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val touchScale by animateFloatAsState(
+        if (pressed) .95f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
+        label = "legacyMiniPlayerTouch",
+    )
 
     Box(
         modifier =
             modifier
                 .then(if (isTabletLandscape) Modifier.width(500.dp) else Modifier.fillMaxWidth())
                 .height(MiniPlayerHeight)
+                .graphicsLayer { scaleX = touchScale; scaleY = touchScale }
                 .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
                 .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
                 .background(
