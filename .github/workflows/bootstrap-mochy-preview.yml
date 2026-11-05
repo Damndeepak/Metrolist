@@ -60,14 +60,18 @@ jobs:
           decoded = []
           for item in files:
               p = safe_path(item['path'])
+              if p.parts[0] == '.github':
+                  continue
               content = base64.b64decode(item['contentBase64'], validate=True)
               assert hashlib.sha256(content).hexdigest() == item['sha256']
               assert item['mode'] in ('100644', '100755')
               decoded.append((p, content, item['mode']))
           upstream_paths = subprocess.check_output(['git', '-C', str(upstream), 'ls-files', '-z']).decode().split('\0')
-          subprocess.run(['git', '-C', str(root), 'rm', '-r', '--ignore-unmatch', '.'], check=True)
+          subprocess.run(['git', '-C', str(root), 'rm', '-r', '-q', '--ignore-unmatch', '--', '.', ':(exclude).github/**'], check=True)
           for name in filter(None, upstream_paths):
               p = safe_path(name)
+              if p.parts[0] == '.github':
+                  continue
               source = upstream / p
               assert source.is_file() and not source.is_symlink()
               destination = root / p
@@ -81,6 +85,8 @@ jobs:
               destination.chmod(0o755 if mode == '100755' else 0o644)
           subprocess.run(['git', '-C', str(root), 'add', '-A'], check=True)
           assert git('diff', '--cached', '--name-only')
+          # GITHUB_TOKEN cannot edit workflows; retain the seed's complete .github tree.
+          assert not git('diff', '--cached', '--name-only', '--', '.github')
           assert (root / 'LICENSE').read_bytes() == (upstream / 'LICENSE').read_bytes()
           subprocess.run(['git', '-C', str(root), '-c', 'user.name=github-actions[bot]', '-c', 'user.email=41898282+github-actions[bot]@users.noreply.github.com', 'commit', '-m', 'feat(deeplist): import pinned Mochy base with migration bridge'], check=True)
           # Ordinary fast-forward push rejects concurrent branch updates.
