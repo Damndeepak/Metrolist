@@ -1345,7 +1345,7 @@ Your little world.</string>
     <string name="dp_moment_save_current">Save this moment</string>
     <string name="dp_moment_save">Save moment</string>
     <string name="deeplist_gacha_title">Gacha here!</string>
-    <string name="deeplist_gacha_hint">Roll for a random song from Home.</string>
+    <string name="deeplist_gacha_hint">Roll to automatically play a random song from Home.</string>
     <string name="deeplist_gacha_roll">Roll</string>
     <string name="deeplist_gacha_rolling">Rolling…</string>
     <string name="deeplist_gacha_wait">Gacha needs at least four songs from Home.</string>

@@ -13,8 +13,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import kotlin.math.roundToInt
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -29,13 +27,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.CardDefaults
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -57,7 +50,6 @@ internal fun DeeplistGacha(pool: List<MediaMetadata>, enabled: Boolean, onWinner
     val haptics = LocalHapticFeedback.current
     val latestOnWinner by rememberUpdatedState(onWinner)
     var candidates by remember { mutableStateOf(emptyList<MediaMetadata>()) }
-    var winner by remember { mutableStateOf<MediaMetadata?>(null) }
     var rolling by remember { mutableStateOf(false) }
     val reel = remember { Animatable(0f) }
     val pointer = remember { Animatable(0f) }
@@ -135,7 +127,7 @@ internal fun DeeplistGacha(pool: List<MediaMetadata>, enabled: Boolean, onWinner
                     }), color = Color.White.copy(alpha = .7f), maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
                 Button(
-                    enabled = enabled && !rolling && winner == null && available.size >= 4,
+                    enabled = enabled && !rolling && available.size >= 4,
                     onClick = {
                         if (!rolling) {
                             if (sounds == null) sounds = GachaSounds(context)
@@ -146,15 +138,15 @@ internal fun DeeplistGacha(pool: List<MediaMetadata>, enabled: Boolean, onWinner
                                     reel.snapTo(0f)
                                     landingPop.snapTo(1f)
                                     candidates = picks
-                                    winner = null
                                     val index = Random.nextInt(picks.size)
                                     // The recording has 2.67s from its first audible tick to the win; retain the 2.8s roll.
                                     val duration = 2800
                                     val rotations = 2 + duration / 2500
                                     reel.animateTo((picks.size * rotations + index).toFloat(),
                                         tween(duration, easing = CubicBezierEasing(.15f, .45f, .2f, 1f)))
-                                    winner = picks[index]
                                     sounds?.win()
+                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    latestOnWinner(picks[index])
                                     launch {
                                         landingPop.animateTo(1.1f, tween(120))
                                         landingPop.animateTo(1f, spring(dampingRatio = .35f, stiffness = 320f))
@@ -166,57 +158,6 @@ internal fun DeeplistGacha(pool: List<MediaMetadata>, enabled: Boolean, onWinner
                 ) { Text(stringResource(if (rolling) R.string.deeplist_gacha_rolling else R.string.deeplist_gacha_roll)) }
             }
         }
-        winner?.let { prize ->
-            Column(Modifier.fillMaxWidth().padding(16.dp)) {
-                ScratchPrize(prize) {
-                    winner = null
-                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    latestOnWinner(prize)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ScratchPrize(prize: MediaMetadata, onReveal: () -> Unit) {
-    val marks = remember(prize.id) { mutableStateListOf<Pair<Offset, Offset>>() }
-    val cells = remember(prize.id) { mutableSetOf<Int>() }
-    val reveal by rememberUpdatedState(onReveal)
-    var revealed by remember(prize.id) { mutableStateOf(false) }
-    val revealOnce = { if (!revealed) { revealed = true; onReveal() } }
-    val colors = MaterialTheme.colorScheme
-    Box(Modifier.fillMaxWidth().height(72.dp).clip(RoundedCornerShape(12.dp))) {
-        Text(
-            prize.title,
-            Modifier.align(Alignment.Center).padding(horizontal = 12.dp),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Canvas(
-            Modifier.matchParentSize()
-                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-                .pointerInput(prize.id) {
-                    detectDragGestures { change, _ ->
-                        change.consume()
-                        val point = change.position
-                        if (point.x !in 0f..size.width.toFloat() || point.y !in 0f..size.height.toFloat()) return@detectDragGestures
-                        marks.add(change.previousPosition to point)
-                        val column = (point.x / size.width * 8).toInt().coerceIn(0, 7)
-                        val row = (point.y / size.height * 3).toInt().coerceIn(0, 2)
-                        cells.add(row * 8 + column)
-                        if (cells.size >= 9 && !revealed) { revealed = true; reveal() }
-                    }
-                },
-        ) {
-            drawRect(Brush.linearGradient(listOf(colors.surfaceVariant, colors.outline, colors.surfaceVariant)))
-            marks.forEach { (start, end) ->
-                drawLine(colors.surface, start, end, 32.dp.toPx(), StrokeCap.Round, blendMode = BlendMode.Clear)
-            }
-        }
-    }
-    androidx.compose.material3.TextButton(onClick = revealOnce) {
-        Text(stringResource(R.string.deeplist_gacha_reveal))
     }
 }
 
