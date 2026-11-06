@@ -1,0 +1,89 @@
+name: Publish verified Deeplist 168
+on:
+  push:
+    branches: [deeplist-complete-staging]
+    paths: [.github/workflows/publish-deeplist-168.yml]
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: publish-deeplist-168
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Require the successful reviewed build
+        run: |
+          gh api repos/$GITHUB_REPOSITORY/actions/runs/42249538212 > run.json
+          python3 - <<'PY'
+          import json,os
+          r=json.load(open('run.json'))
+          assert r['status']=='completed' and r['conclusion']=='success'
+          assert r['head_sha']=='26d334a9596117977201a94bcc981d41e5a63255'
+          assert r['head_branch']=='deeplist-complete-staging'
+          assert r['head_repository']['full_name']==os.environ['GITHUB_REPOSITORY']
+          assert r['path']=='.github/workflows/deeplist-staging.yml'
+          PY
+      - uses: actions/download-artifact@v4
+        with:
+          name: Deeplist-APK
+          path: apk
+          run-id: 42249538212
+          github-token: ${{ github.token }}
+      - name: Verify the signed APK and publish its exact bytes
+        run: |
+          python3 - <<'PY'
+          import datetime,glob,hashlib,json,os,pathlib,re,shutil,subprocess,urllib.request
+          paths=glob.glob('apk/**/*.apk',recursive=True)
+          assert len(paths)==1,paths
+          apk=pathlib.Path(paths[0]);digest=hashlib.sha256(apk.read_bytes()).hexdigest()
+          assert digest=='9d903893a9d8b9e884dd5325805f788c13ac95c045ee393468aea94973f72b7a'
+          tools=sorted(glob.glob(os.environ['ANDROID_HOME']+'/build-tools/*'))[-1]
+          cert=subprocess.check_output([tools+'/apksigner','verify','--print-certs',str(apk)],text=True)
+          fingerprint='1c73c95916d7e14bac0533d0a4a20a3c01be78f066fcc0c1102254712c4bcd5d'
+          assert 'Signer #1 certificate SHA-256 digest: '+fingerprint in cert
+          badging=subprocess.check_output([tools+'/aapt','dump','badging',str(apk)],text=True)
+          assert "package: name='com.deepu.wordstorm' versionCode='168' versionName='13.8.6'" in badging
+          assert "application-label:'Deeplist'" in badging and 'application-debuggable' not in badging
+          changes=['Roll automatically plays the selected song when the reel lands; scratch/reveal has been removed.',
+              'Removed Spotify playlist import and its login flow. YouTube Music, Deeplist-link and CSV/song-list imports remain available.',
+              'Refreshed Library cards show real counts and artwork, with Recently Added and Liked cards.',
+              'Optional Artwork lyrics mode adds an oversized curved cover and glass controls while preserving saved Apple lyrics preferences.',
+              'Profile adds real listening collections and avatar interactions; Google login and account sync are preserved.']
+          manifest=dict(packageId='com.deepu.wordstorm',versionName='13.8.6',versionCode=168,sizeBytes=apk.stat().st_size,sha256=digest,
+              signingCertificateSha256=fingerprint,publishedAt=datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat().replace('+00:00','Z'),
+              downloadUrl='https://world.damndeepak.workers.dev/downloads/deeplist.apk',
+              assetUrl='https://github.com/Damndeepak/Metrolist/releases/download/deeplist-168/Deeplist.apk',
+              sourceCommit='26d334a9596117977201a94bcc981d41e5a63255',changelog=changes)
+          pathlib.Path('Deeplist.apk').write_bytes(apk.read_bytes())
+          pathlib.Path('deeplist-release.json').write_text(json.dumps(manifest,indent=2)+'\n')
+          notes='\n'.join('- '+line for line in changes)+'\n\n286 unit tests passed. Package and original signing certificate verified. Physical-phone testing remains unverified. Full music-video retiming and beat-matched AutoMix are not included.\n'
+          repo=os.environ['GITHUB_REPOSITORY'];assert repo=='Damndeepak/Metrolist'
+          base='https://api.github.com/repos/'+repo
+          def request(url,method='GET',data=None,content_type='application/json'):
+              req=urllib.request.Request(url,method=method,data=data,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json','Content-Type':content_type,'X-GitHub-Api-Version':'2022-11-28'})
+              with urllib.request.urlopen(req,timeout=120) as response:return json.load(response)
+          url=base+'/releases/436730232'
+          release=request(url)
+          assert release['tag_name']=='deeplist-168' and release['target_commitish']==manifest['sourceCommit']
+          expected={name:(pathlib.Path(name).stat().st_size,hashlib.sha256(pathlib.Path(name).read_bytes()).hexdigest()) for name in ['Deeplist.apk','deeplist-release.json']}
+          if release['draft']:
+              assert not release['assets'],'Draft must have no unreviewed or partial assets'
+              for name in expected:
+                  data=pathlib.Path(name).read_bytes()
+                  asset=request('https://uploads.github.com/repos/'+repo+'/releases/436730232/assets?name='+name,'POST',data,'application/octet-stream')
+                  assert asset['size']==expected[name][0] and asset['digest']=='sha256:'+expected[name][1]
+              release=request(url)
+              assert {a['name']:(a['size'],a['digest']) for a in release['assets']}=={n:(v[0],'sha256:'+v[1]) for n,v in expected.items()}
+              release=request(url,'PATCH',json.dumps(dict(draft=False,make_latest='true',name='Deeplist 13.8.6',body=notes)).encode())
+          assert not release['draft']
+          published=request(base+'/releases/tags/deeplist-168')
+          asset=next(a for a in published['assets'] if a['name']=='Deeplist.apk')
+          assert asset['digest']=='sha256:'+digest and asset['size']==manifest['sizeBytes']
+          print('Published:',published['html_url'])
+          print('APK SHA256:',digest)
+          PY
