@@ -106,7 +106,8 @@ jobs:
           result = dict(sourceCommit=os.environ['STAGING_SOURCE_COMMIT'], publishedBaseline=released, stagingDebug=staging,
                         phoneInstallVerified=False, releaseReady=False,
                         blockers=['Version code remains 167; release bump requires maintainer review.',
-                                  'Reference recordings and physical phone verification are unavailable.'])
+                                  'Music-video retiming and beat-matched AutoMix remain incomplete.',
+                                  'Physical phone verification is unavailable; recording inspection does not establish device parity.'])
           open('build-verification.json', 'w').write(json.dumps(result, indent=2) + '\n')
           print(json.dumps(result, indent=2))
           PYVERIFY

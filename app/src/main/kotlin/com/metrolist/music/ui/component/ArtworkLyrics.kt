@@ -6,6 +6,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.GenericShape
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -72,49 +74,62 @@ internal fun ArtworkLyrics(slider: () -> Long?, modifier: Modifier = Modifier) {
         if (active >= 0) listState.animateScrollToItem(active)
         else listState.scrollToItem(0)
     }
-    Box(modifier.fillMaxSize().clip(RoundedCornerShape(24.dp))) {
+    BoxWithConstraints(modifier.fillMaxSize()) {
+        val coverHeight = maxHeight * .54f
+        val artworkShape = remember {
+            GenericShape { size, _ ->
+                moveTo(0f, 0f)
+                lineTo(size.width, 0f)
+                lineTo(size.width, size.height * .67f)
+                quadraticBezierTo(size.width * .64f, size.height * 1.02f, 0f, size.height)
+                close()
+            }
+        }
         AsyncImage(metadata?.thumbnailUrl, null, Modifier.fillMaxSize().blur(48.dp), contentScale = ContentScale.Crop)
-        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .48f)))
-        Column(Modifier.fillMaxSize().safeDrawingPadding().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                AsyncImage(metadata?.thumbnailUrl, metadata?.title,
-                    Modifier.fillMaxHeight().aspectRatio(1f, matchHeightConstraintsFirst = true).widthIn(max = 360.dp).clip(RoundedCornerShape(24.dp)),
-                    contentScale = ContentScale.Crop)
-            }
-            Spacer(Modifier.height(24.dp))
-            Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                LazyColumn(Modifier.weight(1f).fillMaxHeight(), state = listState, verticalArrangement = Arrangement.spacedBy(20.dp), contentPadding = PaddingValues(bottom = 160.dp)) {
-                    if (lines.isEmpty()) item { Text(stringResource(R.string.lyrics_not_found), color = Color.White) }
-                    itemsIndexed(lines) { index, line ->
-                        val wordIndex = if (index == active) artworkActiveWord(line.words, position) else -1
-                        val hasTiming = !line.words.isNullOrEmpty() && line.words!!.all { it.startTime.isFinite() && it.endTime.isFinite() && it.startTime >= 0 && it.endTime > it.startTime }
-                        Text(buildAnnotatedString {
-                            if (!hasTiming) append(line.text)
-                            else line.words!!.forEachIndexed { i, word ->
-                                withStyle(SpanStyle(color = Color.White.copy(alpha = if (index == active && i == wordIndex) 1f else .36f), fontSize = if (index == active && i == wordIndex) 31.sp else 28.sp)) {
-                                    append(word.text)
-                                    if (word.hasTrailingSpace) append(" ")
-                                }
-                            }
-                        }, color = Color.White.copy(alpha = if (index == active) 1f else .36f), fontSize = 28.sp, lineHeight = 38.sp, fontWeight = FontWeight.Bold)
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0x55333345), Color(0xCC291626)))))
+        AsyncImage(metadata?.thumbnailUrl, metadata?.title,
+            Modifier.fillMaxWidth().height(coverHeight).clip(artworkShape),
+            contentScale = ContentScale.Crop, alignment = Alignment.TopCenter)
+        LazyColumn(
+            Modifier.fillMaxWidth().padding(top = maxHeight * .57f).height(maxHeight * .29f),
+            state = listState, verticalArrangement = Arrangement.spacedBy(24.dp),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 180.dp),
+        ) {
+            if (lines.isEmpty()) item { Text(stringResource(R.string.lyrics_not_found), color = Color.White) }
+            itemsIndexed(lines) { index, line ->
+                val wordIndex = if (index == active) artworkActiveWord(line.words, position) else -1
+                val hasTiming = !line.words.isNullOrEmpty() && line.words!!.all { it.startTime.isFinite() && it.endTime.isFinite() && it.startTime >= 0 && it.endTime > it.startTime }
+                Text(buildAnnotatedString {
+                    if (!hasTiming) append(line.text)
+                    else line.words!!.forEachIndexed { i, word ->
+                        withStyle(SpanStyle(color = Color.White.copy(alpha = if (index == active && i == wordIndex) 1f else .36f), fontSize = if (index == active && i == wordIndex) 36.sp else 30.sp)) {
+                            append(word.text)
+                            if (word.hasTrailingSpace) append(" ")
+                        }
                     }
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    ArtworkTransport(if (song?.song?.liked == true) R.drawable.favorite else R.drawable.favorite_border, R.string.like, connection::toggleLike)
-                    ArtworkTransport(R.drawable.skip_previous, R.string.previous, connection::seekToPrevious)
-                    ArtworkTransport(if (playing) R.drawable.pause else R.drawable.play, if (playing) R.string.pause else R.string.play, connection::togglePlayPause)
-                    ArtworkTransport(R.drawable.skip_next, R.string.next, connection::seekToNext)
-                }
+                }, color = Color.White.copy(alpha = if (index == active) 1f else .36f), fontSize = 30.sp, lineHeight = 40.sp, fontWeight = FontWeight.Bold)
             }
+        }
+        Column(Modifier.align(Alignment.BottomStart).safeDrawingPadding().padding(start = 20.dp, end = 88.dp, bottom = 26.dp)) {
+            Text(metadata?.artists?.joinToString { it.name }.orEmpty(), color = Color.White.copy(alpha = .55f), fontSize = 12.sp, maxLines = 1)
+            Text(metadata?.title.orEmpty(), color = Color.White.copy(alpha = .7f), fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 2)
+        }
+        Column(Modifier.align(Alignment.BottomEnd).safeDrawingPadding().padding(end = 12.dp, bottom = 20.dp)) {
+            ArtworkTransport(if (song?.song?.liked == true) R.drawable.favorite else R.drawable.favorite_border, R.string.like, connection::toggleLike)
+            ArtworkTransport(R.drawable.skip_previous, R.string.previous, connection::seekToPrevious)
+            ArtworkTransport(if (playing) R.drawable.pause else R.drawable.play, if (playing) R.string.pause else R.string.play, connection::togglePlayPause)
+            ArtworkTransport(R.drawable.skip_next, R.string.next, connection::seekToNext)
         }
     }
 }
 
 @Composable
 private fun ArtworkTransport(icon: Int, label: Int, onClick: () -> Unit) {
-    Surface(color = Color.White.copy(alpha = .14f), shape = RoundedCornerShape(18.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = .2f))) {
-        IconButton(onClick = onClick, modifier = Modifier.size(48.dp)) {
-            Icon(painterResource(icon), stringResource(label), tint = Color.White)
+    IconButton(onClick = onClick, modifier = Modifier.size(48.dp)) {
+        Surface(color = Color.White.copy(alpha = .10f), shape = RoundedCornerShape(50), modifier = Modifier.size(width = 44.dp, height = 32.dp)) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(painterResource(icon), stringResource(label), tint = Color.White, modifier = Modifier.size(22.dp))
+            }
         }
     }
 }

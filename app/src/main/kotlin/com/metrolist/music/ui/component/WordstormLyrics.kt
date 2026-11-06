@@ -130,7 +130,7 @@ internal fun WordstormLyrics(
     Box(modifier.fillMaxSize()) {
         if (artworkMode) ArtworkLyrics(sliderPositionProvider)
         else SavedWordstormLyrics(sliderPositionProvider, showLyrics, onOriginal, Modifier.fillMaxSize(), immersive, onFullscreen, onExitFullscreen, useVerci)
-        TextButton(onClick = { artworkMode = !artworkMode }, modifier = Modifier.align(Alignment.BottomStart).safeDrawingPadding()) {
+        TextButton(onClick = { artworkMode = !artworkMode }, modifier = Modifier.align(if (artworkMode) Alignment.TopStart else Alignment.BottomStart).safeDrawingPadding()) {
             Text(stringResource(if (artworkMode) R.string.deeplist_standard_lyrics else R.string.deeplist_artwork_lyrics))
         }
         if (artworkMode && immersive) IconButton(onClick = onExitFullscreen, modifier = Modifier.align(Alignment.TopEnd).safeDrawingPadding()) {
