@@ -102,11 +102,11 @@ jobs:
           assert len(apks) == 1, apks
           staging = identity(apks[0])
           assert staging['packageId'] == 'com.deepu.wordstorm.staging'
-          assert staging['versionCode'] == released['versionCode']
+          assert staging['versionCode'] == 168 and staging['versionCode'] > released['versionCode']
+          assert staging['versionName'] == '13.8.6'
           result = dict(sourceCommit=os.environ['STAGING_SOURCE_COMMIT'], publishedBaseline=released, stagingDebug=staging,
                         phoneInstallVerified=False, releaseReady=False,
-                        blockers=['Version code remains 167; release bump requires maintainer review.',
-                                  'Music-video retiming and beat-matched AutoMix remain incomplete.',
+                        blockers=['Music-video retiming and beat-matched AutoMix remain incomplete.',
                                   'Physical phone verification is unavailable; recording inspection does not establish device parity.'])
           open('build-verification.json', 'w').write(json.dumps(result, indent=2) + '\n')
           print(json.dumps(result, indent=2))
@@ -155,8 +155,9 @@ jobs:
           cert = subprocess.check_output([tools + '/apksigner', 'verify', '--print-certs', apk], text=True)
           assert 'Signer #1 certificate SHA-256 digest: 1c73c95916d7e14bac0533d0a4a20a3c01be78f066fcc0c1102254712c4bcd5d' in cert
           badging = subprocess.check_output([tools + '/aapt', 'dump', 'badging', apk], text=True)
-          assert "package: name='com.deepu.wordstorm'" in badging
+          assert "package: name='com.deepu.wordstorm' versionCode='168' versionName='13.8.6'" in badging
           assert "application-label:'Deeplist'" in badging
+          print(badging.splitlines()[0])
           reports = [ET.parse(p).getroot() for p in glob.glob('app/build/test-results/testFossDebugUnitTest/TEST-*.xml')]
           assert reports and not any(int(r.get('failures', 0)) + int(r.get('errors', 0)) for r in reports)
           print('Unit tests passed:', sum(int(r.get('tests', 0)) for r in reports))
