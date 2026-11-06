@@ -118,7 +118,7 @@ internal fun DeeplistGacha(pool: List<MediaMetadata>, enabled: Boolean, onWinner
                             },
                     )
                 }
-                Icon(painterResource(R.drawable.deeplist_roll_pointer), null, tint = Color(0xFFFF9298),
+                Icon(painterResource(R.drawable.deeplist_roll_pointer), null, tint = Color(0xFFF0908D),
                     modifier = Modifier.offset(x = unit * 86f, y = unit * 198.5f)
                         .size(width = unit * 68f, height = unit * 75f).graphicsLayer {
                             translationX = -pointer.value * 7.dp.toPx()

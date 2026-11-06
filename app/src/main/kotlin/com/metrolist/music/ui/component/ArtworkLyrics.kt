@@ -114,7 +114,9 @@ internal fun ArtworkLyrics(slider: () -> Long?, modifier: Modifier = Modifier) {
             Text(metadata?.artists?.joinToString { it.name }.orEmpty(), color = Color.White.copy(alpha = .55f), fontSize = 12.sp, maxLines = 1)
             Text(metadata?.title.orEmpty(), color = Color.White.copy(alpha = .7f), fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 2)
         }
-        Column(Modifier.align(Alignment.BottomEnd).safeDrawingPadding().padding(end = 12.dp, bottom = 20.dp)) {
+        // Overlap the empty margins to match the pill gaps while retaining 48dp button bounds.
+        Column(Modifier.align(Alignment.BottomEnd).safeDrawingPadding().padding(end = 12.dp, bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy((-8).dp)) {
             ArtworkTransport(if (song?.song?.liked == true) R.drawable.favorite else R.drawable.favorite_border, R.string.like, connection::toggleLike)
             ArtworkTransport(R.drawable.skip_previous, R.string.previous, connection::seekToPrevious)
             ArtworkTransport(if (playing) R.drawable.pause else R.drawable.play, if (playing) R.string.pause else R.string.play, connection::togglePlayPause)
