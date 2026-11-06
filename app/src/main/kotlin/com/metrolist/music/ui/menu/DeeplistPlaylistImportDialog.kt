@@ -1,6 +1,5 @@
 package com.metrolist.music.ui.menu
 
-import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -22,10 +21,6 @@ import com.metrolist.music.deeplist.*
 import com.metrolist.music.db.entities.PlaylistEntity
 import com.metrolist.music.db.entities.PlaylistSongMap
 import com.metrolist.music.models.toMediaMetadata
-import com.metrolist.music.utils.dataStore
-import com.metrolist.music.constants.DeeplistSpotifyTracksKey
-import androidx.datastore.preferences.core.edit
-import org.json.JSONObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -52,9 +47,6 @@ fun DeeplistPlaylistImportDialog(initial: String = "", onDismiss: () -> Unit, on
         }
     }
     fun preview() { if (busy) return; scope.launch {
-        if (input.trim().startsWith("https://open.spotify.com/")) {
-            context.startActivity(Intent(context, DeeplistSpotifyActivity::class.java).putExtra("playlist", input.trim())); return@launch
-        }
         busy = true; error = false
         tracks = emptyList(); selected = emptyMap(); choices = emptyList()
         runCatching { withContext(Dispatchers.IO) {
@@ -106,7 +98,6 @@ fun DeeplistPlaylistImportDialog(initial: String = "", onDismiss: () -> Unit, on
                 Text(stringResource(R.string.deeplist_import_hint))
                 OutlinedTextField(input, { input = it.take(1_000_000) }, modifier = Modifier.heightIn(max = 150.dp), label = { Text(stringResource(R.string.deeplist_playlist_input)) }, enabled = !busy)
                 TextButton(onClick = { chooseFile.launch(arrayOf("text/*", "application/octet-stream", "application/json")) }) { Text(stringResource(R.string.deeplist_import_csv)) }
-                TextButton(onClick = { context.startActivity(Intent(context, DeeplistSpotifyActivity::class.java)) }) { Text(stringResource(R.string.deeplist_connect_spotify)) }
                 TextButton(onClick = { preview() }, enabled = input.isNotBlank() && !busy) { Text(stringResource(R.string.deeplist_preview_matches)) }
             } else {
                 Text(stringResource(R.string.deeplist_matches_count, selected.values.count { it != null }, tracks.size))
@@ -132,11 +123,6 @@ fun DeeplistPlaylistImportDialog(initial: String = "", onDismiss: () -> Unit, on
             database.withTransaction {
                 insert(playlist)
                 tracks.indices.mapNotNull { selected[it] }.forEachIndexed { index, item -> insert(item); insert(PlaylistSongMap(songId = item.id, playlistId = playlist.id, position = index)) }
-            }
-            context.dataStore.edit { prefs ->
-                val map = runCatching { JSONObject(prefs[DeeplistSpotifyTracksKey] ?: "{}") }.getOrDefault(JSONObject())
-                tracks.forEachIndexed { index, row -> selected[index]?.let { match -> if (row.spotifyId.isNotBlank()) map.put(match.id, row.spotifyId) } }
-                prefs[DeeplistSpotifyTracksKey] = map.toString()
             }
             playlist.id
         } }.onSuccess { onSaved(it); onDismiss() }.onFailure { error = true }

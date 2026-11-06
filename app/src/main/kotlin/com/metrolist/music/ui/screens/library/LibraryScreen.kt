@@ -91,10 +91,6 @@ fun LibraryScreen() {
                     Column {
                         filterContent()
                         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FilledTonalButton(onClick = { importLink = "https://open.spotify.com/playlist/" }) {
-                                Icon(painterResource(R.drawable.import_spotify), null, Modifier.size(20.dp))
-                                Text(stringResource(R.string.deeplist_import_spotify), Modifier.padding(start = 8.dp))
-                            }
                             FilledTonalButton(onClick = { importLink = "https://music.youtube.com/playlist?list=" }) {
                                 Icon(painterResource(R.drawable.import_youtube_music), null, Modifier.size(20.dp))
                                 Text(stringResource(R.string.deeplist_import_youtube_music), Modifier.padding(start = 8.dp))

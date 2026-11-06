@@ -32,6 +32,18 @@ class DeeplistPlaylistTransferTest {
         assertEquals("Track 1", rows.first().title)
         assertEquals("Track 2000", rows.last().title)
     }
+    @Test fun `legacy playlist metadata still decodes after Spotify import removal`() {
+        val legacy = """{"format":"deeplist-playlist","version":1,"name":"Old playlist","tracks":[{"title":"A song","artist":"Artist","id":"dQw4w9WgXcQ","spotifyId":"1234567890123456789012"}]}"""
+        val bytes = java.io.ByteArrayOutputStream()
+        java.util.zip.GZIPOutputStream(bytes).use { it.write(legacy.toByteArray(Charsets.UTF_8)) }
+        val code = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(bytes.toByteArray())
+        val decoded = DeeplistPlaylistTransfer.decode("https://deeplist-playlists.cherrybard2.chatgpt.site/playlist#$code")
+        assertEquals("Old playlist", decoded.name)
+        assertEquals("dQw4w9WgXcQ", decoded.tracks.single().id)
+        assertEquals("A song", decoded.tracks.single().title)
+        assertTrue(runCatching { DeeplistPlaylistTransfer.songList("https://open.spotify.com/playlist/1234567890123456789012") }.isFailure)
+        assertTrue(runCatching { DeeplistPlaylistTransfer.songList("spotify:playlist:1234567890123456789012") }.isFailure)
+    }
     @Test fun `bounded reads reject oversized data`() {
         assertArrayEquals(byteArrayOf(1, 2), deeplistReadLimited(ByteArrayInputStream(byteArrayOf(1, 2)), 2))
         assertTrue(runCatching { deeplistReadLimited(ByteArrayInputStream(ByteArray(100)), 8) }.isFailure)

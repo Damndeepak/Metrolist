@@ -9,7 +9,7 @@ import java.io.ByteArrayOutputStream
 import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
 
-internal data class DeeplistImportTrack(val title: String, val artist: String, val id: String = "", val duration: Int = -1, val thumbnail: String? = null, val spotifyId: String = "") {
+internal data class DeeplistImportTrack(val title: String, val artist: String, val id: String = "", val duration: Int = -1, val thumbnail: String? = null) {
     fun metadata() = MediaMetadata(id, title, listOf(MediaMetadata.Artist(null, artist)), duration, thumbnail)
 }
 internal data class DeeplistSharedPlaylist(val name: String, val tracks: List<DeeplistImportTrack>)
@@ -22,7 +22,7 @@ internal object DeeplistPlaylistTransfer {
     fun encode(playlist: DeeplistSharedPlaylist): String {
         require(playlist.tracks.isNotEmpty() && playlist.tracks.size <= 2000)
         val root = JSONObject().put("format", "deeplist-playlist").put("version", 1).put("name", playlist.name.take(150)).put("tracks", JSONArray().apply {
-            playlist.tracks.forEach { track -> put(JSONObject().put("title", track.title.take(250)).put("artist", track.artist.take(250)).put("id", track.id.takeIf { it.matches(Regex("[A-Za-z0-9_-]{11}")) }.orEmpty()).put("spotifyId", track.spotifyId.takeIf { it.matches(Regex("[A-Za-z0-9]{22}")) }.orEmpty()).put("duration", track.duration).put("thumbnail", track.thumbnail?.takeIf { it.startsWith("https://") })) }
+            playlist.tracks.forEach { track -> put(JSONObject().put("title", track.title.take(250)).put("artist", track.artist.take(250)).put("id", track.id.takeIf { it.matches(Regex("[A-Za-z0-9_-]{11}")) }.orEmpty()).put("duration", track.duration).put("thumbnail", track.thumbnail?.takeIf { it.startsWith("https://") })) }
         })
         val output = ByteArrayOutputStream(); GZIPOutputStream(output).use { it.write(root.toString().toByteArray(Charsets.UTF_8)) }
         val code = Base64.getUrlEncoder().withoutPadding().encodeToString(output.toByteArray())
@@ -41,13 +41,13 @@ internal object DeeplistPlaylistTransfer {
         val tracks = List(array.length()) { i -> array.getJSONObject(i).let {
             val title = it.getString("title"); val artist = it.getString("artist"); val id = it.optString("id")
             require(title.isNotBlank() && title.length <= 250 && artist.length <= 250 && (id.isBlank() || id.matches(Regex("[A-Za-z0-9_-]{11}"))))
-            DeeplistImportTrack(title, artist, id, it.optInt("duration", -1).coerceIn(-1, 86400), it.optString("thumbnail").takeIf { url -> url.startsWith("https://") && url.length <= 2000 }, it.optString("spotifyId").takeIf { value -> value.matches(Regex("[A-Za-z0-9]{22}")) }.orEmpty())
+            DeeplistImportTrack(title, artist, id, it.optInt("duration", -1).coerceIn(-1, 86400), it.optString("thumbnail").takeIf { url -> url.startsWith("https://") && url.length <= 2000 })
         } }
         return DeeplistSharedPlaylist(root.getString("name").take(150), tracks)
     }
     fun songList(text: String): List<DeeplistImportTrack> {
         require(text.length <= 1_000_000)
-        require(!text.trim().startsWith("https://") && !text.trim().startsWith("http://"))
+        require(!text.trim().startsWith("https://", ignoreCase = true) && !text.trim().startsWith("http://", ignoreCase = true) && !text.trim().startsWith("spotify:", ignoreCase = true))
         val rows = parseCSV(text)
         if (rows.isEmpty()) return emptyList()
         val header = rows.first().map { it.trim().lowercase().removePrefix("\uFEFF") }
