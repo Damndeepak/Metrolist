@@ -459,14 +459,14 @@ fun LibraryMixScreen(
                         key = "filter",
                         contentType = CONTENT_TYPE_HEADER,
                     ) {
-                        filterContent()
+                        headerContent()
                     }
 
                     item(
                         key = "header",
                         contentType = CONTENT_TYPE_HEADER,
                     ) {
-                        headerContent()
+                        filterContent()
                     }
 
                     if (showLikedPlaylist) {
@@ -786,7 +786,7 @@ fun LibraryMixScreen(
                         span = { GridItemSpan(maxLineSpan) },
                         contentType = CONTENT_TYPE_HEADER,
                     ) {
-                        filterContent()
+                        headerContent()
                     }
 
                     item(
@@ -794,7 +794,7 @@ fun LibraryMixScreen(
                         span = { GridItemSpan(maxLineSpan) },
                         contentType = CONTENT_TYPE_HEADER,
                     ) {
-                        headerContent()
+                        filterContent()
                     }
 
                     if (showLikedPlaylist) {

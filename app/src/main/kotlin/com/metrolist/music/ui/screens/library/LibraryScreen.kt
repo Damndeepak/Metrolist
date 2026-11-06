@@ -5,6 +5,15 @@
 
 package com.metrolist.music.ui.screens.library
 
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.Icon
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.res.painterResource
+import com.metrolist.music.constants.SongSortType
+import com.metrolist.music.constants.SongSortTypeKey
+import com.metrolist.music.constants.SongSortDescendingKey
+import com.metrolist.music.utils.rememberPreference
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -49,6 +58,8 @@ fun LibraryScreen() {
     var libraryViewType by rememberEnumPreference(AlbumViewTypeKey, LibraryViewType.GRID)
     var playlistViewType by rememberEnumPreference(PlaylistViewTypeKey, LibraryViewType.GRID)
 
+    var songSort by rememberEnumPreference(SongSortTypeKey, SongSortType.CREATE_DATE)
+    var songDescending by rememberPreference(SongSortDescendingKey, true)
     var importLink by rememberSaveable { mutableStateOf<String?>(null) }
     importLink?.let { link ->
         DeeplistPlaylistImportDialog(initial = link, onDismiss = { importLink = null })
@@ -80,15 +91,22 @@ fun LibraryScreen() {
                 filterContent = {
                     Column {
                         filterContent()
-                        Row {
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             FilledTonalButton(onClick = { importLink = "https://open.spotify.com/playlist/" }) {
-                                Text(stringResource(R.string.deeplist_import_spotify))
+                                Icon(painterResource(R.drawable.import_spotify), null, Modifier.size(20.dp))
+                                Text(stringResource(R.string.deeplist_import_spotify), Modifier.padding(start = 8.dp))
                             }
                             FilledTonalButton(onClick = { importLink = "https://music.youtube.com/playlist?list=" }) {
-                                Text(stringResource(R.string.deeplist_import_youtube_music))
+                                Icon(painterResource(R.drawable.import_youtube_music), null, Modifier.size(20.dp))
+                                Text(stringResource(R.string.deeplist_import_youtube_music), Modifier.padding(start = 8.dp))
                             }
                         }
                         LibraryCategoryCards(
+                            onRecent = {
+                                songSort = SongSortType.CREATE_DATE
+                                songDescending = true
+                                filterType = LibraryFilter.SONGS
+                            },
                             onSelect = { filterType = it },
                             onLiked = { navController.navigate("auto_playlist/liked") },
                         )
@@ -126,6 +144,7 @@ fun LibraryScreen() {
 
 @Composable
 private fun LibraryCategoryCards(
+    onRecent: () -> Unit,
     onSelect: (LibraryFilter) -> Unit,
     onLiked: () -> Unit,
 ) {
@@ -153,6 +172,7 @@ private fun LibraryCategoryCards(
                 onSelect(LibraryFilter.ARTISTS)
             }
         }
+        LibraryCategoryCard(R.string.deeplist_recently_added, songs.size, songs.lastOrNull()?.thumbnailUrl, Modifier.fillMaxWidth(), onRecent)
         LibraryCategoryCard(R.string.liked, liked.size, liked.lastOrNull()?.thumbnailUrl, Modifier.fillMaxWidth(), onLiked)
     }
 }

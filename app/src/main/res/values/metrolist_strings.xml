@@ -1353,4 +1353,7 @@ Your little world.</string>
     <string name="deeplist_profile_listening_time">Total listening time</string>
     <string name="deeplist_profile_listening_duration">%1$d h %2$d m</string>
     <string name="deeplist_gacha_reveal">Reveal reward</string>
+    <string name="deeplist_recently_added">Recently Added</string>
+    <string name="deeplist_artwork_lyrics">Artwork lyrics</string>
+    <string name="deeplist_standard_lyrics">Saved lyrics style</string>
 </resources>
