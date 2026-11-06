@@ -8,7 +8,6 @@ package com.metrolist.music.ui.screens.library
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Icon
-import androidx.compose.material3.TextButton
 import androidx.compose.ui.res.painterResource
 import com.metrolist.music.constants.SongSortType
 import com.metrolist.music.constants.SongSortTypeKey
@@ -160,7 +159,7 @@ private fun LibraryCategoryCards(
             LibraryCategoryCard(R.string.filter_songs, songs.size, songs.lastOrNull()?.thumbnailUrl, Modifier.weight(1f)) {
                 onSelect(LibraryFilter.SONGS)
             }
-            LibraryCategoryCard(R.string.filter_playlists, playlists.size, playlists.lastOrNull()?.thumbnailUrl, Modifier.weight(1f)) {
+            LibraryCategoryCard(R.string.filter_playlists, playlists.size, playlists.asReversed().firstNotNullOfOrNull { it.thumbnails.firstOrNull() }, Modifier.weight(1f)) {
                 onSelect(LibraryFilter.PLAYLISTS)
             }
         }

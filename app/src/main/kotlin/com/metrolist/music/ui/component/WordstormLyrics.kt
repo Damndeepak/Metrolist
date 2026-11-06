@@ -126,6 +126,31 @@ internal fun WordstormLyrics(
     useVerci: Boolean = true,
 ) {
     if (!showLyrics) return
+    var artworkMode by rememberPreference(com.metrolist.music.constants.DeeplistArtworkLyricsKey, false)
+    Box(modifier.fillMaxSize()) {
+        if (artworkMode) ArtworkLyrics(sliderPositionProvider)
+        else SavedWordstormLyrics(sliderPositionProvider, showLyrics, onOriginal, Modifier.fillMaxSize(), immersive, onFullscreen, onExitFullscreen, useVerci)
+        TextButton(onClick = { artworkMode = !artworkMode }, modifier = Modifier.align(Alignment.BottomStart).safeDrawingPadding()) {
+            Text(stringResource(if (artworkMode) R.string.deeplist_standard_lyrics else R.string.deeplist_artwork_lyrics))
+        }
+        if (artworkMode && immersive) IconButton(onClick = onExitFullscreen, modifier = Modifier.align(Alignment.TopEnd).safeDrawingPadding()) {
+            Icon(painterResource(R.drawable.close), stringResource(R.string.close))
+        }
+    }
+}
+
+@Composable
+private fun SavedWordstormLyrics(
+    sliderPositionProvider: () -> Long?,
+    showLyrics: Boolean,
+    onOriginal: () -> Unit,
+    modifier: Modifier = Modifier,
+    immersive: Boolean = false,
+    onFullscreen: () -> Unit = {},
+    onExitFullscreen: () -> Unit = {},
+    useVerci: Boolean = true,
+) {
+    if (!showLyrics) return
     val context = LocalContext.current
     var verciEnabled by rememberPreference(VerciLyricsKey, true)
     if (useVerci && verciEnabled) {

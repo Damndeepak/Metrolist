@@ -13,7 +13,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.stringResource
 import com.metrolist.music.R
-import com.metrolist.music.constants.DeeplistArtworkLyricsKey
 import com.metrolist.music.constants.WordstormEnabledKey
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
@@ -31,18 +30,6 @@ fun Lyrics(
     showLyrics: Boolean,
     lyricsViewModel: LyricsViewModel = hiltViewModel()
 ) {
-    var artworkMode by rememberPreference(DeeplistArtworkLyricsKey, false)
-    Box(modifier.fillMaxSize()) {
-        if (artworkMode && showLyrics) ArtworkLyrics(sliderPositionProvider)
-        else SavedLyrics(sliderPositionProvider, Modifier.fillMaxSize(), showLyrics, lyricsViewModel)
-        if (showLyrics) TextButton(onClick = { artworkMode = !artworkMode }, modifier = Modifier.align(Alignment.BottomStart).safeDrawingPadding()) {
-            Text(stringResource(if (artworkMode) R.string.deeplist_standard_lyrics else R.string.deeplist_artwork_lyrics))
-        }
-    }
-}
-
-@Composable
-private fun SavedLyrics(sliderPositionProvider: () -> Long?, modifier: Modifier, showLyrics: Boolean, lyricsViewModel: LyricsViewModel) {
     var wordstormEnabled by rememberPreference(WordstormEnabledKey, true)
     if (wordstormEnabled) {
         WordstormLyrics(sliderPositionProvider, showLyrics, { wordstormEnabled = false }, modifier)
