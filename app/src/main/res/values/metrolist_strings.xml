@@ -1356,4 +1356,6 @@ Your little world.</string>
     <string name="deeplist_recently_added">Recently Added</string>
     <string name="deeplist_artwork_lyrics">Artwork lyrics</string>
     <string name="deeplist_standard_lyrics">Saved lyrics style</string>
+    <string name="deeplist_profile_top_songs">Most played songs</string>
+    <string name="deeplist_profile_top_artists">Most played artists</string>
 </resources>
