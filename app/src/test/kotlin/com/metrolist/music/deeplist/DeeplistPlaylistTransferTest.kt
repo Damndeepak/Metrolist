@@ -24,6 +24,14 @@ class DeeplistPlaylistTransferTest {
         assertEquals("Long\nname", rows[1].title)
         assertTrue(runCatching { DeeplistPlaylistTransfer.songList("\"unterminated") }.isFailure)
     }
+    @Test fun `rejects unsupported service links and oversized playlists without truncation`() {
+        assertTrue(runCatching { DeeplistPlaylistTransfer.songList("https://music.apple.com/playlist/example") }.isFailure)
+        assertTrue(runCatching { DeeplistPlaylistTransfer.songList((1..2001).joinToString("\n") { "Track $it,Artist" }) }.isFailure)
+        val rows = DeeplistPlaylistTransfer.songList((1..2000).joinToString("\n") { "Track $it,Artist" })
+        assertEquals(2000, rows.size)
+        assertEquals("Track 1", rows.first().title)
+        assertEquals("Track 2000", rows.last().title)
+    }
     @Test fun `bounded reads reject oversized data`() {
         assertArrayEquals(byteArrayOf(1, 2), deeplistReadLimited(ByteArrayInputStream(byteArrayOf(1, 2)), 2))
         assertTrue(runCatching { deeplistReadLimited(ByteArrayInputStream(ByteArray(100)), 8) }.isFailure)

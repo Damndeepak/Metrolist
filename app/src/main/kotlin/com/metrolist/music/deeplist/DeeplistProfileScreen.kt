@@ -6,6 +6,8 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -158,7 +160,7 @@ internal fun DeeplistProfileScreen(navController: NavController) {
             )
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 Box(
-                    Modifier.size(76.dp).clip(CircleShape).background(cardColors.surface),
+                    Modifier.size(98.dp).clip(CircleShape).background(cardColors.surface).clickable(enabled = !state.busy) { photo.launch("image/*") },
                     contentAlignment = Alignment.Center,
                 ) {
                     if (user.optString("avatar").isNotBlank()) {
@@ -168,7 +170,7 @@ internal fun DeeplistProfileScreen(navController: NavController) {
                     }
                 }
                 Column(Modifier.weight(1f)) {
-                    Text(user.optString("name"), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text(user.optString("name"), style = MaterialTheme.typography.headlineLarge.copy(fontSize = 44.sp, lineHeight = 48.sp, letterSpacing = (-2).sp), fontWeight = FontWeight.Bold)
                     Text("@" + user.optString("username"), color = cardColors.onSurfaceVariant)
                 }
             }

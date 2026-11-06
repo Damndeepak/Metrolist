@@ -47,13 +47,18 @@ internal object DeeplistPlaylistTransfer {
     }
     fun songList(text: String): List<DeeplistImportTrack> {
         require(text.length <= 1_000_000)
+        require(!text.trim().startsWith("https://") && !text.trim().startsWith("http://"))
         val rows = parseCSV(text)
         if (rows.isEmpty()) return emptyList()
         val header = rows.first().map { it.trim().lowercase().removePrefix("\uFEFF") }
         val titleColumn = header.indexOfFirst { it in setOf("track name", "track title", "title", "song", "song name", "name") }
         val artistColumn = header.indexOfFirst { it in setOf("artist name(s)", "artist name", "artist", "artists", "artist names") }
         val headerPresent = titleColumn >= 0
-        return (if (headerPresent) rows.drop(1) else rows).take(2000).mapNotNull { row ->
+        val trackRows = (if (headerPresent) rows.drop(1) else rows).filter { row ->
+            !row.getOrNull(if (headerPresent) titleColumn else 0).isNullOrBlank()
+        }
+        require(trackRows.size <= 2000)
+        return trackRows.mapNotNull { row ->
             val title = row.getOrNull(if (headerPresent) titleColumn else 0)?.trim().orEmpty()
             val artist = row.getOrNull(if (headerPresent) artistColumn else 1)?.trim().orEmpty()
             if (title.isBlank()) null else DeeplistImportTrack(title.take(250), artist.take(250))

@@ -107,8 +107,8 @@ class DeeplistSpotifyActivity : ComponentActivity() {
                     }
                     next = page.optString("next").takeIf { it.startsWith("https://api.spotify.com/") }
                 }
-                check(rows.isNotEmpty())
-                DeeplistPlaylistTransfer.encode(DeeplistSharedPlaylist(info.optString("name", "Spotify"), rows.take(2000)))
+                check(rows.isNotEmpty() && rows.size <= 2000 && next == null)
+                DeeplistPlaylistTransfer.encode(DeeplistSharedPlaylist(info.optString("name", "Spotify"), rows))
             } }.onSuccess { payload = it }.onFailure { failed = true }
             busy = false
         }

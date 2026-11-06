@@ -64,6 +64,43 @@ jobs:
           print('Real startup gate regression passed without a database composition provider.')
           PYTEST
 
+      - name: Compare APK identity with the published Deeplist baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release download deeplist-167 --repo "$GITHUB_REPOSITORY" --pattern Deeplist.apk --pattern deeplist-release.json --dir baseline
+          python3 - <<'PYVERIFY'
+          import glob, hashlib, json, os, re, subprocess
+          tools = os.path.join(os.environ['ANDROID_HOME'], 'build-tools', '36.0.0')
+          baseline = 'baseline/Deeplist.apk'
+          manifest = json.load(open('baseline/deeplist-release.json'))
+          digest = hashlib.sha256(open(baseline, 'rb').read()).hexdigest()
+          assert digest == manifest['sha256'] == '3f67b52b54213fe88840fd2c7854d9177d749ddb1339f7a26cdd6ba5dc4df21c'
+          def identity(apk):
+              badging = subprocess.check_output([tools + '/aapt', 'dump', 'badging', apk], text=True)
+              package, code, version = re.search(r"package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'", badging).groups()
+              certs = subprocess.check_output([tools + '/apksigner', 'verify', '--print-certs', apk], text=True)
+              cert = re.search(r'Signer #1 certificate SHA-256 digest: (\w+)', certs).group(1)
+              return dict(packageId=package, versionCode=int(code), versionName=version, certificateSha256=cert)
+          released = identity(baseline)
+          assert released['packageId'] == 'com.deepu.wordstorm'
+          assert released['versionCode'] == 167
+          assert released['certificateSha256'] == '1c73c95916d7e14bac0533d0a4a20a3c01be78f066fcc0c1102254712c4bcd5d'
+          apks = glob.glob('app/build/outputs/apk/foss/debug/*.apk')
+          assert len(apks) == 1, apks
+          staging = identity(apks[0])
+          assert staging['packageId'] == 'com.deepu.wordstorm.staging'
+          assert staging['versionCode'] == released['versionCode']
+          result = dict(sourceCommit=os.environ['GITHUB_SHA'], publishedBaseline=released, stagingDebug=staging,
+                        phoneInstallVerified=False, releaseReady=False,
+                        blockers=['Original signing key is in a cache scoped to wordstorm-build.',
+                                  'Version code remains 167; release bump requires maintainer review.',
+                                  'Reference recordings and physical phone verification are unavailable.'])
+          open('build-verification.json', 'w').write(json.dumps(result, indent=2) + '\n')
+          print(json.dumps(result, indent=2))
+          PYVERIFY
+
       - name: Upload staging debug APK and test reports
         uses: actions/upload-artifact@v4
         with:
@@ -71,6 +108,7 @@ jobs:
           path: |
             app/build/outputs/apk/foss/debug/*.apk
             app/build/test-results
+            build-verification.json
           if-no-files-found: error
 
       - name: Keep test-app signing key between builds

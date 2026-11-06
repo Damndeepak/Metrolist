@@ -18,6 +18,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
+import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material3.CardDefaults
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
@@ -63,74 +67,83 @@ internal fun DeeplistGacha(pool: List<MediaMetadata>, enabled: Boolean, onWinner
     }
     val covers = candidates.ifEmpty { available.take(9) }
 
-    Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(stringResource(R.string.deeplist_gacha_title), style = MaterialTheme.typography.titleLarge)
-            if (covers.isNotEmpty()) Box(Modifier.fillMaxWidth().height(160.dp).clip(RoundedCornerShape(12.dp))) {
-                val step = 72.dp
-                val position = reel.value
-                val center = floor(position).toInt()
-                val fraction = position - center
-                for (offset in -2..2) {
-                    val song = covers[(center + offset).mod(covers.size)]
-                    val distance = offset - fraction
-                    AsyncImage(
-                        model = song.thumbnailUrl,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.align(Alignment.Center).offset(y = step * distance)
-                            .size(step - 8.dp).graphicsLayer {
-                                alpha = (1f - kotlin.math.abs(distance) * .25f).coerceIn(.3f, 1f)
-                                val scale = (1f - kotlin.math.abs(distance) * .12f).coerceIn(.72f, 1f)
-                                scaleX = scale
-                                scaleY = scale
-                            }.clip(RoundedCornerShape(10.dp)),
-                    )
+    Card(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = .6f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = .16f)),
+    ) {
+        Box {
+            AsyncImage(covers.firstOrNull()?.thumbnailUrl, null, Modifier.matchParentSize().blur(40.dp), contentScale = ContentScale.Crop)
+            Box(Modifier.matchParentSize().background(MaterialTheme.colorScheme.surface.copy(alpha = .7f)))
+            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(R.string.deeplist_gacha_title), style = MaterialTheme.typography.titleLarge)
+                if (covers.isNotEmpty()) Box(Modifier.fillMaxWidth().height(160.dp).clip(RoundedCornerShape(12.dp))) {
+                    val step = 72.dp
+                    val position = reel.value
+                    val center = floor(position).toInt()
+                    val fraction = position - center
+                    for (offset in -2..2) {
+                        val song = covers[(center + offset).mod(covers.size)]
+                        val distance = offset - fraction
+                        AsyncImage(
+                            model = song.thumbnailUrl,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.align(Alignment.Center).offset(y = step * distance)
+                                .size(step - 8.dp).graphicsLayer {
+                                    alpha = (1f - kotlin.math.abs(distance) * .25f).coerceIn(.3f, 1f)
+                                    val scale = (1f - kotlin.math.abs(distance) * .12f).coerceIn(.72f, 1f)
+                                    scaleX = scale
+                                    scaleY = scale
+                                }.clip(RoundedCornerShape(10.dp)),
+                        )
+                    }
                 }
-            }
-            val prize = winner
-            if (prize != null) {
-                ScratchPrize(prize) {
-                    winner = null
-                    sounds?.win()
-                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    latestOnWinner(prize)
-                }
-            } else Text(
-                stringResource(when {
-                    !enabled -> R.string.deeplist_gacha_guest
-                    available.size < 4 -> R.string.deeplist_gacha_wait
-                    else -> R.string.deeplist_gacha_hint
-                }),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Button(
-                enabled = enabled && !rolling && winner == null && available.size >= 4,
-                onClick = {
-                    if (!rolling) {
-                        if (sounds == null) sounds = GachaSounds(context)
-                        rolling = true
-                        scope.launch {
-                            try {
-                                val picks = available.shuffled().take(9)
-                                reel.snapTo(0f)
-                                candidates = picks
-                                winner = null
-                                val index = Random.nextInt(picks.size)
-                                reel.animateTo(
-                                    (picks.size * 3 + index).toFloat(),
-                                    tween(2800, easing = CubicBezierEasing(.12f, .65f, .12f, 1f)),
-                                )
-                                winner = picks[index]
-                            } finally {
-                                rolling = false
+                val prize = winner
+                if (prize != null) {
+                    ScratchPrize(prize) {
+                        winner = null
+                        sounds?.win()
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        latestOnWinner(prize)
+                    }
+                } else Text(
+                    stringResource(when {
+                        !enabled -> R.string.deeplist_gacha_guest
+                        available.size < 4 -> R.string.deeplist_gacha_wait
+                        else -> R.string.deeplist_gacha_hint
+                    }),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Button(
+                    enabled = enabled && !rolling && winner == null && available.size >= 4,
+                    onClick = {
+                        if (!rolling) {
+                            if (sounds == null) sounds = GachaSounds(context)
+                            rolling = true
+                            scope.launch {
+                                try {
+                                    val picks = available.shuffled().take(9)
+                                    reel.snapTo(0f)
+                                    candidates = picks
+                                    winner = null
+                                    val index = Random.nextInt(picks.size)
+                                    reel.animateTo(
+                                        (picks.size * 3 + index).toFloat(),
+                                        tween(2800, easing = CubicBezierEasing(.12f, .65f, .12f, 1f)),
+                                    )
+                                    winner = picks[index]
+                                } finally {
+                                    rolling = false
+                                }
                             }
                         }
-                    }
-                },
-            ) {
-                Text(stringResource(if (rolling) R.string.deeplist_gacha_rolling else R.string.deeplist_gacha_roll))
+                    },
+                ) {
+                    Text(stringResource(if (rolling) R.string.deeplist_gacha_rolling else R.string.deeplist_gacha_roll))
+                }
             }
         }
     }
@@ -141,6 +154,8 @@ private fun ScratchPrize(prize: MediaMetadata, onReveal: () -> Unit) {
     val marks = remember(prize.id) { mutableStateListOf<Pair<Offset, Offset>>() }
     val cells = remember(prize.id) { mutableSetOf<Int>() }
     val reveal by rememberUpdatedState(onReveal)
+    var revealed by remember(prize.id) { mutableStateOf(false) }
+    val revealOnce = { if (!revealed) { revealed = true; onReveal() } }
     val colors = MaterialTheme.colorScheme
     Box(Modifier.fillMaxWidth().height(72.dp).clip(RoundedCornerShape(12.dp))) {
         Text(
@@ -156,11 +171,12 @@ private fun ScratchPrize(prize: MediaMetadata, onReveal: () -> Unit) {
                     detectDragGestures { change, _ ->
                         change.consume()
                         val point = change.position
+                        if (point.x !in 0f..size.width.toFloat() || point.y !in 0f..size.height.toFloat()) return@detectDragGestures
                         marks.add(change.previousPosition to point)
                         val column = (point.x / size.width * 8).toInt().coerceIn(0, 7)
                         val row = (point.y / size.height * 3).toInt().coerceIn(0, 2)
                         cells.add(row * 8 + column)
-                        if (cells.size >= 9) reveal()
+                        if (cells.size >= 9 && !revealed) { revealed = true; reveal() }
                     }
                 },
         ) {
@@ -170,7 +186,7 @@ private fun ScratchPrize(prize: MediaMetadata, onReveal: () -> Unit) {
             }
         }
     }
-    androidx.compose.material3.TextButton(onClick = onReveal) {
+    androidx.compose.material3.TextButton(onClick = revealOnce) {
         Text(stringResource(R.string.deeplist_gacha_reveal))
     }
 }
