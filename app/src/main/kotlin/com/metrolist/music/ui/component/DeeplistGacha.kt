@@ -148,7 +148,8 @@ internal fun DeeplistGacha(pool: List<MediaMetadata>, enabled: Boolean, onWinner
                                     candidates = picks
                                     winner = null
                                     val index = Random.nextInt(picks.size)
-                                    val duration = Random.nextInt(3500, 9001)
+                                    // The recording has 2.67s from its first audible tick to the win; retain the 2.8s roll.
+                                    val duration = 2800
                                     val rotations = 2 + duration / 2500
                                     reel.animateTo((picks.size * rotations + index).toFloat(),
                                         tween(duration, easing = CubicBezierEasing(.15f, .45f, .2f, 1f)))
