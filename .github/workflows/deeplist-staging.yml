@@ -65,7 +65,8 @@ jobs:
         shell: bash
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon --max-workers=1 --no-parallel -Pkotlin.compiler.execution.strategy=in-process -Dorg.gradle.jvmargs="-Xmx3g -XX:ActiveProcessorCount=2" :app:assembleFossDebug :app:testFossDebugUnitTest
+          ./gradlew --no-daemon --max-workers=1 --no-parallel -Pkotlin.compiler.execution.strategy=in-process -Dorg.gradle.jvmargs="-Xmx3g -XX:ActiveProcessorCount=2" :app:assembleFossDebug
+          METROLIST_APPLICATION_ID=com.deepu.wordstorm ./gradlew --no-daemon --max-workers=1 --no-parallel -Pkotlin.compiler.execution.strategy=in-process -Dorg.gradle.jvmargs="-Xmx3g -XX:ActiveProcessorCount=2" :app:testFossDebugUnitTest
           python3 - <<'PYTEST'
           import xml.etree.ElementTree as ET
           result = ET.parse('app/build/test-results/testFossDebugUnitTest/TEST-com.metrolist.music.deeplist.DeeplistAccountGateStartupTest.xml').getroot()
