@@ -44,7 +44,8 @@ internal fun ArtworkLyrics(slider: () -> Long?, modifier: Modifier = Modifier) {
     val entity by connection.currentLyrics.collectAsStateWithLifecycle(initialValue = null)
     val song by connection.currentSong.collectAsStateWithLifecycle(initialValue = null)
     val playing by connection.isPlaying.collectAsStateWithLifecycle()
-    val source = wordstormLyricsForTrack(metadata?.id, entity?.id, entity?.lyrics).orEmpty()
+    val source = wordstormLyricsForTrack(metadata?.id, entity?.id, entity?.lyrics)
+        .takeUnless { it == com.metrolist.music.db.entities.LyricsEntity.LYRICS_NOT_FOUND }.orEmpty()
     val synced = remember(source) { lyricsTextLooksSynced(source) }
     var lines by remember(source) { mutableStateOf(emptyList<com.metrolist.music.lyrics.LyricsEntry>()) }
     LaunchedEffect(source) {
