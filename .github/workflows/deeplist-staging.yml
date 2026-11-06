@@ -53,10 +53,15 @@ jobs:
           "$SDK_MANAGER" --licenses < <(yes) >/dev/null
           "$SDK_MANAGER" --channel=3 "platforms;android-37.0" "build-tools;36.0.0"
 
+      - name: Generate isolated staging debug key
+        shell: bash
+        run: |
+          keytool -genkeypair -keystore "$RUNNER_TEMP/deeplist-staging.keystore" -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 30 -dname "CN=Deeplist Staging Test"
+
       - name: Build debug APK and run unit tests
         env:
           METROLIST_APPLICATION_ID: com.deepu.wordstorm.staging
-          METROLIST_DEBUG_KEYSTORE_PATH: ""
+          METROLIST_DEBUG_KEYSTORE_PATH: ${{ runner.temp }}/deeplist-staging.keystore
         shell: bash
         run: |
           chmod +x gradlew
