@@ -66,8 +66,8 @@ internal fun DeeplistGacha(pool: List<MediaMetadata>, enabled: Boolean, onWinner
     Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(stringResource(R.string.deeplist_gacha_title), style = MaterialTheme.typography.titleLarge)
-            if (covers.isNotEmpty()) BoxWithConstraints(Modifier.fillMaxWidth().height(80.dp).clip(RoundedCornerShape(12.dp))) {
-                val step = minOf(maxWidth / 3, 86.dp)
+            if (covers.isNotEmpty()) Box(Modifier.fillMaxWidth().height(160.dp).clip(RoundedCornerShape(12.dp))) {
+                val step = 72.dp
                 val position = reel.value
                 val center = floor(position).toInt()
                 val fraction = position - center
@@ -78,7 +78,7 @@ internal fun DeeplistGacha(pool: List<MediaMetadata>, enabled: Boolean, onWinner
                         model = song.thumbnailUrl,
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier.align(Alignment.Center).offset(x = step * distance)
+                        modifier = Modifier.align(Alignment.Center).offset(y = step * distance)
                             .size(step - 8.dp).graphicsLayer {
                                 alpha = (1f - kotlin.math.abs(distance) * .25f).coerceIn(.3f, 1f)
                                 val scale = (1f - kotlin.math.abs(distance) * .12f).coerceIn(.72f, 1f)
@@ -120,7 +120,7 @@ internal fun DeeplistGacha(pool: List<MediaMetadata>, enabled: Boolean, onWinner
                                 val index = Random.nextInt(picks.size)
                                 reel.animateTo(
                                     (picks.size * 3 + index).toFloat(),
-                                    tween(3200, easing = CubicBezierEasing(.12f, .65f, .12f, 1f)),
+                                    tween(2800, easing = CubicBezierEasing(.12f, .65f, .12f, 1f)),
                                 )
                                 winner = picks[index]
                             } finally {
