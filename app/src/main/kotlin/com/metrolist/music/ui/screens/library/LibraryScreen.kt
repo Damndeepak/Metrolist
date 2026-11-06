@@ -5,7 +5,20 @@
 
 package com.metrolist.music.ui.screens.library
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Card
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.remember
+import coil3.compose.AsyncImage
+import com.metrolist.music.LocalDatabase
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -75,6 +88,10 @@ fun LibraryScreen() {
                                 Text(stringResource(R.string.deeplist_import_youtube_music))
                             }
                         }
+                        LibraryCategoryCards(
+                            onSelect = { filterType = it },
+                            onLiked = { navController.navigate("auto_playlist/liked") },
+                        )
                     }
                 },
                 viewType = libraryViewType,
@@ -102,6 +119,70 @@ fun LibraryScreen() {
                 navController,
                 { filterType = LibraryFilter.LIBRARY },
             )
+        }
+    }
+}
+
+
+@Composable
+private fun LibraryCategoryCards(
+    onSelect: (LibraryFilter) -> Unit,
+    onLiked: () -> Unit,
+) {
+    val database = LocalDatabase.current
+    val songs by remember(database) { database.songsByCreateDateAsc() }.collectAsStateWithLifecycle(emptyList())
+    val playlists by remember(database) { database.playlistsByCreateDateAsc() }.collectAsStateWithLifecycle(emptyList())
+    val albums by remember(database) { database.albumsByCreateDateAsc() }.collectAsStateWithLifecycle(emptyList())
+    val artists by remember(database) { database.artistsByCreateDateAsc() }.collectAsStateWithLifecycle(emptyList())
+    val liked by remember(database) { database.likedSongsByCreateDateAsc() }.collectAsStateWithLifecycle(emptyList())
+
+    Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LibraryCategoryCard(R.string.filter_songs, songs.size, songs.lastOrNull()?.thumbnailUrl, Modifier.weight(1f)) {
+                onSelect(LibraryFilter.SONGS)
+            }
+            LibraryCategoryCard(R.string.filter_playlists, playlists.size, playlists.lastOrNull()?.thumbnailUrl, Modifier.weight(1f)) {
+                onSelect(LibraryFilter.PLAYLISTS)
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LibraryCategoryCard(R.string.filter_albums, albums.size, albums.lastOrNull()?.thumbnailUrl, Modifier.weight(1f)) {
+                onSelect(LibraryFilter.ALBUMS)
+            }
+            LibraryCategoryCard(R.string.filter_artists, artists.size, artists.lastOrNull()?.thumbnailUrl, Modifier.weight(1f)) {
+                onSelect(LibraryFilter.ARTISTS)
+            }
+        }
+        LibraryCategoryCard(R.string.liked, liked.size, liked.lastOrNull()?.thumbnailUrl, Modifier.fillMaxWidth(), onLiked)
+    }
+}
+
+@Composable
+private fun LibraryCategoryCard(
+    label: Int,
+    count: Int,
+    artwork: String?,
+    modifier: Modifier,
+    onClick: () -> Unit,
+) {
+    Card(onClick = onClick, modifier = modifier) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(label), style = MaterialTheme.typography.labelMedium)
+                Text(count.toString(), style = MaterialTheme.typography.titleLarge)
+            }
+            if (artwork != null) {
+                AsyncImage(
+                    model = artwork,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.size(32.dp),
+                )
+            }
         }
     }
 }
