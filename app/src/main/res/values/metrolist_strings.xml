@@ -1204,6 +1204,8 @@
     <string name="deeplist_video_permission_failed">Could not save access to this video. Choose it from a local folder and try again.</string>
     <string name="deeplist_background_brightness">Background brightness</string>
     <string name="deeplist_song_journey">Song journey &amp; scenes</string>
+    <string name="deeplist_import_spotify">Import Spotify</string>
+    <string name="deeplist_import_youtube_music">Import YouTube Music</string>
     <string name="deeplist_playlist_import">Import playlist</string>
     <string name="deeplist_transfer_settings">Share or restore settings</string>
     <string name="deeplist_reset_mode">Reset this look</string>

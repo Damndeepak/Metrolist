@@ -1,6 +1,7 @@
 package com.metrolist.music.ui.menu
 
 import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -14,6 +15,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.SongItem
+import com.metrolist.innertube.utils.completed
 import com.metrolist.music.LocalDatabase
 import com.metrolist.music.R
 import com.metrolist.music.deeplist.*
@@ -55,8 +57,32 @@ fun DeeplistPlaylistImportDialog(initial: String = "", onDismiss: () -> Unit, on
         }
         busy = true; error = false
         runCatching { withContext(Dispatchers.IO) {
-            if ((input.trim().startsWith("deeplist://") || input.trim().startsWith("https://deeplist-playlists.cherrybard2.chatgpt.site/playlist"))) DeeplistPlaylistTransfer.decode(input.trim())
-            else DeeplistSharedPlaylist(name, DeeplistPlaylistTransfer.songList(input))
+            val value = input.trim()
+            val uri = Uri.parse(value)
+            when {
+                value.startsWith("deeplist://") ||
+                    value.startsWith("https://deeplist-playlists.cherrybard2.chatgpt.site/playlist") ->
+                    DeeplistPlaylistTransfer.decode(value)
+                uri.scheme == "https" && uri.host in setOf("music.youtube.com", "www.youtube.com", "youtube.com") -> {
+                    val playlistId = uri.getQueryParameter("list").orEmpty()
+                    require(playlistId.matches(Regex("[A-Za-z0-9_-]+")))
+                    val page = YouTube.playlist(playlistId).completed().getOrThrow()
+                    require(page.songs.isNotEmpty())
+                    DeeplistSharedPlaylist(
+                        page.playlist.title,
+                        page.songs.map { song ->
+                            DeeplistImportTrack(
+                                title = song.title,
+                                artist = song.artists.joinToString { it.name },
+                                id = song.id,
+                                duration = song.duration ?: -1,
+                                thumbnail = song.thumbnail,
+                            )
+                        },
+                    )
+                }
+                else -> DeeplistSharedPlaylist(name, DeeplistPlaylistTransfer.songList(input))
+            }
         } }.onSuccess { parsed ->
             tracks = parsed.tracks; name = parsed.name
             selected = parsed.tracks.mapIndexedNotNull { i, t -> if (t.id.isNotBlank()) i to t.metadata() else null }.toMap()

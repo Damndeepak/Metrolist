@@ -6,9 +6,14 @@
 package com.metrolist.music.ui.screens.library
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -21,6 +26,7 @@ import com.metrolist.music.constants.LibraryFilter
 import com.metrolist.music.constants.LibraryViewType
 import com.metrolist.music.constants.PlaylistViewTypeKey
 import com.metrolist.music.ui.component.ChipsRow
+import com.metrolist.music.ui.menu.DeeplistPlaylistImportDialog
 import com.metrolist.music.utils.rememberEnumPreference
 
 @Composable
@@ -29,6 +35,11 @@ fun LibraryScreen() {
     var filterType by rememberEnumPreference(ChipSortTypeKey, LibraryFilter.LIBRARY)
     var libraryViewType by rememberEnumPreference(AlbumViewTypeKey, LibraryViewType.GRID)
     var playlistViewType by rememberEnumPreference(PlaylistViewTypeKey, LibraryViewType.GRID)
+
+    var importLink by rememberSaveable { mutableStateOf<String?>(null) }
+    importLink?.let { link ->
+        DeeplistPlaylistImportDialog(initial = link, onDismiss = { importLink = null })
+    }
 
     val filterContent = @Composable {
         Row {
@@ -53,7 +64,19 @@ fun LibraryScreen() {
         when (filterType) {
             LibraryFilter.LIBRARY -> LibraryMixScreen(
                 navController = navController,
-                filterContent = filterContent,
+                filterContent = {
+                    Column {
+                        filterContent()
+                        Row {
+                            FilledTonalButton(onClick = { importLink = "https://open.spotify.com/playlist/" }) {
+                                Text(stringResource(R.string.deeplist_import_spotify))
+                            }
+                            FilledTonalButton(onClick = { importLink = "https://music.youtube.com/playlist?list=" }) {
+                                Text(stringResource(R.string.deeplist_import_youtube_music))
+                            }
+                        }
+                    }
+                },
                 viewType = libraryViewType,
                 onViewTypeChange = { libraryViewType = it },
             )
