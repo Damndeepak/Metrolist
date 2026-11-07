@@ -41,8 +41,9 @@ fun DeeplistPlaylistImportDialog(initial: String = "", onDismiss: () -> Unit, on
     var query by remember { mutableStateOf("") }
     var candidates by remember { mutableStateOf<List<SongItem>>(emptyList()) }
     val chooseFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) {
-            busy = true
+        if (uri == null) {
+            busy = false
+        } else {
             scope.launch {
                 runCatching { withContext(Dispatchers.IO) { context.contentResolver.openInputStream(uri)?.use { stream -> val bytes = deeplistReadLimited(stream, 1_000_000); require(bytes.size <= 1_000_000); String(bytes) } ?: error("No file") } }
                     .onSuccess { input = it; tracks = emptyList(); selected = emptyMap(); choices = emptyList(); error = false }.onFailure { error = true }
@@ -106,7 +107,11 @@ fun DeeplistPlaylistImportDialog(initial: String = "", onDismiss: () -> Unit, on
             if (tracks.isEmpty()) {
                 Text(stringResource(R.string.deeplist_import_hint))
                 OutlinedTextField(input, { input = it.take(1_000_000) }, modifier = Modifier.heightIn(max = 150.dp), label = { Text(stringResource(R.string.deeplist_playlist_input)) }, enabled = !busy)
-                TextButton(onClick = { chooseFile.launch(arrayOf("text/*", "application/octet-stream", "application/json")) }, enabled = !busy) { Text(stringResource(R.string.deeplist_import_csv)) }
+                TextButton(onClick = {
+                    busy = true
+                    runCatching { chooseFile.launch(arrayOf("text/*", "application/octet-stream", "application/json")) }
+                        .onFailure { busy = false; error = true }
+                }, enabled = !busy) { Text(stringResource(R.string.deeplist_import_csv)) }
                 TextButton(onClick = { preview() }, enabled = input.isNotBlank() && !busy) { Text(stringResource(R.string.deeplist_preview_matches)) }
             } else {
                 Text(stringResource(R.string.deeplist_matches_count, selected.values.count { it != null }, tracks.size))
