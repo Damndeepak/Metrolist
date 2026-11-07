@@ -77,6 +77,11 @@ fun DeeplistPlaylistImportDialog(initial: String = "", onDismiss: () -> Unit, on
                 else -> DeeplistSharedPlaylist(name, DeeplistPlaylistTransfer.songList(input))
             }
         } }.onSuccess { parsed ->
+            if (parsed.tracks.isEmpty()) {
+                error = true
+                busy = false
+                return@launch
+            }
             tracks = parsed.tracks; name = parsed.name
             selected = parsed.tracks.mapIndexedNotNull { i, t -> if (t.id.isNotBlank()) i to t.metadata() else null }.toMap()
             choices = List(tracks.size) { emptyList() }
@@ -97,7 +102,7 @@ fun DeeplistPlaylistImportDialog(initial: String = "", onDismiss: () -> Unit, on
             if (tracks.isEmpty()) {
                 Text(stringResource(R.string.deeplist_import_hint))
                 OutlinedTextField(input, { input = it.take(1_000_000) }, modifier = Modifier.heightIn(max = 150.dp), label = { Text(stringResource(R.string.deeplist_playlist_input)) }, enabled = !busy)
-                TextButton(onClick = { chooseFile.launch(arrayOf("text/*", "application/octet-stream", "application/json")) }) { Text(stringResource(R.string.deeplist_import_csv)) }
+                TextButton(onClick = { chooseFile.launch(arrayOf("text/*", "application/octet-stream", "application/json")) }, enabled = !busy) { Text(stringResource(R.string.deeplist_import_csv)) }
                 TextButton(onClick = { preview() }, enabled = input.isNotBlank() && !busy) { Text(stringResource(R.string.deeplist_preview_matches)) }
             } else {
                 Text(stringResource(R.string.deeplist_matches_count, selected.values.count { it != null }, tracks.size))
