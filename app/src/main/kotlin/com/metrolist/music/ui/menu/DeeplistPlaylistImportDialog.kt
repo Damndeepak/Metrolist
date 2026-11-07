@@ -44,6 +44,7 @@ fun DeeplistPlaylistImportDialog(initial: String = "", onDismiss: () -> Unit, on
         if (uri == null) {
             busy = false
         } else {
+            busy = true
             scope.launch {
                 runCatching { withContext(Dispatchers.IO) { context.contentResolver.openInputStream(uri)?.use { stream -> val bytes = deeplistReadLimited(stream, 1_000_000); require(bytes.size <= 1_000_000); String(bytes) } ?: error("No file") } }
                     .onSuccess { input = it; tracks = emptyList(); selected = emptyMap(); choices = emptyList(); error = false }.onFailure { error = true }
