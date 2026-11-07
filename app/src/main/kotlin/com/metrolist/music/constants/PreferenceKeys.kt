@@ -843,3 +843,5 @@ val DeeplistGlobalLookInitializedKey = booleanPreferencesKey("deeplistGlobalLook
 val DeeplistPerSongLookKey = booleanPreferencesKey("deeplistPerSongLook")
 
 val DeeplistAppleDefaultInitializedKey = booleanPreferencesKey("deeplistAppleDefaultInitialized")
+
+val DeeplistArtworkLyricsKey = booleanPreferencesKey("deeplistArtworkLyrics")

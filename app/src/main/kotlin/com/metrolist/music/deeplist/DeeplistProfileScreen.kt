@@ -6,6 +6,15 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.horizontalScroll
+import com.metrolist.music.LocalPlayerConnection
+import com.metrolist.music.extensions.toMediaItem
+import com.metrolist.music.playback.queues.ListQueue
+import com.metrolist.music.ui.component.SongGridItem
+import com.metrolist.music.ui.component.ArtistGridItem
+import com.metrolist.music.ui.component.PlaylistGridItem
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -124,6 +133,10 @@ internal fun DeeplistProfileScreen(navController: NavController) {
     }
     val playTime by playTimeFlow.collectAsStateWithLifecycle(initialValue = null)
     val minutes = (playTime ?: 0L).coerceAtLeast(0L) / 60_000L
+    val player = LocalPlayerConnection.current
+    val libraryPlaylists by remember(database) { database.playlistsByCreateDateAsc() }.collectAsStateWithLifecycle(emptyList())
+    val topSongs by remember(database) { database.mostPlayedSongs(java.time.LocalDateTime.of(1970, 1, 1, 0, 0)) }.collectAsStateWithLifecycle(emptyList())
+    val topArtists by remember(database) { database.mostPlayedArtists(java.time.LocalDateTime.of(1970, 1, 1, 0, 0)) }.collectAsStateWithLifecycle(emptyList())
     var edit by remember { mutableStateOf(false) }
     var moments by remember { mutableStateOf(false) }
     var publish by remember { mutableStateOf(false) }
@@ -158,7 +171,7 @@ internal fun DeeplistProfileScreen(navController: NavController) {
             )
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 Box(
-                    Modifier.size(76.dp).clip(CircleShape).background(cardColors.surface),
+                    Modifier.size(98.dp).clip(CircleShape).background(cardColors.surface).clickable(enabled = !state.busy) { photo.launch("image/*") },
                     contentAlignment = Alignment.Center,
                 ) {
                     if (user.optString("avatar").isNotBlank()) {
@@ -168,7 +181,7 @@ internal fun DeeplistProfileScreen(navController: NavController) {
                     }
                 }
                 Column(Modifier.weight(1f)) {
-                    Text(user.optString("name"), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text(user.optString("name"), style = MaterialTheme.typography.headlineLarge.copy(fontSize = 44.sp, lineHeight = 48.sp, letterSpacing = (-2).sp), fontWeight = FontWeight.Bold)
                     Text("@" + user.optString("username"), color = cardColors.onSurfaceVariant)
                 }
             }
@@ -195,6 +208,36 @@ internal fun DeeplistProfileScreen(navController: NavController) {
                 )
                 HorizontalDivider()
                 Text(stringResource(R.string.dp_capsule_details), color = MaterialTheme.colorScheme.primary)
+            }
+        }
+        if (topSongs.isNotEmpty()) {
+            Text(stringResource(R.string.deeplist_profile_top_songs), style = MaterialTheme.typography.titleLarge)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                topSongs.forEachIndexed { index, track ->
+                    SongGridItem(track, modifier = Modifier.width(148.dp).clickable(enabled = player != null) {
+                        player?.playQueue(ListQueue(items = topSongs.map { it.toMediaItem() }, startIndex = index))
+                    })
+                }
+            }
+        }
+        if (libraryPlaylists.isNotEmpty()) {
+            Text(stringResource(R.string.dp_playlists), style = MaterialTheme.typography.titleLarge)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                libraryPlaylists.asReversed().take(12).forEach { playlist ->
+                    PlaylistGridItem(playlist, modifier = Modifier.width(148.dp).clickable {
+                        navController.navigate("local_playlist/${playlist.id}")
+                    })
+                }
+            }
+        }
+        if (topArtists.isNotEmpty()) {
+            Text(stringResource(R.string.deeplist_profile_top_artists), style = MaterialTheme.typography.titleLarge)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                topArtists.forEach { artist ->
+                    ArtistGridItem(artist, modifier = Modifier.width(120.dp).clickable {
+                        navController.navigate("artist/${artist.id}")
+                    })
+                }
             }
         }
         HorizontalDivider()

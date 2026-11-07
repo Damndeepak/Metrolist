@@ -1,0 +1,186 @@
+name: Deeplist staging verification
+
+on:
+  push:
+    branches: [deeplist-complete-staging]
+  pull_request:
+    branches: [wordstorm-build]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deeplist-staging-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    name: Build Deeplist
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      STAGING_SOURCE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+      METROLIST_APPLICATION_ID: com.deepu.wordstorm
+      METROLIST_APP_NAME: Deeplist
+      METROLIST_ABI_FILTERS: arm64-v8a
+      METROLIST_DEBUG_KEYSTORE_PATH: ${{ github.workspace }}/.wordstorm-signing/debug.keystore
+    steps:
+      - name: Check out custom source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.STAGING_SOURCE_COMMIT }}
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Cache Gradle downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: wordstorm-gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle.kts', 'gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: wordstorm-gradle-${{ runner.os }}-
+
+      - name: Install Android SDK components
+        shell: bash
+        run: |
+          SDK_MANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          "$SDK_MANAGER" --licenses < <(yes) >/dev/null
+          "$SDK_MANAGER" --channel=3 "platforms;android-37.0" "build-tools;36.0.0"
+
+      - name: Generate isolated staging debug key
+        shell: bash
+        run: |
+          keytool -genkeypair -keystore "$RUNNER_TEMP/deeplist-staging.keystore" -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 30 -dname "CN=Deeplist Staging Test"
+
+      - name: Build debug APK and run unit tests
+        env:
+          METROLIST_APPLICATION_ID: com.deepu.wordstorm.staging
+          METROLIST_DEBUG_KEYSTORE_PATH: ${{ runner.temp }}/deeplist-staging.keystore
+        shell: bash
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon --max-workers=1 --no-parallel -Pkotlin.compiler.execution.strategy=in-process -Dorg.gradle.jvmargs="-Xmx3g -XX:ActiveProcessorCount=2" :app:assembleFossDebug
+          METROLIST_APPLICATION_ID=com.deepu.wordstorm ./gradlew --no-daemon --max-workers=1 --no-parallel -Pkotlin.compiler.execution.strategy=in-process -Dorg.gradle.jvmargs="-Xmx3g -XX:ActiveProcessorCount=2" :app:testFossDebugUnitTest
+          python3 - <<'PYTEST'
+          import xml.etree.ElementTree as ET
+          result = ET.parse('app/build/test-results/testFossDebugUnitTest/TEST-com.metrolist.music.deeplist.DeeplistAccountGateStartupTest.xml').getroot()
+          assert int(result.get('tests', 0)) > 0
+          assert all(int(result.get(key, 0)) == 0 for key in ('failures', 'errors', 'skipped'))
+          print('Real startup gate regression passed without a database composition provider.')
+          PYTEST
+
+      - name: Compare APK identity with the published Deeplist baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release download deeplist-167 --repo "$GITHUB_REPOSITORY" --pattern Deeplist.apk --pattern deeplist-release.json --dir baseline
+          python3 - <<'PYVERIFY'
+          import glob, hashlib, json, os, re, subprocess
+          tools = os.path.join(os.environ['ANDROID_HOME'], 'build-tools', '36.0.0')
+          baseline = 'baseline/Deeplist.apk'
+          manifest = json.load(open('baseline/deeplist-release.json'))
+          digest = hashlib.sha256(open(baseline, 'rb').read()).hexdigest()
+          assert digest == manifest['sha256'] == '3f67b52b54213fe88840fd2c7854d9177d749ddb1339f7a26cdd6ba5dc4df21c'
+          def identity(apk):
+              badging = subprocess.check_output([tools + '/aapt', 'dump', 'badging', apk], text=True)
+              package, code, version = re.search(r"package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'", badging).groups()
+              certs = subprocess.check_output([tools + '/apksigner', 'verify', '--print-certs', apk], text=True)
+              cert = re.search(r'Signer #1 certificate SHA-256 digest: (\w+)', certs).group(1)
+              return dict(packageId=package, versionCode=int(code), versionName=version, certificateSha256=cert)
+          released = identity(baseline)
+          assert released['packageId'] == 'com.deepu.wordstorm'
+          assert released['versionCode'] == 167
+          assert released['certificateSha256'] == '1c73c95916d7e14bac0533d0a4a20a3c01be78f066fcc0c1102254712c4bcd5d'
+          apks = glob.glob('app/build/outputs/apk/foss/debug/*.apk')
+          assert len(apks) == 1, apks
+          staging = identity(apks[0])
+          assert staging['packageId'] == 'com.deepu.wordstorm.staging'
+          assert staging['versionCode'] == 168 and staging['versionCode'] > released['versionCode']
+          assert staging['versionName'] == '13.8.6'
+          result = dict(sourceCommit=os.environ['STAGING_SOURCE_COMMIT'], publishedBaseline=released, stagingDebug=staging,
+                        phoneInstallVerified=False, releaseReady=False,
+                        blockers=['Music-video retiming and beat-matched AutoMix remain incomplete.',
+                                  'Physical phone verification is unavailable; recording inspection does not establish device parity.'])
+          open('build-verification.json', 'w').write(json.dumps(result, indent=2) + '\n')
+          print(json.dumps(result, indent=2))
+          PYVERIFY
+
+      - name: Upload staging debug APK and test reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: Deeplist-staging-debug
+          path: |
+            app/build/outputs/apk/foss/debug/*.apk
+            app/build/test-results
+            build-verification.json
+          if-no-files-found: error
+
+      - name: Keep test-app signing key between builds
+        uses: actions/cache@v4
+        with:
+          path: .wordstorm-signing
+          key: wordstorm-test-signing-${{ github.repository }}-v1
+
+      - name: Verify existing Deeplist update signing key
+        shell: bash
+        run: |
+          if [ ! -f "$METROLIST_DEBUG_KEYSTORE_PATH" ]; then
+            echo "Existing Deeplist signing key is missing. Restore its backup; generating a new key would prevent updating the installed app."
+            exit 1
+          fi
+          CERT=$(keytool -exportcert -keystore "$METROLIST_DEBUG_KEYSTORE_PATH" -storepass android -alias androiddebugkey | sha256sum | cut -d ' ' -f1)
+          test "$CERT" = "1c73c95916d7e14bac0533d0a4a20a3c01be78f066fcc0c1102254712c4bcd5d" || { echo "Signing certificate differs from the existing Deeplist app."; exit 1; }
+
+      - name: Build verified release APK
+        shell: bash
+        run: |
+          ./gradlew --no-daemon --max-workers=1 --no-parallel -Pkotlin.compiler.execution.strategy=in-process -Dorg.gradle.jvmargs="-Xmx3g -XX:ActiveProcessorCount=2" :app:assembleFossRelease
+
+      - name: Verify release identity and report tests
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import glob, hashlib, os, subprocess, xml.etree.ElementTree as ET
+          apks = glob.glob('app/build/outputs/apk/**/release/*.apk', recursive=True)
+          assert len(apks) == 1, apks
+          apk = apks[0]
+          tools = os.path.join(os.environ['ANDROID_HOME'], 'build-tools', '36.0.0')
+          cert = subprocess.check_output([tools + '/apksigner', 'verify', '--print-certs', apk], text=True)
+          assert 'Signer #1 certificate SHA-256 digest: 1c73c95916d7e14bac0533d0a4a20a3c01be78f066fcc0c1102254712c4bcd5d' in cert
+          badging = subprocess.check_output([tools + '/aapt', 'dump', 'badging', apk], text=True)
+          assert "package: name='com.deepu.wordstorm' versionCode='168' versionName='13.8.6'" in badging
+          assert "application-label:'Deeplist'" in badging
+          print(badging.splitlines()[0])
+          reports = [ET.parse(p).getroot() for p in glob.glob('app/build/test-results/testFossDebugUnitTest/TEST-*.xml')]
+          assert reports and not any(int(r.get('failures', 0)) + int(r.get('errors', 0)) for r in reports)
+          print('Unit tests passed:', sum(int(r.get('tests', 0)) for r in reports))
+          print(cert)
+          print('APK SHA256:', hashlib.sha256(open(apk, 'rb').read()).hexdigest())
+          print('Release package and original Deeplist certificate verified.')
+          PY
+
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Deeplist-APK
+          path: app/build/outputs/apk/**/release/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload build reports for debugging
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Wordstorm-Build-Reports
+          path: |
+            app/build/reports
+            app/build/test-results
+          if-no-files-found: ignore
+          retention-days: 7
