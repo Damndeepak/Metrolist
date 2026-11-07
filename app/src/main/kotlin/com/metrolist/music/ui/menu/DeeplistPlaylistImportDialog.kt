@@ -41,9 +41,13 @@ fun DeeplistPlaylistImportDialog(initial: String = "", onDismiss: () -> Unit, on
     var query by remember { mutableStateOf("") }
     var candidates by remember { mutableStateOf<List<SongItem>>(emptyList()) }
     val chooseFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) scope.launch {
-            runCatching { withContext(Dispatchers.IO) { context.contentResolver.openInputStream(uri)?.use { stream -> val bytes = deeplistReadLimited(stream, 1_000_000); require(bytes.size <= 1_000_000); String(bytes) } ?: error("No file") } }
-                .onSuccess { input = it; tracks = emptyList(); selected = emptyMap(); choices = emptyList(); error = false }.onFailure { error = true }
+        if (uri != null) {
+            busy = true
+            scope.launch {
+                runCatching { withContext(Dispatchers.IO) { context.contentResolver.openInputStream(uri)?.use { stream -> val bytes = deeplistReadLimited(stream, 1_000_000); require(bytes.size <= 1_000_000); String(bytes) } ?: error("No file") } }
+                    .onSuccess { input = it; tracks = emptyList(); selected = emptyMap(); choices = emptyList(); error = false }.onFailure { error = true }
+                busy = false
+            }
         }
     }
     fun preview() { if (busy) return; scope.launch {
